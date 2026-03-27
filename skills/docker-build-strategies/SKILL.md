@@ -7,7 +7,7 @@ description: Use this skill when writing or optimizing Dockerfiles. Covers multi
 
 ## Overview
 
-This skill provides rules and patterns for writing production-quality Dockerfiles. Apply it whenever generating or modifying a Dockerfile to produce small, secure, cache-friendly images using multi-stage builds, proper layer ordering, and non-root execution.
+This skill provides rules and patterns for writing and reviewing production-quality Dockerfiles. Apply it when the main task is image-build quality: multi-stage builds, cache behavior, non-root execution, build context hygiene, and runtime image size.
 
 ## When to use this skill
 
@@ -17,6 +17,14 @@ Activate this skill when:
 - Optimizing an existing Dockerfile for size, speed, or security
 - Reviewing a Dockerfile for best-practice compliance
 - Adding a `.dockerignore` file to a project
+
+## Do not use this skill when
+
+Do not use this skill when:
+
+- The project has no Docker setup yet and the main need is a first-pass scaffold
+- The main task is wiring services together in `compose.yaml`
+- The main task is debugging Compose startup ordering, networking, or development overrides
 
 ## Core guidance
 
@@ -84,6 +92,11 @@ Always configure the final image to run as a non-root user.
 - Prefer `ENTRYPOINT` with exec form (`["binary"]`) over shell form.
 - Add `EXPOSE` to document the listening port.
 - Add metadata labels: `LABEL org.opencontainers.image.source=...`
+
+## Related skills
+
+- For first-time Docker project scaffolding and deciding which files to create, use `docker-project-foundations`.
+- For service dependencies, health checks, overrides, networks, and volume patterns, use `docker-compose-patterns`.
 
 ## References
 

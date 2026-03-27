@@ -7,7 +7,7 @@ description: Use this skill when creating or modifying Docker Compose configurat
 
 ## Overview
 
-This skill provides rules for generating correct, production-ready Docker Compose configurations. Use it when creating or modifying `compose.yaml` files to ensure proper service dependencies, health checks, volume management, networking, and environment variable handling.
+This skill provides rules for creating, reviewing, and debugging Docker Compose configurations. Use it when the main artifact is `compose.yaml` or `compose.override.yaml` and the task is about service wiring rather than image-build internals.
 
 ## When to use this skill
 
@@ -17,6 +17,14 @@ Activate this skill when:
 - Adding or modifying services in an existing Compose file
 - Setting up development overrides with `compose.override.yaml`
 - Debugging service startup ordering or connectivity issues
+
+## Do not use this skill when
+
+Do not use this skill when:
+
+- The project has no Docker setup yet and the main need is an initial scaffold
+- The main task is writing or optimizing a `Dockerfile`
+- The main task is improving build caching, image size, or runtime user configuration
 
 ## Core guidance
 
@@ -28,7 +36,7 @@ Use `compose.yaml` as the canonical filename. Do not use `docker-compose.yml` or
 
 - Give services clear, lowercase names that reflect their role: `web`, `db`, `cache`, `worker`.
 - Always pin image tags to a specific version. Never use `latest` or omit the tag.
-- Set `restart: unless-stopped` for services that should survive host reboots in non-development environments.
+- Set `restart: unless-stopped` for long-running infrastructure services and non-development deployments.
 - Add `container_name` only when external tools need a predictable name. Otherwise, let Compose generate names.
 
 ### Dependency modeling
@@ -76,6 +84,11 @@ Use `compose.yaml` as the canonical filename. Do not use `docker-compose.yml` or
 - Use `action: sync` for files that should be copied into the container on change (source code).
 - Use `action: rebuild` for files that require a full image rebuild (dependency files like `package.json`, `requirements.txt`).
 - Use `action: sync+restart` for configuration files that need a process restart.
+
+## Related skills
+
+- For first-time Docker project scaffolding and baseline file creation, use `docker-project-foundations`.
+- For Dockerfile internals, build caching, multi-stage builds, and `.dockerignore`, use `docker-build-strategies`.
 
 ## References
 

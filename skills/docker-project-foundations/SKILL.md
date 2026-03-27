@@ -7,18 +7,25 @@ description: Use this skill when setting up, initializing, or Dockerizing a proj
 
 ## Overview
 
-This skill guides you in Dockerizing a project from scratch. It covers the key files every Dockerized project needs (`.dockerignore`, `Dockerfile`, `compose.yaml`), how to structure them, and how to prefer containerized dependencies over host-level installs.
+This skill guides you in Dockerizing a project from scratch. It focuses on creating the initial Docker file set, choosing a sane layout, and preferring containerized dependencies over host-level installs.
 
 ## When to use this skill
 
 Activate this skill when:
 
 - A user asks you to set up, initialize, or Dockerize a project
-- A project needs a `Dockerfile`, `compose.yaml`, or `.dockerignore` and does not have one
+- A project needs an initial `Dockerfile`, `compose.yaml`, or `.dockerignore` and does not have one
 - A user wants to add a service dependency (database, cache, message queue) to a project
 - A user asks how to run or develop a project locally and Docker is available
 
-Do NOT use this skill when the user explicitly wants to avoid Docker or when the project already has a mature Docker setup that just needs minor edits.
+## Do not use this skill when
+
+Do not use this skill when:
+
+- The user explicitly wants to avoid Docker
+- The project already has a mature Docker setup and only needs minor edits
+- The main task is optimizing an existing `Dockerfile`
+- The main task is editing or debugging an existing Compose stack
 
 ## Core guidance
 
@@ -26,9 +33,9 @@ Do NOT use this skill when the user explicitly wants to avoid Docker or when the
 
 When Dockerizing a project, always produce all three:
 
-1. **`.dockerignore`** — Create this first. Exclude version control dirs, dependency caches, build artifacts, IDE configs, and secrets. See `examples/dockerignore-example` for a reference.
-2. **`Dockerfile`** — Use a multi-stage build when the project has a build step. Pin base image tags to a specific version (e.g., `node:22-slim`, not `node:latest`). Run as a non-root user. See `examples/Dockerfile.simple`.
-3. **`compose.yaml`** — Use this for local development. Define the application service and all its dependencies (databases, caches, queues) as Compose services. See `examples/compose-dev.yaml`.
+1. **`.dockerignore`** — Create this first so the initial build context is small and safe. See `examples/dockerignore-example` for a reference.
+2. **`Dockerfile`** — Create a working starter image definition that the project can build and run with. See `examples/Dockerfile.simple`.
+3. **`compose.yaml`** — Create a local development stack that includes the application service and any required dependencies. See `examples/compose-dev.yaml`.
 
 ### Prefer Dockerized dependencies over host installs
 
@@ -39,24 +46,13 @@ When a project needs a database (Postgres, MySQL, MongoDB), cache (Redis, Memcac
 - Use official Docker images from Docker Hub for these services.
 - Configure services with environment variables, not config files baked into images.
 
-### Dockerfile rules
+### Bootstrap checklist
 
-- Start `FROM` a minimal base image (`-slim` or `-alpine` variants).
-- Pin the image tag to a specific major.minor version, never use `latest`.
-- Copy dependency manifests first, install dependencies, then copy source code. This maximizes layer caching.
-- Use `COPY --link` when supported to improve cache independence.
-- Set a non-root `USER` before `CMD`/`ENTRYPOINT`.
-- Prefer `ENTRYPOINT` with `CMD` as default arguments.
-- Do not install dev tools or test frameworks in production images; use multi-stage builds to separate build and runtime stages.
-
-### Compose file rules
-
-- Name the file `compose.yaml` (not `docker-compose.yml`; the legacy filename is deprecated).
-- Use `depends_on` with `condition: service_healthy` when a service needs another to be ready.
-- Define health checks for infrastructure services.
-- Use named volumes for persistent data (databases).
-- Use bind mounts for application source code during development.
-- Set `restart: unless-stopped` for infrastructure services in development.
+- Name the file `compose.yaml` rather than legacy Compose filenames.
+- Put all three files at the project root unless there is a clear multi-service layout that justifies a `docker/` subdirectory.
+- Ensure the initial setup can build and start locally with one command path.
+- Use Compose services for local databases, caches, and queues instead of host installs.
+- Keep the first scaffold simple; defer detailed image optimization and advanced Compose tuning to the owning skills.
 
 ### Development vs production
 
@@ -69,6 +65,11 @@ When a project needs a database (Postgres, MySQL, MongoDB), cache (Redis, Memcac
 - Place `Dockerfile` at the project root (or in a `docker/` subdirectory if the project has multiple services).
 - Place `compose.yaml` at the project root.
 - Place `.dockerignore` at the project root, next to the `Dockerfile`.
+
+## Related skills
+
+- For Dockerfile optimization, cache strategy, non-root execution, and image hardening, use `docker-build-strategies`.
+- For service dependencies, health checks, overrides, volumes, networks, and Compose debugging, use `docker-compose-patterns`.
 
 ## References
 
