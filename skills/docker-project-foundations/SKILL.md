@@ -1,6 +1,8 @@
 ---
 name: docker-project-foundations
-description: Use this skill when setting up, initializing, or Dockerizing a project. Covers Dockerfile, compose.yaml, and .dockerignore with Docker best practices.
+description: Use this skill when setting up, initializing, or Dockerizing a project, even if the user doesn't explicitly mention Docker but describes a need for containerized local development, adding a database or cache dependency, or running services without host-level installs. Covers Dockerfile, compose.yaml, and .dockerignore creation with Docker best practices.
+license: Apache-2.0
+compatibility: Requires Docker 20.10+ and Docker Compose v2.
 ---
 
 # Docker Project Foundations
@@ -33,9 +35,9 @@ Do not use this skill when:
 
 When Dockerizing a project, always produce all three:
 
-1. **`.dockerignore`** — Create this first so the initial build context is small and safe. See `examples/dockerignore-example` for a reference.
-2. **`Dockerfile`** — Create a working starter image definition that the project can build and run with. See `examples/Dockerfile.simple`.
-3. **`compose.yaml`** — Create a local development stack that includes the application service and any required dependencies. See `examples/compose-dev.yaml`.
+1. **`.dockerignore`** — Create this first so the initial build context is small and safe. See `assets/dockerignore-example` for a reference.
+2. **`Dockerfile`** — Create a working starter image definition that the project can build and run with. See `assets/Dockerfile.simple`.
+3. **`compose.yaml`** — Create a local development stack that includes the application service and any required dependencies. See `assets/compose-dev.yaml`.
 
 ### Prefer Dockerized dependencies over host installs
 
@@ -75,12 +77,19 @@ When a project needs a database (Postgres, MySQL, MongoDB), cache (Redis, Memcac
 
 - `references/project-structure.md` — Detailed guidance on Docker project file organization, naming conventions, and multi-service layouts.
 
-## Examples
+## Assets
 
-- `examples/dockerignore-example` — A comprehensive `.dockerignore` for a typical project.
-- `examples/compose-dev.yaml` — A development-oriented Compose file with Dockerized dependencies.
-- `examples/Dockerfile.simple` — A basic multi-stage Dockerfile following best practices.
+- `assets/dockerignore-example` — A comprehensive `.dockerignore` for a typical project.
+- `assets/compose-dev.yaml` — A development-oriented Compose file with Dockerized dependencies.
+- `assets/Dockerfile.simple` — A basic multi-stage Dockerfile following best practices.
+
+## Scripts
+
+- **`scripts/verify-setup.sh`** — Checks required files exist and compose config passes.
+  ```bash
+  bash scripts/verify-setup.sh
+  ```
 
 ## Checks
 
-- `checks/verification.md` — How to verify that generated Docker project setup follows this skill's guidance.
+- `checks/verification.md` — Detailed verification checklist for manual review.

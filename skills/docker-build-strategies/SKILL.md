@@ -1,6 +1,8 @@
 ---
 name: docker-build-strategies
-description: Use this skill when writing or optimizing Dockerfiles. Covers multi-stage builds, layer caching, non-root users, and image size optimization.
+description: Use this skill when writing, reviewing, or optimizing Dockerfiles, even if the user just says their image is too large, their build is slow, or they need to harden a container for production. Covers multi-stage builds, layer caching, .dockerignore, non-root users, and image size optimization.
+license: Apache-2.0
+compatibility: Requires Docker 20.10+ with BuildKit enabled.
 ---
 
 # Docker Build Strategies
@@ -63,7 +65,7 @@ Always generate a `.dockerignore` alongside the Dockerfile. Exclude:
 - Build outputs, test artifacts, and IDE configs
 - `.env` files and any secrets
 
-See `examples/dockerignore-example` for a comprehensive template.
+See `assets/dockerignore-example` for a comprehensive template.
 
 ### Non-root user
 
@@ -103,13 +105,20 @@ Always configure the final image to run as a non-root user.
 - `references/multi-stage-builds.md` — Language-specific multi-stage patterns for Go, Node.js, Python, and Java
 - `references/layer-caching.md` — Deep dive on layer ordering, cache invalidation, and BuildKit cache mounts
 
-## Examples
+## Assets
 
-- `examples/Dockerfile.go` — Multi-stage Go build with distroless runtime and non-root user
-- `examples/Dockerfile.nodejs` — Multi-stage Node.js build with proper layer caching and non-root user
-- `examples/Dockerfile.python` — Python build with virtual env, layer ordering, and non-root user
-- `examples/dockerignore-example` — Comprehensive `.dockerignore` template
+- `assets/Dockerfile.go` — Multi-stage Go build with distroless runtime and non-root user
+- `assets/Dockerfile.nodejs` — Multi-stage Node.js build with proper layer caching and non-root user
+- `assets/Dockerfile.python` — Python build with virtual env, layer ordering, and non-root user
+- `assets/dockerignore-example` — Comprehensive `.dockerignore` template
+
+## Scripts
+
+- **`scripts/verify-build.sh`** — Builds the image, reports size and configured user.
+  ```bash
+  bash scripts/verify-build.sh [IMAGE_NAME]
+  ```
 
 ## Checks
 
-- `checks/verification.md` — How to verify a generated Dockerfile builds correctly, produces a small image, and runs as non-root
+- `checks/verification.md` — Detailed verification runbook for manual review.

@@ -125,7 +125,7 @@ required_sections = [
     "## Core guidance",
     "## Related skills",
     "## References",
-    "## Examples",
+    "## Assets",
     "## Checks",
 ]
 for skill in catalog["skills"]:
@@ -267,7 +267,7 @@ for f in manifests:
 # --- 7. Check that files referenced in SKILL.md exist ---
 print("==> Checking SKILL.md file references")
 ref_pattern = re.compile(
-    r'(?:`|]\()((references|examples|checks)/[^\s`)\]]+)'
+    r'(?:`|]\()((references|assets|checks|scripts)/[^\s`)\]]+)'
 )
 for skill in catalog["skills"]:
     path = skill["path"]
@@ -292,7 +292,7 @@ for skill in catalog["skills"]:
 
 # --- 8. Check for orphaned files not referenced by SKILL.md ---
 print("==> Checking for orphaned files in skill directories")
-side_dirs = ["references", "examples", "checks"]
+side_dirs = ["references", "assets", "checks", "scripts"]
 for skill in catalog["skills"]:
     path = skill["path"]
     skill_md = path + "/SKILL.md"

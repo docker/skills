@@ -1,6 +1,8 @@
 ---
 name: docker-compose-patterns
-description: Use this skill when creating or modifying Docker Compose configurations. Covers service definitions, health checks, volumes, networks, and development overrides.
+description: Use this skill when creating, modifying, or debugging Docker Compose configurations, even if the user just says they need to wire services together, add a database to their stack, or set up a local development environment with multiple containers. Covers service definitions, health checks, dependency ordering, volumes, networks, environment variables, and development overrides.
+license: Apache-2.0
+compatibility: Requires Docker Compose v2 (compose.yaml format).
 ---
 
 # Docker Compose Patterns
@@ -95,12 +97,19 @@ Use `compose.yaml` as the canonical filename. Do not use `docker-compose.yml` or
 - `references/service-dependencies.md` — Detailed guidance on `depends_on`, health check patterns for common databases, and startup ordering strategies.
 - `references/volumes-and-networks.md` — Patterns for volume mounts, named volumes, bind mounts, and network configuration.
 
-## Examples
+## Assets
 
-- `examples/compose-web-app.yaml` — Complete multi-service web app (app + Postgres + Redis) with health checks, dependencies, and named volumes.
-- `examples/compose-dev-override.yaml` — Development override showing bind mounts, debug ports, and Compose Watch configuration.
-- `examples/bad-vs-good.md` — Before/after comparisons of common Compose mistakes and their fixes.
+- `assets/compose-web-app.yaml` — Complete multi-service web app (app + Postgres + Redis) with health checks, dependencies, and named volumes.
+- `assets/compose-dev-override.yaml` — Development override showing bind mounts, debug ports, and Compose Watch configuration.
+- `assets/bad-vs-good.md` — Before/after comparisons of common Compose mistakes and their fixes.
+
+## Scripts
+
+- **`scripts/verify-compose.sh`** — Validates compose.yaml with `docker compose config`.
+  ```bash
+  bash scripts/verify-compose.sh
+  ```
 
 ## Checks
 
-- `checks/verification.md` — Runbook for verifying generated Compose files: syntax validation, dependency correctness, health check presence, and runtime verification.
+- `checks/verification.md` — Detailed verification runbook for manual review.
