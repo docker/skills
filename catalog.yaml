@@ -1,0 +1,12 @@
+schema: v1
+name: docker-skills
+skills:
+  - id: docker-project-foundations
+    path: skills/docker-project-foundations
+    version: 0.1.0
+  - id: docker-compose-patterns
+    path: skills/docker-compose-patterns
+    version: 0.1.0
+  - id: docker-build-strategies
+    path: skills/docker-build-strategies
+    version: 0.1.0

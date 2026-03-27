@@ -1,0 +1,12 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Run all validation checks
+    cmds:
+      - task: validate
+
+  validate:
+    desc: Validate skill structure, frontmatter, sections, and manifests
+    cmds:
+      - python3 scripts/validate.py

@@ -1,0 +1,26 @@
+{
+  "name": "docker",
+  "owner": {
+    "name": "Docker, Inc."
+  },
+  "metadata": {
+    "description": "Docker-authored knowledge skills for AI coding agents",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "docker-skills",
+      "source": "./",
+      "description": "Docker knowledge skills — project foundations, Compose patterns, and build strategies.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Docker, Inc."
+      },
+      "homepage": "https://github.com/docker/skills",
+      "repository": "https://github.com/docker/skills",
+      "license": "Apache-2.0",
+      "keywords": ["docker", "dockerfile", "compose", "containers", "devops"],
+      "category": "workflow"
+    }
+  ]
+}
