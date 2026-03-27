@@ -1,0 +1,62 @@
+# Verification Checklist
+
+Use this checklist to verify that generated Docker project setup follows the skill's guidance.
+
+## Required files
+
+- [ ] `.dockerignore` exists at the project root (or at each build context root in a multi-service setup).
+- [ ] `Dockerfile` exists at the project root (or at each build context root).
+- [ ] `compose.yaml` exists at the project root.
+
+## .dockerignore
+
+- [ ] Excludes `.git` directory.
+- [ ] Excludes dependency caches (`node_modules/`, `__pycache__/`, `.venv/`, `vendor/`).
+- [ ] Excludes IDE/editor configs (`.vscode/`, `.idea/`).
+- [ ] Excludes secret files (`.env`, `*.pem`, `*.key`).
+- [ ] Does not exclude files that the build actually needs (source code, dependency manifests).
+
+## Dockerfile
+
+- [ ] Base image uses a specific version tag, not `latest`.
+- [ ] Base image uses a minimal variant (`-slim` or `-alpine`) where available.
+- [ ] Dependency manifests are copied and installed before source code (layer caching).
+- [ ] A non-root `USER` is set before `CMD`/`ENTRYPOINT`.
+- [ ] No secrets or credentials are hardcoded (`ENV SECRET=...`, `ARG PASSWORD=...`).
+- [ ] Multi-stage build is used when a build step exists (compile, bundle, transpile).
+- [ ] Production stage does not contain dev tools, test frameworks, or build toolchains.
+
+## compose.yaml
+
+- [ ] File is named `compose.yaml`, not `docker-compose.yml`.
+- [ ] Infrastructure dependencies (databases, caches, queues) are defined as Compose services, not expected to be installed on the host.
+- [ ] `depends_on` uses `condition: service_healthy` for services that need readiness.
+- [ ] Infrastructure services have `healthcheck` definitions.
+- [ ] Persistent data uses named volumes, not bind mounts.
+- [ ] Application source code uses bind mounts for development live-reload.
+- [ ] No host-level install instructions (`brew install`, `apt install`) for services that should be containerized.
+
+## Development vs production
+
+- [ ] Development configuration uses bind mounts for source code.
+- [ ] Production configuration does not mount source code.
+- [ ] A single `Dockerfile` supports both via build stages or build arguments when feasible.
+
+## Validation commands
+
+Run these to smoke-test the generated setup:
+
+```bash
+# Verify compose file is syntactically valid
+docker compose config --quiet
+
+# Verify the Dockerfile builds successfully
+docker compose build
+
+# Verify services start and become healthy
+docker compose up -d
+docker compose ps   # All services should show "healthy" or "running"
+
+# Clean up
+docker compose down -v
+```

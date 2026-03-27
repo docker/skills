@@ -1,0 +1,5 @@
+schema: v1
+id: docker-compose-patterns
+version: 0.1.0
+title: Docker Compose Patterns
+description: Patterns for robust, maintainable Docker Compose configurations.

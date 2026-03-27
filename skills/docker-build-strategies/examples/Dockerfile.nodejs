@@ -1,0 +1,34 @@
+# syntax=docker/dockerfile:1
+
+# --- Production dependencies ---
+FROM node:22-alpine AS deps
+WORKDIR /src
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
+
+# --- Build stage ---
+FROM node:22-alpine AS build
+WORKDIR /src
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+COPY . .
+RUN npm run build
+
+# --- Runtime stage ---
+FROM node:22-alpine AS runtime
+WORKDIR /app
+
+RUN addgroup --system --gid 1001 appgroup && \
+    adduser --system --uid 1001 --ingroup appgroup appuser
+
+# Production node_modules from deps stage, built output from build stage
+COPY --from=deps --chown=appuser:appgroup /src/node_modules ./node_modules
+COPY --from=build --chown=appuser:appgroup /src/dist ./dist
+COPY --from=build --chown=appuser:appgroup /src/package.json .
+
+USER appuser
+EXPOSE 3000
+
+LABEL org.opencontainers.image.source="https://github.com/example/app"
+
+ENTRYPOINT ["node", "dist/index.js"]

@@ -1,0 +1,5 @@
+schema: v1
+id: docker-project-foundations
+version: 0.1.0
+title: Docker Project Foundations
+description: Guidance for initializing and structuring a Dockerized project.
