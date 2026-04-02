@@ -15,8 +15,8 @@ jobs:
         with:
           version: 3.x
 
-      - name: Install Python dependencies
-        run: pip install pyyaml
-
       - name: Validate
         run: task validate
+
+      - name: Eval checks
+        run: task eval

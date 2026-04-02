@@ -5,8 +5,14 @@ tasks:
     desc: Run all validation checks
     cmds:
       - task: validate
+      - task: eval
 
   validate:
     desc: Validate skill structure, frontmatter, sections, and manifests
     cmds:
-      - python3 scripts/validate.py
+      - docker run --rm -v "{{.ROOT_DIR}}:/work" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d sh -c "pip install -q pyyaml && python3 scripts/validate.py"
+
+  eval:
+    desc: Run eval checks against skill asset files
+    cmds:
+      - docker run --rm -v "{{.ROOT_DIR}}:/work" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d sh -c "pip install -q pyyaml && python3 scripts/eval_check.py"

@@ -1,0 +1,381 @@
+# Eval checks — machine-readable definitions extracted from evals/*.md
+# Each check maps an eval prompt criterion to a static assertion on an asset file.
+# Skipped prompts (no matching asset) are listed with skip: true.
+
+# ─── docker-build-strategies ────────────────────────────────────────────────
+
+- eval: docker-build-strategies
+  prompt: "Prompt 1: Go API"
+  asset: skills/docker-build-strategies/assets/Dockerfile.go
+  checks:
+    - id: bs-p1-syntax
+      description: Dockerfile starts with # syntax=docker/dockerfile:1
+      type: file_match
+      pattern: "^# syntax=docker/dockerfile:1"
+
+    - id: bs-p1-multistage-named
+      description: Uses multi-stage build with named stages
+      type: count_match
+      pattern: "^FROM .+ AS \\w+"
+      min_count: 2
+
+    - id: bs-p1-cgo-disabled
+      description: Build stage compiles with CGO_ENABLED=0
+      type: file_match
+      pattern: "CGO_ENABLED=0"
+
+    - id: bs-p1-dep-cache
+      description: Copies go.mod/go.sum before source for layer caching
+      type: line_order
+      first_pattern: "^COPY go\\.mod go\\.sum"
+      second_pattern: "^COPY \\. \\."
+
+    - id: bs-p1-minimal-runtime
+      description: Runtime stage uses minimal base (distroless, scratch, or Alpine)
+      type: last_from_match
+      pattern: "(distroless|scratch|alpine)"
+
+    - id: bs-p1-copy-from-build
+      description: Binary copied from build stage with COPY --from
+      type: file_match
+      pattern: "COPY --from=build"
+
+    - id: bs-p1-nonroot
+      description: Sets non-root user in runtime stage
+      type: file_match
+      pattern: "^USER"
+
+    - id: bs-p1-workdir
+      description: WORKDIR is set before COPY instructions
+      type: line_order
+      first_pattern: "^WORKDIR"
+      second_pattern: "^COPY"
+
+    - id: bs-p1-entrypoint-exec
+      description: ENTRYPOINT uses exec form (JSON array)
+      type: file_match
+      pattern: 'ENTRYPOINT \["'
+
+    - id: bs-p1-expose
+      description: Includes EXPOSE to document listening port
+      type: file_match
+      pattern: "^EXPOSE \\d+"
+
+    - id: bs-p1-no-latest
+      description: Must NOT use latest as a base image tag
+      type: file_must_not_match
+      pattern: "^FROM .*:latest"
+
+    - id: bs-p1-no-shell-entrypoint
+      description: Must NOT use shell form for ENTRYPOINT
+      type: file_must_not_match
+      pattern: 'ENTRYPOINT [^"\[]'
+
+- eval: docker-build-strategies
+  prompt: "Prompt 2: Optimize Node.js Dockerfile"
+  asset: skills/docker-build-strategies/assets/Dockerfile.nodejs
+  checks:
+    - id: bs-p2-syntax
+      description: Dockerfile starts with # syntax=docker/dockerfile:1
+      type: file_match
+      pattern: "^# syntax=docker/dockerfile:1"
+
+    - id: bs-p2-multistage
+      description: Uses multi-stage build
+      type: count_match
+      pattern: "^FROM "
+      min_count: 2
+
+    - id: bs-p2-runtime-slim-alpine
+      description: Runtime stage uses slim or Alpine image
+      type: last_from_match
+      pattern: "(slim|alpine)"
+
+    - id: bs-p2-dep-cache
+      description: Copies package.json/package-lock.json before source
+      type: file_match
+      pattern: "COPY.*package.*\\.json"
+
+    - id: bs-p2-npm-ci
+      description: Uses npm ci for reproducible builds
+      type: file_match
+      pattern: "npm ci"
+
+    - id: bs-p2-copy-from
+      description: Production artifacts copied from build stage
+      type: file_match
+      pattern: "COPY --from="
+
+    - id: bs-p2-nonroot
+      description: Adds non-root user in runtime stage
+      type: file_match
+      pattern: "^USER"
+
+    - id: bs-p2-no-latest
+      description: Must NOT use latest as a base image tag
+      type: file_must_not_match
+      pattern: "^FROM .*:latest"
+
+    - id: bs-p2-no-npm-install
+      description: Must NOT use npm install (should use npm ci)
+      type: file_must_not_match
+      pattern: "npm install(?! )"
+
+- eval: docker-build-strategies
+  prompt: "Prompt 3: Node.js + React monorepo"
+  skip: true
+  skip_reason: No monorepo asset exists for this prompt
+
+# ─── docker-compose-patterns ────────────────────────────────────────────────
+
+- eval: docker-compose-patterns
+  prompt: "Prompt 1: Multi-service web application"
+  asset: skills/docker-compose-patterns/assets/compose-web-app.yaml
+  checks:
+    - id: cp-p1-service-count
+      description: Defines at least 3 services (web, db, cache/redis)
+      type: yaml_key_exists
+      key: services.web
+
+    - id: cp-p1-db-service
+      description: Has a database service
+      type: yaml_key_exists
+      key: services.db
+
+    - id: cp-p1-cache-service
+      description: Has a cache/redis service
+      type: yaml_key_exists
+      key: services.cache
+
+    - id: cp-p1-postgres-pinned
+      description: Postgres image pinned to specific version
+      type: yaml_value_match
+      key: services.db.image
+      pattern: "^postgres:\\d+"
+
+    - id: cp-p1-redis-pinned
+      description: Redis image pinned to specific version
+      type: yaml_value_match
+      key: services.cache.image
+      pattern: "^redis:\\d+"
+
+    - id: cp-p1-pg-healthcheck
+      description: Postgres health check uses pg_isready
+      type: file_match
+      pattern: "pg_isready"
+
+    - id: cp-p1-redis-healthcheck
+      description: Redis health check uses redis-cli ping
+      type: file_match
+      pattern: "redis-cli.*ping"
+
+    - id: cp-p1-service-healthy
+      description: depends_on uses condition service_healthy
+      type: file_match
+      pattern: "condition: service_healthy"
+
+    - id: cp-p1-named-volume
+      description: Postgres data uses a named volume (top-level volumes)
+      type: yaml_key_exists
+      key: volumes
+
+    - id: cp-p1-restart-policy
+      description: Services have restart policy
+      type: file_match
+      pattern: "restart:"
+
+    - id: cp-p1-no-latest
+      description: Must NOT use latest or omit tags for official images
+      type: file_must_not_match
+      pattern: "image:.*latest"
+
+    - id: cp-p1-no-docker-socket
+      description: Must NOT mount Docker socket
+      type: file_must_not_match
+      pattern: "/var/run/docker.sock"
+
+- eval: docker-compose-patterns
+  prompt: "Prompt 2: Add health checks and dependency ordering"
+  asset: skills/docker-compose-patterns/assets/compose-web-app.yaml
+  checks:
+    - id: cp-p2-db-healthcheck
+      description: db service has healthcheck with pg_isready
+      type: yaml_key_exists
+      key: services.db.healthcheck
+
+    - id: cp-p2-cache-healthcheck
+      description: cache service has healthcheck
+      type: yaml_key_exists
+      key: services.cache.healthcheck
+
+    - id: cp-p2-hc-interval
+      description: Health checks include interval setting
+      type: file_match
+      pattern: "interval:"
+
+    - id: cp-p2-hc-timeout
+      description: Health checks include timeout setting
+      type: file_match
+      pattern: "timeout:"
+
+    - id: cp-p2-hc-retries
+      description: Health checks include retries setting
+      type: file_match
+      pattern: "retries:"
+
+    - id: cp-p2-condition-healthy
+      description: depends_on uses condition service_healthy
+      type: file_match
+      pattern: "condition: service_healthy"
+
+    - id: cp-p2-db-volume
+      description: Named volume for Postgres data
+      type: yaml_key_exists
+      key: volumes.db-data
+
+- eval: docker-compose-patterns
+  prompt: "Prompt 3: Development override file"
+  asset: skills/docker-compose-patterns/assets/compose-dev-override.yaml
+  checks:
+    - id: cp-p3-build-context
+      description: Override sets api/web service to build from source
+      type: yaml_key_exists
+      key: services.web.build
+
+    - id: cp-p3-compose-watch
+      description: Uses Compose Watch (develop.watch) for live reload
+      type: file_match
+      pattern: "develop:"
+
+    - id: cp-p3-watch-sync
+      description: Watch has sync action for source code
+      type: file_match
+      pattern: "action: sync$"
+
+    - id: cp-p3-watch-rebuild
+      description: Watch has rebuild action for dependency manifests
+      type: file_match
+      pattern: "action: rebuild"
+
+    - id: cp-p3-node-env-dev
+      description: Sets NODE_ENV to development
+      type: file_match
+      pattern: "NODE_ENV:.*development"
+
+    - id: cp-p3-debug-port
+      description: Exposes debug port (9229)
+      type: file_match
+      pattern: "9229"
+
+    - id: cp-p3-no-hardcoded-secrets
+      description: Must NOT hardcode passwords in override
+      type: file_must_not_match
+      pattern: "PASSWORD:"
+
+# ─── docker-project-foundations ──────────────────────────────────────────────
+
+- eval: docker-project-foundations
+  prompt: "Prompt 1: Node.js + PostgreSQL"
+  assets:
+    dockerfile: skills/docker-project-foundations/assets/Dockerfile.simple
+    compose: skills/docker-project-foundations/assets/compose-dev.yaml
+    dockerignore: skills/docker-project-foundations/assets/dockerignore-example
+  checks:
+    # .dockerignore checks
+    - id: fp-p1-ignore-nodemodules
+      description: .dockerignore excludes node_modules/
+      type: file_match
+      asset_key: dockerignore
+      pattern: "node_modules"
+
+    - id: fp-p1-ignore-git
+      description: .dockerignore excludes .git/
+      type: file_match
+      asset_key: dockerignore
+      pattern: "\\.git/"
+
+    - id: fp-p1-ignore-env
+      description: .dockerignore excludes .env
+      type: file_match
+      asset_key: dockerignore
+      pattern: "\\.env"
+
+    - id: fp-p1-ignore-ide
+      description: .dockerignore excludes IDE config directories
+      type: file_match
+      asset_key: dockerignore
+      pattern: "\\.(vscode|idea)"
+
+    # Dockerfile checks
+    - id: fp-p1-multistage
+      description: Dockerfile uses multi-stage build
+      type: count_match
+      asset_key: dockerfile
+      pattern: "^FROM "
+      min_count: 2
+
+    - id: fp-p1-pinned-image
+      description: Base image pinned to specific version, not latest
+      type: file_must_not_match
+      asset_key: dockerfile
+      pattern: "^FROM .*:latest"
+
+    - id: fp-p1-dep-cache
+      description: Copies package.json before source for layer caching
+      type: file_match
+      asset_key: dockerfile
+      pattern: "COPY.*package.*\\.json"
+
+    - id: fp-p1-nonroot
+      description: Sets non-root USER before CMD/ENTRYPOINT
+      type: file_match
+      asset_key: dockerfile
+      pattern: "^USER"
+
+    # Compose checks
+    - id: fp-p1-postgres-service
+      description: Compose defines PostgreSQL service
+      type: file_match
+      asset_key: compose
+      pattern: "postgres:"
+
+    - id: fp-p1-postgres-pinned
+      description: Postgres image pinned to specific version
+      type: yaml_value_match
+      asset_key: compose
+      key: services.db.image
+      pattern: "^postgres:\\d+"
+
+    - id: fp-p1-named-volume
+      description: Named volume for Postgres data
+      type: yaml_key_exists
+      asset_key: compose
+      key: volumes
+
+    - id: fp-p1-pg-healthcheck
+      description: Health check for Postgres using pg_isready
+      type: file_match
+      asset_key: compose
+      pattern: "pg_isready"
+
+    - id: fp-p1-depends-on-healthy
+      description: depends_on uses condition service_healthy
+      type: file_match
+      asset_key: compose
+      pattern: "condition: service_healthy"
+
+    - id: fp-p1-bind-mount
+      description: Bind mount or Compose Watch for live code reload
+      type: file_match
+      asset_key: compose
+      pattern: "(\\./src:/app|develop:)"
+
+- eval: docker-project-foundations
+  prompt: "Prompt 2: Python Flask"
+  skip: true
+  skip_reason: No Python asset in docker-project-foundations skill
+
+- eval: docker-project-foundations
+  prompt: "Prompt 3: Go + Redis"
+  skip: true
+  skip_reason: Partial coverage only — Go Dockerfile is in build-strategies skill, not foundations
