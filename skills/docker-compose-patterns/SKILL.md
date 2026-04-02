@@ -53,6 +53,49 @@ Use `compose.yaml` as the canonical filename. Do not use `docker-compose.yml` or
 - Use the service's native client tool for health checks when available (e.g., `pg_isready`, `redis-cli ping`, `mysqladmin ping`).
 - Set reasonable `interval`, `timeout`, `retries`, and `start_period` values. Start with: `interval: 5s`, `timeout: 3s`, `retries: 3`, `start_period: 10s`.
 
+#### Health checks for distroless or scratch images
+
+Distroless, scratch-based, and hardened images contain no shell, curl, or wget. Do not bake tools into these images — that defeats their purpose. Instead, use a **healthcheck sidecar** that shares the application's network namespace:
+
+```yaml
+services:
+  api:
+    build:
+      context: .
+      target: runtime          # distroless / hardened image
+    ports:
+      - "8080:8080"
+    # No healthcheck here — the image has no tools to run one
+
+  api-health:
+    image: curlimages/curl:8
+    network_mode: "service:api"   # shares api's localhost
+    entrypoint: ["sleep", "infinity"]  # keep sidecar alive for healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+```
+
+Key points:
+- The sidecar must stay alive with `entrypoint: ["sleep", "infinity"]` so Compose can execute the healthcheck inside it.
+- `network_mode: "service:api"` makes `localhost` inside the sidecar resolve to the api container's loopback — no extra networking needed.
+- Keep the sidecar lightweight with a resource limit (32MB is sufficient for curl).
+- Services that depend on `api` being ready should reference the **sidecar**, not the api directly:
+
+```yaml
+  worker:
+    depends_on:
+      api-health:
+        condition: service_healthy
+```
+
 ### Volumes
 
 - Use named volumes for data that must persist across container recreations (database data, uploaded files).
@@ -71,6 +114,7 @@ Use `compose.yaml` as the canonical filename. Do not use `docker-compose.yml` or
 - Use `environment:` for non-sensitive values that are few in number.
 - Use `env_file:` pointing to a `.env` file for longer lists of variables.
 - Never hardcode secrets (passwords, API keys) directly in `compose.yaml`. Use `env_file:` or Docker secrets.
+- When defaults are needed in the `environment:` block for local development, use variable substitution with fallbacks: `${DB_PASSWORD:-postgres}`. Never write bare plaintext values for password fields.
 - Add `.env` to `.gitignore`.
 
 ### Development overrides

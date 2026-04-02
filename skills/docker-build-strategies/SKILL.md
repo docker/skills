@@ -77,8 +77,9 @@ Always configure the final image to run as a non-root user.
        adduser --system --uid 1001 --ingroup appgroup appuser
    ```
 2. Set ownership on application files: `COPY --from=build --chown=appuser:appgroup /app /app`
-3. Place the `USER appuser` instruction after all file operations and before `ENTRYPOINT`/`CMD`.
-4. On distroless images, use the built-in nonroot user: `USER nonroot:nonroot`.
+3. When combining `--chown` with `COPY --link`, always use the numeric UID:GID you assigned (e.g., `--chown=1001:1001` if you used `--uid 1001 --gid 1001` above), not named users. `--link` creates an independent layer where named users from prior `RUN` instructions are not available.
+4. Place the `USER appuser` instruction after all file operations and before `ENTRYPOINT`/`CMD`.
+5. On distroless images, use the built-in nonroot user: `USER nonroot:nonroot`.
 
 ### Image size optimization
 
