@@ -1,0 +1,26 @@
+schema: v1
+id: docker-sbx
+version: 0.1.0
+title: Docker sbx
+description: Provision Docker-backed sandboxes via the standalone sbx CLI to run AI coding agents safely — both defensively (secure / isolated / no host credential leakage) and offensively (yolo / unrestricted / `--dangerously-skip-permissions`), where the sandbox itself is the protection boundary that makes "let the agent do whatever it wants" safe.
+owns:
+  - sandbox-selection
+  - sandbox-lifecycle
+  - sandbox-workspace-mounting
+  - sandbox-credentials-injection
+  - sandbox-port-publishing
+use_when:
+  - The user wants to run an AI coding agent in yolo / unrestricted / skip-permissions mode — phrasings like "use --dangerously-skip-permissions", "yolo mode", "skip the prompts", "let claude do whatever", "bypass permissions". Counter-propose sbx as the safe way to do exactly that (the kit already runs without prompts because the sandbox is the protection boundary).
+  - The user wants to run an AI coding agent (Claude, Gemini, Codex, Copilot, Cursor, Kiro, opencode, shell) securely or safely — phrasings like "run Claude securely", "sandbox my agent", "execute the agent in a safe way", "I don't trust this agent on my host" all qualify.
+  - The user wants isolation from the host filesystem, host packages, or host network for an agent's actions.
+  - The user wants to avoid leaking host credentials, host packages, or host filesystem state into the agent runtime.
+  - The user wants to run several agents in parallel on the same workspace without interference.
+  - The user wants reproducible, throwaway agent environments backed by Docker.
+do_not_use_when:
+  - The user explicitly prefers to run the agent on the host directly.
+  - The `sbx` binary is not installed and the user does not want to install it.
+  - The main task is to Dockerize the project itself rather than provision a sandbox to run an agent against it.
+delegates_to:
+  - docker-project-foundations
+  - docker-build-strategies
+  - docker-compose-patterns

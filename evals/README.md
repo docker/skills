@@ -20,6 +20,7 @@ The evaluation loop is the core differentiator -- Docker-authored skills must me
 | docker-agent-config | [docker-agent-config.md](docker-agent-config.md) |
 | docker-agent-run | [docker-agent-run.md](docker-agent-run.md) |
 | docker-agent-deploy | [docker-agent-deploy.md](docker-agent-deploy.md) |
+| docker-sbx | [docker-sbx.md](docker-sbx.md) |
 
 ## How to run an evaluation
 

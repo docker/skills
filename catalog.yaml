@@ -19,3 +19,6 @@ skills:
   - id: docker-agent-deploy
     path: skills/docker-agent-deploy
     version: 0.1.0
+  - id: docker-sbx
+    path: skills/docker-sbx
+    version: 0.1.0

@@ -394,3 +394,173 @@
   prompt: "Prompt 3: Go + Redis"
   skip: true
   skip_reason: Partial coverage only — Go Dockerfile is in build-strategies skill, not foundations
+
+# ─── docker-sbx ─────────────────────────────────────────────────────────────
+
+- eval: docker-sbx
+  prompt: "Prompt 1: Claude sandbox for a Go monorepo with private modules"
+  asset: skills/docker-sbx/assets/sandbox-bootstrap-claude-go.sh
+  checks:
+    - id: sb-p1-shebang
+      description: Bootstrap script uses bash shebang
+      type: file_match
+      pattern: "^#!/usr/bin/env bash"
+
+    - id: sb-p1-strict-mode
+      description: Bootstrap script enables strict mode
+      type: file_match
+      pattern: "set -euo pipefail"
+
+    - id: sb-p1-create-claude
+      description: Invokes sbx create with the claude agent
+      type: file_match
+      pattern: "^sbx create claude"
+
+    - id: sb-p1-name-flag
+      description: Sets a sandbox name explicitly with --name
+      type: file_match
+      pattern: "--name"
+
+    - id: sb-p1-memory
+      description: Sets memory limit to at least 4g for a Go monorepo build
+      type: file_match
+      pattern: "--memory ([4-9]g|1[0-9]g|[2-9][0-9]g)"
+
+    - id: sb-p1-github-secret
+      description: Provisions GitHub token via sbx secret set at global scope
+      type: file_match
+      pattern: "sbx secret set -g github"
+
+    - id: sb-p1-pipe-secret
+      description: Pipes the token via printf (not echo) into sbx secret set (bare pipe; --password-stdin is registry-only)
+      type: file_match
+      pattern: "printf.*\\| sbx secret set"
+
+    - id: sb-p1-sbx-run
+      description: Attaches to the sandbox with sbx run --name
+      type: file_match
+      pattern: "sbx run --name"
+
+    - id: sb-p1-no-docker-plugin
+      description: Must NOT use the docker sandbox plugin form
+      type: file_must_not_match
+      pattern: "docker sandbox "
+
+    - id: sb-p1-no-env-secret
+      description: Must NOT pass credentials via --env
+      type: file_must_not_match
+      pattern: "--env (GH_TOKEN|GITHUB_TOKEN|ANTHROPIC_API_KEY)="
+
+    - id: sb-p1-no-docker-socket
+      description: Must NOT mount the Docker socket
+      type: file_must_not_match
+      pattern: "/var/run/docker.sock"
+
+    - id: sb-p1-no-hardcoded-anthropic
+      description: Must NOT embed an Anthropic API key
+      type: file_must_not_match
+      pattern: "sk-ant-[A-Za-z0-9_-]"
+
+    - id: sb-p1-no-hardcoded-github
+      description: Must NOT embed a GitHub personal access token
+      type: file_must_not_match
+      pattern: "gh[opsu]_[A-Za-z0-9]{20,}"
+
+- eval: docker-sbx
+  prompt: "Prompt 2: Gemini sandbox for a Python data-science project with a read-only dataset"
+  asset: skills/docker-sbx/assets/sandbox-bootstrap-gemini-python.sh
+  checks:
+    - id: sb-p2-shebang
+      description: Bootstrap script uses bash shebang
+      type: file_match
+      pattern: "^#!/usr/bin/env bash"
+
+    - id: sb-p2-strict-mode
+      description: Bootstrap script enables strict mode
+      type: file_match
+      pattern: "set -euo pipefail"
+
+    - id: sb-p2-create-gemini
+      description: Invokes sbx create with the gemini agent
+      type: file_match
+      pattern: "^sbx create gemini"
+
+    - id: sb-p2-gemini-secret
+      description: Provisions Gemini API key via sbx secret set at global scope
+      type: file_match
+      pattern: "sbx secret set -g gemini"
+
+    - id: sb-p2-pipe-secret
+      description: Pipes the token via printf (not echo) into sbx secret set (bare pipe; --password-stdin is registry-only)
+      type: file_match
+      pattern: "printf.*\\| sbx secret set"
+
+    - id: sb-p2-readonly-mount
+      description: Dataset is mounted read-only via :ro suffix
+      type: file_match
+      pattern: ":ro"
+
+    - id: sb-p2-memory
+      description: Sets memory limit to at least 8g for ML workload
+      type: file_match
+      pattern: "--memory ([89]g|1[0-9]g|[2-9][0-9]g)"
+
+    - id: sb-p2-sbx-run
+      description: Attaches to the sandbox with sbx run --name
+      type: file_match
+      pattern: "sbx run --name"
+
+    - id: sb-p2-no-docker-plugin
+      description: Must NOT use the docker sandbox plugin form
+      type: file_must_not_match
+      pattern: "docker sandbox "
+
+    - id: sb-p2-no-env-secret
+      description: Must NOT pass GEMINI_API_KEY via --env
+      type: file_must_not_match
+      pattern: "--env GEMINI_API_KEY="
+
+    - id: sb-p2-no-docker-socket
+      description: Must NOT mount the Docker socket
+      type: file_must_not_match
+      pattern: "/var/run/docker.sock"
+
+- eval: docker-sbx
+  prompt: "Prompt 3: Parallel comparison of Claude and Gemini on the same workspace"
+  asset: skills/docker-sbx/assets/sandbox-parallel-compare.sh
+  checks:
+    - id: sb-p3-shebang
+      description: Bootstrap script uses bash shebang
+      type: file_match
+      pattern: "^#!/usr/bin/env bash"
+
+    - id: sb-p3-strict-mode
+      description: Bootstrap script enables strict mode
+      type: file_match
+      pattern: "set -euo pipefail"
+
+    - id: sb-p3-app-name-multi
+      description: Uses --app-name on at least two sbx invocations to isolate state
+      type: count_match
+      pattern: "--app-name"
+      min_count: 2
+
+    - id: sb-p3-create-claude-isolated
+      description: Creates a claude sandbox under an app-name
+      type: file_match
+      pattern: "^sbx --app-name [^ ]+ create claude"
+
+    - id: sb-p3-create-gemini-isolated
+      description: Creates a gemini sandbox under an app-name
+      type: file_match
+      pattern: "^sbx --app-name [^ ]+ create gemini"
+
+    - id: sb-p3-cleanup-reset
+      description: Documents per-instance cleanup with reset --force
+      type: file_match
+      pattern: "reset --force"
+
+    - id: sb-p3-no-docker-plugin
+      description: Must NOT use the docker sandbox plugin form
+      type: file_must_not_match
+      pattern: "docker sandbox "

@@ -1,0 +1,6 @@
+interface:
+  display_name: Docker sbx
+  short_description: Provision sbx sandboxes for running AI coding agents securely, in isolation, or in yolo / skip-permissions mode safely on the host.
+  default_prompt: Use this skill when the user wants to run an AI coding agent securely or in isolation via an sbx sandbox — including the inverse case where the user wants yolo / --dangerously-skip-permissions / unrestricted behavior and the sandbox makes that safe.
+policy:
+  allow_implicit_invocation: true
