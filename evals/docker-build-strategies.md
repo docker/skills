@@ -80,6 +80,7 @@ head -1 Dockerfile | grep -q 'syntax=docker/dockerfile' && echo "PASS" || echo "
 - [ ] Agent adds a non-root user in the runtime stage
 - [ ] Agent adds the `# syntax=docker/dockerfile:1` directive
 - [ ] Agent uses `COPY --link` where appropriate
+- [ ] If the project uses a private npm registry, the agent provisions credentials with `RUN --mount=type=secret,id=npmrc,target=/root/.npmrc,required=false` (and documents `docker buildx build --secret id=npmrc,src=$HOME/.npmrc .`) rather than `COPY .npmrc`.
 
 ### Must not
 
@@ -88,6 +89,9 @@ head -1 Dockerfile | grep -q 'syntax=docker/dockerfile' && echo "PASS" || echo "
 - [ ] Must NOT leave the application running as root
 - [ ] Must NOT use `npm install` in production (should use `npm ci`)
 - [ ] Must NOT use `latest` as a base image tag
+- [ ] Must NOT `COPY .npmrc` (or `.pypirc`, `.netrc`, `pip.conf`, `settings.xml`, `~/.aws/credentials`, SSH keys) into any stage — credential files belong in `--mount=type=secret`.
+- [ ] Must NOT pass credentials via `ARG ..._TOKEN` / `..._KEY` / `..._SECRET` / `..._PASSWORD` (visible in `docker history`).
+- [ ] Must NOT bake credentials into image `ENV` instructions.
 
 ### Verification commands
 
@@ -100,6 +104,10 @@ docker build -t app-optimized .
 
 # Compare image sizes
 docker images app-optimized --format 'Optimized: {{.Size}}'
+
+# Verify no credential files leaked into the Dockerfile (must return nothing)
+grep -nE "^(COPY|ADD) .*(\.npmrc|\.pypirc|\.netrc|pip\.conf|settings\.xml|\.env|\.aws/credentials|\.config/gcloud|\.azure/|\.vault-token|\.cargo/credentials|id_(rsa|dsa|ed25519|ecdsa)|service.account.*\.json|\.pem([[:space:]]|$)|\.p12([[:space:]]|$)|kubeconfig)" Dockerfile
+grep -inE "^(ARG|ENV) .*(TOKEN|KEY|SECRET|PASSWORD)" Dockerfile
 
 # Verify non-root execution
 docker run --rm app-optimized whoami

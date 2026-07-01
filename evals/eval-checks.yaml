@@ -121,6 +121,21 @@
       type: file_must_not_match
       pattern: "npm install(?! )"
 
+    - id: bs-p2-secret-mount
+      description: Uses RUN --mount=type=secret for registry credentials instead of COPY .npmrc
+      type: file_match
+      pattern: "--mount=type=secret"
+
+    - id: bs-p2-no-copy-npmrc
+      description: Must NOT COPY .npmrc into the build context (leaks into intermediate layers)
+      type: file_must_not_match
+      pattern: "^(COPY|ADD) .*\\.npmrc"
+
+    - id: bs-p2-no-arg-credential
+      description: Must NOT pass credentials via ARG (visible in docker history) — case-insensitive
+      type: file_must_not_match
+      pattern: "(?i)^ARG .*(TOKEN|KEY|SECRET|PASSWORD)"
+
 - eval: docker-build-strategies
   prompt: "Prompt 3: Node.js + React monorepo"
   skip: true

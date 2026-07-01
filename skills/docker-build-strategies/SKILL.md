@@ -2,7 +2,7 @@
 name: docker-build-strategies
 description: Use this skill when writing, reviewing, or optimizing Dockerfiles, even if the user just says their image is too large, their build is slow, or they need to harden a container for production. Covers multi-stage builds, layer caching, .dockerignore, non-root users, and image size optimization.
 license: Apache-2.0
-compatibility: Requires Docker 20.10+ with BuildKit enabled.
+compatibility: Requires Docker 23.0+ (BuildKit default). On Docker 20.10–22.x, set DOCKER_BUILDKIT=1 before building.
 ---
 
 # Docker Build Strategies
@@ -54,6 +54,43 @@ Order Dockerfile instructions from least-frequently-changed to most-frequently-c
 4. Combine related `RUN` commands with `&&` to reduce layer count, but keep logically distinct steps separate for cache granularity.
 
 See `references/layer-caching.md` for detailed cache invalidation rules and cache mount patterns.
+
+### Build secrets and SSH access
+
+Never bake credentials into the image. Use BuildKit secrets and SSH mounts so credentials are available only during the specific `RUN` step that needs them, and never persist in any layer or `docker history` output.
+
+1. **Do NOT** pass credentials through `ARG` or `ENV`. Both end up in the image layers and are inspectable via `docker history`.
+2. **Do NOT** `COPY` credential files into the build context: `.npmrc`, `.pypirc`, `.netrc`, `pip.conf`, Maven `settings.xml`, `.env`, cloud credentials (`~/.aws/credentials`, `~/.config/gcloud/`, service-account JSON files, `~/.azure/`), secret-manager tokens (`~/.vault-token`), package-registry tokens (`~/.cargo/credentials.toml`), TLS keys (`*.pem`, `*.p12`), `kubeconfig`, SSH keys (`id_rsa`, `id_dsa`, `id_ed25519`, `id_ecdsa`). Even when the final stage does not copy them forward, they live in intermediate layers and the build cache.
+3. **Do NOT** echo, write, or expand the secret value inside a `RUN` command in a way that persists it to a layer or emits it to build logs. Access the secret file (e.g., `/run/secrets/<id>`, or directly via the mount `target=`) — never `echo "$(cat /run/secrets/X)"`, never substitute it into a shell argument that will be logged with `--progress=plain`.
+4. **Use `RUN --mount=type=secret`** for package manager registry credentials:
+   ```dockerfile
+   RUN --mount=type=secret,id=npmrc,target=/root/.npmrc,required=false \
+       --mount=type=cache,target=/root/.npm \
+       npm ci --omit=dev
+   ```
+   The secret is available only inside that `RUN`, never written to a layer. Use `required=true` when the build will always need the credential (e.g., all packages come from a private registry, so missing the secret should fail the build immediately); use `required=false` only when the secret is optional (the build can succeed with public packages alone).
+5. **Use `RUN --mount=type=ssh`** for fetching private Git repositories or modules. The build container has no `known_hosts` by default — populate it inside the same `RUN`:
+   ```dockerfile
+   RUN --mount=type=ssh \
+       mkdir -p -m 0700 /root/.ssh && \
+       ssh-keyscan github.com >> /root/.ssh/known_hosts && \
+       git clone git@github.com:org/private-repo.git
+   ```
+   Do NOT use `StrictHostKeyChecking=no` as a shortcut — it disables host-key verification entirely. `ssh-keyscan` pins the known fingerprint at build time.
+6. **Invoke buildx with the secret and SSH sources:**
+   ```bash
+   # Ensure an SSH agent is running with the key loaded (or use --ssh default=<key-file>):
+   eval "$(ssh-agent -s)" && ssh-add ~/.ssh/id_ed25519
+
+   docker buildx build \
+       --secret id=npmrc,src=$HOME/.npmrc \
+       --ssh default \
+       .
+   ```
+   Alternatively, pass the key file directly without an agent: `--ssh default=$HOME/.ssh/id_ed25519`.
+7. `.dockerignore` exclusions of `.env` and credential files are **defense in depth**, not the primary mechanism — keep them, but do not rely on them as your only protection.
+
+See `references/multi-stage-builds.md` for per-language patterns (npm, pip, Maven, Go `GOPRIVATE`).
 
 ### .dockerignore
 

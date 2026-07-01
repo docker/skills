@@ -5,10 +5,10 @@ Use these checks to verify a generated Dockerfile meets quality standards.
 ## 1. Build succeeds
 
 ```bash
-docker build -t test-image .
+docker buildx build -t test-image .
 ```
 
-The build must complete without errors. Use `--progress=plain` to inspect each step if debugging is needed.
+The build must complete without errors. Use `--progress=plain` to inspect each step if debugging is needed (avoid this flag in CI where build logs are persisted, since it may expose the content of any secret that a `RUN` step accidentally echoes).
 
 ## 2. Image size is reasonable
 
@@ -52,11 +52,38 @@ The output must be non-empty and must not be `0` or `root`.
 
 ## 4. No secrets in image
 
+### 4a. Static check of the Dockerfile pattern (primary)
+
+Before building, verify the Dockerfile does not `COPY` credential files or pass credentials through `ARG`/`ENV`. Any match below is a leak:
+
+```bash
+# Credential files copied into the build context
+grep -nE "^(COPY|ADD) .*(\.npmrc|\.pypirc|\.netrc|pip\.conf|settings\.xml|\.env|\.aws/credentials|\.config/gcloud|\.azure/|\.vault-token|\.cargo/credentials|id_(rsa|dsa|ed25519|ecdsa)|service.account.*\.json|\.pem([[:space:]]|$)|\.p12([[:space:]]|$)|kubeconfig)" Dockerfile
+
+# Credentials passed as build args (visible in docker history) — case-insensitive
+grep -inE "^ARG .*(TOKEN|KEY|SECRET|PASSWORD)" Dockerfile
+
+# Credentials baked into image env (visible to anyone with the image) — case-insensitive
+grep -inE "^ENV .*(TOKEN|KEY|SECRET|PASSWORD)=" Dockerfile
+```
+
+If the project needs registry credentials, the Dockerfile must use `RUN --mount=type=secret` and the build invocation must pass the secret:
+
+```bash
+docker buildx build --secret id=<id>,src=<host-path> --progress=plain .
+```
+
+The `--progress=plain` output should show the secret being consumed inside the right `RUN` step **without printing its value**. If you see the secret content in the log, the `RUN` is leaking it (e.g., via `echo`, `cat`, or shell substitution into a logged command) — that is a build-log leak even when the layer itself is clean. For private Git access, use `--mount=type=ssh` and `docker buildx build --ssh default .`.
+
+### 4b. Backstop: scan the built image
+
 ```bash
 docker history test-image --no-trunc
 ```
 
 Inspect the output for any `ENV` instructions or `COPY` steps that might include `.env` files, API keys, or credentials.
+
+**Note:** `docker history` shows layers of the final exported image only. It will **not** reveal credentials that were `COPY`-ed in an intermediate stage but not carried forward — those files still exist in BuildKit's build cache on the builder host. The static Dockerfile check in 4a is the only way to catch that class of leak. This step is a backstop.
 
 ## 5. Layer count
 
