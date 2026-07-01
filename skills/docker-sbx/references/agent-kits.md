@@ -32,19 +32,19 @@ A custom template extends or replaces the image; the kit's behavior contract sti
 
 ## What a kit injects
 
-Reading the `spec.yaml` of a kit reveals what will appear in the sandbox:
+Reading the `spec.yaml` of a kit (v2 form, `schemaVersion: "2"`) reveals what will appear in the sandbox:
 
-- **`sandbox.image`** — Default container image (overridable with `--template`).
+- **`sandbox.image`** — Default container image (overridable with `--template`). Mutually exclusive with `sandbox.build:` (defined in the schema but not yet implemented in sbx v0.34.0 — use `image:` for now).
 - **`sandbox.entrypoint.run`** — Entrypoint command and args.
-- **`environment.variables`** — Static env vars (literal values).
-- **`environment.proxyManaged`** — Env var names whose values are filled at request time by the proxy from the host secret store (e.g., `ANTHROPIC_API_KEY`).
-- **`commands.install`** — Install steps run as root at create time (skipped when the binary is already in the template image).
-- **`commands.startup`** — Startup steps run as the agent user at run time.
-- **`initFiles`** — Files copied at container creation, with placeholder substitution (e.g., `${WORKDIR}`).
-- **`files/home/` and `files/workspace/`** — Static files embedded in the kit and copied to the agent's home or the workspace.
-- **`credentials.sources`** — Ordered list of host env vars to discover automatically.
-- **`network.serviceDomains`** — Domains intercepted by the proxy, with auth-header templates that get filled from the secret store.
-- **`oauth`** — Token endpoint, file path, refresh logic.
+- **`environment.variables`** — Static env vars (literal values). In v2 the proxy-managed semantic is implicit on `credentials[].apiKey.name` — there is no separate `environment.proxyManaged` list.
+- **`credentials[]`** — Typed list of credentials the kit needs. Each entry declares a `service`, an optional `required` flag, and one of `apiKey` / `oauth` / `sshAgent` (P2, not yet in the spec library).
+- **`caps.network.allow` / `caps.network.deny`** — Egress allow / deny lists at host+port level. Replaces v1 `network.serviceDomains`. Every domain a credential injects into MUST also appear in `caps.network.allow` — there is no auto-derived egress.
+- **`commands.install[]`** — Runs once as root at create time. Each entry: `command: "<string>"` (executed via `sh -c`, so shell metachars work), optional `user`, `description`.
+- **`commands.startup[]`** — Runs on **every** container start (create, restart, daemon or host reboot) as the agent user. Each entry: `command: ["<list>"]` (`exec`-style, no shell — wrap in `["sh", "-c", "..."]` if you need shell metachars), optional `user`, `background`.
+- **`commands.initFiles[]`** — Files written at startup via shell. Fields: `path`, `content` (only `${WORKDIR}` placeholder supported), `mode`, `onlyIfMissing`.
+- **`files/home/` and `files/workspace/`** — Static files embedded in the kit and copied to the agent's home or the workspace. Absolute paths and `..` traversal rejected at validation.
+- **`publishedPorts[]`** — Ports the runtime publishes on the host (ephemeral, bound to `127.0.0.1`). Entry: `container: <port>`, optional `protocol`, `name`.
+- **`agentContext`** — Free-form text inlined into the agent's AI profile file (e.g., `CLAUDE.md`). For mixins, written to `<AI-file-dir>/kits-memory/<kit>.md` and referenced via a `## Kits` sentinel (progressive disclosure).
 
 ## Per-agent specifics worth knowing
 
@@ -63,31 +63,100 @@ When you run `sbx create <agent-name> <workspace>`:
 3. The kit's `kind` must be `sandbox` (vs `mixin`). Mixins extend other kits and are not selectable as the primary agent.
 4. The kit's `sandbox.image` is used unless `--template` overrides it.
 
-## Authoring a custom kit (high level)
+## Authoring a custom kit
+
+A kit is a directory containing a `spec.yaml`, optionally with a `files/` subtree for static content. Publish as a local directory, an OCI artifact, or a git commit-SHA reference. The current spec form is `schemaVersion: "2"`; v1 still loads via legacy shims but is deprecated — new kits should target v2.
+
+### Kit vs mixin
+
+Two `kind`s:
+
+- **`kind: sandbox`** — the primary agent kit. MUST declare a `sandbox:` block (with `image:` and `entrypoint:`). Selected as the first positional arg to `sbx create`.
+- **`kind: mixin`** — additive capability. MUST NOT declare a `sandbox:` block. Composed onto a sandbox kit via the top-level `mixins:` field, or at run time via `--kit`.
+
+Exactly one sandbox kit per composition; mixins stack.
+
+### Minimum viable `spec.yaml`
 
 ```yaml
-schemaVersion: "1"
+schemaVersion: "2"
 kind: sandbox
 name: my-agent
-
 sandbox:
   image: my-registry/my-template:1.0
+  entrypoint:
+    run: ["my-agent", "--start"]
+```
+
+Validate: `sbx kit validate ./my-kit/`. Use: `sbx create my-agent ./project --kit ./my-kit/`.
+
+### Fuller example — with credentials, network, and commands
+
+```yaml
+schemaVersion: "2"
+kind: sandbox
+name: my-agent
+description: "Runs my-agent in a Docker sandbox."
+sandbox:
+  image: my-registry/my-template:1.0
+  aiFilename: AGENT.md
   entrypoint:
     run: ["my-agent", "--start"]
 
 environment:
   variables:
     MY_AGENT_LOG_LEVEL: debug
-  proxyManaged:
-    - MY_AGENT_API_KEY
 
 credentials:
-  sources:
-    - env: [MY_AGENT_TOKEN, MY_AGENT_API_KEY]
+  - service: my-agent
+    required: false
+    apiKey:
+      name: MY_AGENT_API_KEY               # env var the sandbox sees (proxy fills it in)
+      inject:
+        - domain: api.my-agent.com
+          header: Authorization
+          format: "Bearer %s"              # exactly one %s
+
+caps:
+  network:
+    allow:
+      - api.my-agent.com                    # MUST include every inject[].domain above
+      - "*.my-agent.com"
 
 commands:
+  install:
+    - command: "command -v my-agent || curl -fsSL https://my-agent.com/install.sh | sh"
+      description: "Install the agent binary if the base image doesn't already ship it."
   startup:
-    - my-agent migrate
+    - command: ["sh", "-c", "mkdir -p ~/.my-agent"]
+      description: "Idempotent — startup runs on every container start."
 ```
 
-Validate before use: `sbx kit validate ./my-kit/`. Then `sbx create my-agent ./project --kit ./my-kit/`.
+### Bindings — the split with users
+
+A kit declares *what it needs* (`credentials[].service` + `apiKey.inject[].domain`). The user declares *where the secret value lives* on their host, in `~/.config/sbx/credentials.yaml`. The engine only injects a credential into a domain that appears in **both** the kit's `inject[].domain` **and** the user's `bindings[<service>].allowedDomains`. See `credentials.md` → "Bindings" for the user-side file format.
+
+### Common pitfalls
+
+- **`commands.startup` runs on every container start** (create, restart, daemon/host reboot) — author idempotently (`mkdir -p`, `... || true`); do not assume "first run only".
+- **`commands.install` re-runs on recreate.** Guard file writes with `if [ ! -f ... ]`, or use `commands.initFiles` with `onlyIfMissing: true` for static content.
+- **`SBX_CRED_<SERVICE>_MODE` is available at install time.** Values: `apikey` | `oauth` | `none`. Read defensively: `${SBX_CRED_<SERVICE>_MODE:-none}`.
+- **`sbx kit add` cannot apply immutable settings** — labels, privileged mode, volumes, `publishedPorts` are fixed at container create time. The user must recreate the sandbox with `--kit` to pick them up.
+- **Two `credentials[]` entries with the same `service` across composed kits is a hard error** at `sbx run` time (composition step, not per-artifact validation).
+- **`commands.install[].command` is a string; `commands.startup[].command` is a list.** Getting the shape wrong is the most common `sbx kit validate` failure (`cannot unmarshal !!str into []string`).
+- **Every `apiKey.inject[].domain` MUST appear in `caps.network.allow`.** Spec validation rejects the mismatch — there is no auto-derived egress.
+
+### Distribution
+
+Four reference forms:
+
+| Form | Example |
+|---|---|
+| Embedded built-in | `claude` (by name) |
+| Local directory | `./my-kit/` |
+| Git commit-SHA | `git+https://github.com/org/repo.git#ref=<40-hex-sha>&dir=<subdir>` |
+| OCI digest | `oci://ghcr.io/org/my-kit@sha256:<digest>` |
+
+Remote refs MUST be immutable: a **full 40-hex commit SHA** for git; a **`@sha256:` digest** for OCI. Branch names and tags (including `:latest` and semver tags like `v1.2.3`) are rejected — tags are mutable and can be retagged.
+
+Publish: `sbx kit push ./my-kit/ ghcr.io/org/my-kit:1.0` accepts a tag for ergonomics but rewrites the published artifact so consumers reference it by digest. Inspect a pushed kit: `sbx kit inspect oci://ghcr.io/org/my-kit@sha256:<digest>`.

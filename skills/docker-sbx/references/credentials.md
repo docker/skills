@@ -114,10 +114,53 @@ Run `sbx setup` to walk through discovery interactively before any `sbx create` 
 
 Two paths:
 
-1. **Proxy-managed env vars** — The kit declares `environment.proxyManaged: [ANTHROPIC_API_KEY]`. At request time, the proxy intercepts outbound HTTP to the declared `serviceDomains` and rewrites the auth header from the secret store. The env var inside the sandbox holds a sentinel value, **not** the real key.
-2. **OAuth credentials file** — When the kit declares an `oauth` section, the resolved token is written to a path like `~/.agent/<service>/.credentials.json` inside the sandbox at startup. This is the OAuth refresh-token flow; ephemeral access tokens are still proxy-injected.
+1. **Proxy-managed env vars** — The kit declares `credentials[].apiKey.name: ANTHROPIC_API_KEY` and one or more `apiKey.inject[]` entries mapping domain → auth header. At request time the proxy intercepts outbound HTTP to those domains and rewrites the auth header from the secret store. The env var inside the sandbox holds a sentinel value (`proxy-managed`), **not** the real key. (In v1 kits, the equivalent lived under `environment.proxyManaged` + `network.serviceDomains`.)
+2. **OAuth credentials file** — When the kit declares `credentials[].oauth`, the resolved token is written to the path declared in `credentials[].oauth.credentialFile.path` at startup (e.g., `~/.claude/.credentials.json`). This is the OAuth refresh-token flow; ephemeral access tokens are still proxy-injected.
 
 Either way, the literal long-lived secret does not land in plain env var space inside the sandbox.
+
+## Bindings — where the secret value lives on your host
+
+The v2 spec splits the credential contract in two: the kit declares *what it needs* (`credentials[].service` + `apiKey.inject[].domain`), and the user declares *where the value lives* on their host, in a bindings file:
+
+| Platform | Path |
+|---|---|
+| macOS / Linux | `~/.config/sbx/credentials.yaml` |
+| Unix with `$XDG_CONFIG_HOME` set | `$XDG_CONFIG_HOME/sbx/credentials.yaml` |
+| Windows | `%APPDATA%\sbx\credentials.yaml` |
+
+Built-in providers (anthropic, openai, github, …) ship with baked-in defaults — no manual editing needed for the common case. Add or override entries when you use a custom service, a non-default env var, or a file-backed credential.
+
+File shape:
+
+```yaml
+bindings:
+  anthropic:
+    discovery:                        # ordered — first match wins; may be empty
+      - env: [ANTHROPIC_API_KEY]
+      - file:
+          path: "~/.anthropic/api_key.txt"
+    allowedDomains:                   # every inject[].domain the kit declares MUST match here
+      - api.anthropic.com
+      - "*.anthropic.com"
+
+  my-custom-service:
+    discovery: []                     # empty — value comes from the secret store only
+    allowedDomains:
+      - api.my-service.com
+```
+
+Resolution order when a credential is needed for a service:
+
+1. **Sandbox-scoped secret store** — `sbx secret set <sandbox> <service> ...`
+2. **Global secret store** — `sbx secret set -g <service> ...`
+3. **`discovery[]`** — the binding's discovery entries, walked in order (first match wins).
+
+The secret store fires **before** discovery — an env-var binding is only consulted when no `sbx secret set` value exists for the service.
+
+**Domain intersection.** A credential is only injected into a domain that appears in **both** the kit's `credentials[].apiKey.inject[].domain` **and** the user's `bindings[<service>].allowedDomains`. This is the enforcement point — a kit cannot silently redirect your token to an unexpected host.
+
+For a custom service not in the built-in provider registry, add a `bindings[<service>]` entry by hand. `sbx secret set` populates the secret store but does not create binding entries automatically.
 
 ## Custom secrets (Experimental)
 
