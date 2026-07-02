@@ -160,3 +160,7 @@ Four reference forms:
 Remote refs MUST be immutable: a **full 40-hex commit SHA** for git; a **`@sha256:` digest** for OCI. Branch names and tags (including `:latest` and semver tags like `v1.2.3`) are rejected — tags are mutable and can be retagged.
 
 Publish: `sbx kit push ./my-kit/ ghcr.io/org/my-kit:1.0` accepts a tag for ergonomics but rewrites the published artifact so consumers reference it by digest. Inspect a pushed kit: `sbx kit inspect oci://ghcr.io/org/my-kit@sha256:<digest>`.
+
+### Going further
+
+For advanced authoring topics not covered here — `extends:` inheritance, full OAuth credential shape, `agentContext` progressive disclosure, TCK testing, v1 → v2 migration — use the **`kit-author`** skill published in the [`docker/sbx-kits-contrib`](https://github.com/docker/sbx-kits-contrib/tree/main/skills/kit-author) repository. That skill is the canonical authoring guide; this page focuses on *using* sbx and the common authoring paths.
