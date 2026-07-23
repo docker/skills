@@ -4,15 +4,20 @@
 FROM node:22-alpine AS deps
 WORKDIR /src
 COPY package.json package-lock.json ./
-COPY .npmrc .
-RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
+# Registry credentials, if any, are mounted only for the duration of `npm ci`.
+# `required=false` keeps the build green when no .npmrc is provided.
+# Invoke with: docker buildx build --secret id=npmrc,src=$HOME/.npmrc .
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc,required=false \
+    --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev
 
 # --- Build stage ---
 FROM node:22-alpine AS build
 WORKDIR /src
 COPY package.json package-lock.json ./
-COPY .npmrc .
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc,required=false \
+    --mount=type=cache,target=/root/.npm \
+    npm ci
 COPY . .
 RUN npm run build
 
