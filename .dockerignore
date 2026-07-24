@@ -1,0 +1,13 @@
+.git
+.github
+.claude
+.claude-plugin
+.agents
+.gemini
+.venv
+.idea
+.sbx
+.env
+**/.DS_Store
+Dockerfile
+.dockerignore
