@@ -29,6 +29,7 @@ jobs:
 
   image:
     runs-on: ubuntu-latest
+    environment: release
     needs:
       - validate
     steps:
