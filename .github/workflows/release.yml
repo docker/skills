@@ -41,7 +41,7 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@06fb636fac595d6fb4b28a5dfcb21a6f5091859c # v4.5.0
         with:
-          username: ${{ secrets.DOCKERPUBLICBOT_USERNAME }}
+          username: ${{ vars.DOCKERPUBLICBOT_USERNAME }}
           password: ${{ secrets.DOCKERPUBLICBOT_WRITE_PAT }}
 
       - name: Docker meta
