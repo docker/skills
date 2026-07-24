@@ -10,13 +10,8 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Install Task
-        uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
-        with:
-          version: 3.x
-
       - name: Validate
-        run: task validate
+        run: docker run --rm -v "$PWD:/work" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d sh -c "pip install -q pyyaml && python3 scripts/validate.py"
 
       - name: Eval checks
-        run: task eval
+        run: docker run --rm -v "$PWD:/work" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d sh -c "pip install -q pyyaml && python3 scripts/eval_check.py"
