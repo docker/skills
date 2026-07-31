@@ -1,0 +1,24 @@
+schema: v1
+id: docker-desktop-preflight
+version: 0.1.0
+title: Docker Desktop Preflight
+description: Detects Docker Desktop as the active runtime and triages its governance surfaces without bypassing them.
+owns:
+  - docker-desktop-detection
+  - desktop-governance-triage
+  - desktop-resource-limits-diagnosis
+  - desktop-registry-access-diagnosis
+  - desktop-kubernetes-enablement-diagnosis
+use_when:
+  - About to run a container, build, pull, push, compose, or kubectl action on a host where Docker Desktop is suspected to be the active runtime.
+  - An error matches a Docker Desktop governance symptom (exit 137, mounts denied, enhanced container isolation, registry access blocked, enforced sign-in, missing kubectl context, proxy/x509 failures).
+  - The user asks whether a Docker Desktop resource limit, Kubernetes, or security feature can be changed programmatically, or who administers a locked setting.
+do_not_use_when:
+  - The active runtime is confirmed not to be Docker Desktop and no Desktop-specific symptom is present.
+  - The failure is a Dockerfile authoring problem rather than a Desktop governance block.
+  - The failure is a Compose service-wiring problem rather than a Desktop governance block.
+  - The project has no Docker setup yet and needs a first-pass scaffold.
+delegates_to:
+  - docker-build-strategies
+  - docker-compose-patterns
+  - docker-project-foundations
