@@ -394,3 +394,360 @@
   prompt: "Prompt 3: Go + Redis"
   skip: true
   skip_reason: Partial coverage only — Go Dockerfile is in build-strategies skill, not foundations
+
+# ─── docker-desktop-preflight ───────────────────────────────────────────────
+# Written ahead of the skill per the repo's TDD convention (see
+# evals/docker-desktop-preflight.md); the skill is now authored and every
+# check below passes against skills/docker-desktop-preflight/.
+
+- eval: docker-desktop-preflight
+  prompt: "Scenario 1: Exit 137 after a build"
+  asset: skills/docker-desktop-preflight/references/resources.md
+  checks:
+    - id: ddp-p1-exit137-explained
+      description: Explains exit 137 as an in-VM OOM kill (analysis §6.1, §10)
+      type: file_match
+      pattern: "(?i)137"
+
+    - id: ddp-p1-ask-before-change
+      description: States resource changes must be confirmed by the user first, even though the user is entitled to make them (§12 D2)
+      type: file_match
+      pattern: "(?i)(ask the user|confirm with the user|before (applying|making) any (resource|memory) change|propose(d)? .{0,60}(to the user|for (them|the user) to apply))"
+
+    - id: ddp-p1-no-cli-path
+      description: States there is no CLI path to read/write resource limits (§4, §7)
+      type: file_match
+      pattern: "(?i)(no CLI (path|command)|not via CLI|CLI (cannot|can't|does not))"
+
+    - id: ddp-p1-no-silent-edit
+      description: Must NOT instruct silently/automatically editing settings-store.json (§8, §12 D2)
+      type: file_must_not_match
+      pattern: "(?i)(automatically|silently) (edit|modify|update) settings-store\\.json"
+
+- eval: docker-desktop-preflight
+  prompt: "Scenario 2: ECI docker-socket-mount denial (Testcontainers)"
+  asset: skills/docker-desktop-preflight/references/isolation.md
+  checks:
+    - id: ddp-p2-names-eci
+      description: Names Enhanced Container Isolation explicitly (§6.5)
+      type: file_match
+      pattern: "Enhanced Container Isolation"
+
+    - id: ddp-p2-socket-mount-denied-string
+      description: Documents the ECI socket-mount-denied error's stable, case-insensitive core — current source capitalizes "Docker socket" mid-sentence, so match "container isolation:" + "ocker socket mount denied" rather than the old all-lowercase literal (§6.5)
+      type: file_match
+      pattern: "(?i)container isolation:.*ocker socket mount denied"
+
+    - id: ddp-p2-allowlist-escalation
+      description: Directs to the admin dockerSocketMount.imageList allowlist (§6.5, §12 D3)
+      type: file_match
+      pattern: "(?i)(dockerSocketMount\\.imageList|admin.{0,30}allowlist)"
+
+    - id: ddp-p2-no-disable-eci
+      description: Must NOT affirmatively suggest disabling ECI as a fix — absolute rule (§6.5, §12 D4). Pattern targets "should/can/could/just disable" to avoid false-positiving on the required guardrail sentence ("never disable ECI").
+      type: file_must_not_match
+      pattern: "(?i)\\b(should|can|could|just)\\s+disable\\s+(enhanced container isolation|eci)\\b"
+
+    - id: ddp-p2-no-privileged-workaround
+      description: Must NOT suggest --privileged or a runtime switch to bypass ECI (§6.5, §12 D4)
+      type: file_must_not_match
+      pattern: "(?i)(use --privileged|switch (runtime|to a different runtime)) to (bypass|avoid|get around) (enhanced container isolation|eci)"
+
+- eval: docker-desktop-preflight
+  prompt: "Scenario 3: Docker Desktop stopped"
+  asset: skills/docker-desktop-preflight/SKILL.md
+  checks:
+    - id: ddp-p3-detects-stopped
+      description: Documents detecting Desktop installed-but-stopped via context + unreachable daemon (§5)
+      type: file_match
+      pattern: "(?i)(installed but not running|installed.{0,20}not running)"
+
+    - id: ddp-p3-offers-start-as-choice
+      description: Frames `docker desktop start` as an offered/asked choice, not an auto-run step (§12 D1)
+      type: file_match
+      pattern: "(?i)((offer|ask).{0,80}`docker desktop start`|`docker desktop start`.{0,80}(offer|ask|consent|choice))"
+
+    - id: ddp-p3-no-autostart
+      description: Must NOT instruct auto-starting Desktop without asking first (§12 D1 — never silent)
+      type: file_must_not_match
+      pattern: "(?i)((automatically|silently) (run|start) `?docker desktop start`?|without asking.{0,40}docker desktop start)"
+
+- eval: docker-desktop-preflight
+  prompt: "Scenario 4: Registry Access Management block"
+  asset: skills/docker-desktop-preflight/references/registry-access.md
+  checks:
+    - id: ddp-p4-full-name
+      description: Uses "Registry Access Management" in full (§2 terminology rule)
+      type: file_match
+      pattern: "Registry Access Management"
+
+    - id: ddp-p4-no-ram-parenthetical
+      description: Must NOT introduce the feature as "Registry Access Management (RAM)" (§2)
+      type: file_must_not_match
+      pattern: "Registry Access Management\\s*\\(RAM\\)"
+
+    - id: ddp-p4-no-ram-misuse
+      description: Must NOT use bare "RAM" adjacent to policy/allowlist/enforcement/registry language (§2)
+      type: file_must_not_match
+      pattern: "(?i)\\bRAM\\b\\s*(policy|allowlist|enforc\\w*|block\\w*)"
+
+    - id: ddp-p4-no-bypass
+      description: Must NOT suggest a DNS/proxy bypass (§6.6, §12 D4)
+      type: file_must_not_match
+      pattern: "(?i)(bypass|circumvent).{0,40}(registry access management|dns|proxy)"
+
+    - id: ddp-p4-no-signout
+      description: Must NOT suggest signing out to escape enforcement (§6.6, §12 D4)
+      type: file_must_not_match
+      pattern: "(?i)sign(ing)? out.{0,40}(escape|avoid|bypass|get around)"
+
+- eval: docker-desktop-preflight
+  prompt: "Scenario 5: Mounts denied on macOS"
+  asset: skills/docker-desktop-preflight/references/mounts-and-network.md
+  checks:
+    - id: ddp-p5-mounts-denied-cause
+      description: Explains a bind-mount source outside the shared directories as the cause (§6.7)
+      type: file_match
+      pattern: "(?i)((outside|not shared).{0,60}(shared director\\w*|file sharing)|(shared director\\w*|file sharing).{0,60}(outside|not shared))"
+
+    - id: ddp-p5-prefers-shared-root
+      description: Recommends a path under an existing shared root before a settings change (§6.7 remediation ordering)
+      type: file_match
+      pattern: "(?i)(prefer|already under|relocate|use a path under|move.{0,20}(to|under)).{0,60}(shared root|shared director\\w*|home directory)"
+
+    - id: ddp-p5-locked-escalation
+      description: Escalates to the org admin when file sharing is admin-locked (§6.2, §6.7, §12 D3)
+      type: file_match
+      pattern: "(?i)locked.{0,80}(contact|ask|direct).{0,30}(admin|organization)"
+
+    - id: ddp-p5-no-overshare
+      description: Must NOT suggest sharing more than what's needed (§6.7)
+      type: file_must_not_match
+      pattern: "(?i)share (the entire|all of|your whole) (disk|filesystem|drive)"
+
+- eval: docker-desktop-preflight
+  prompt: "Scenario 6: Grayed-out setting (Settings Management lock)"
+  asset: skills/docker-desktop-preflight/references/governance.md
+  checks:
+    - id: ddp-p6-names-settings-management
+      description: Names Settings Management as the cause of a grayed-out setting (§6.2)
+      type: file_match
+      pattern: "Settings Management"
+
+    - id: ddp-p6-locked-flag
+      description: Documents parsing the per-key `locked` flag rather than presence alone (§3, §6.2)
+      type: file_match
+      pattern: "(?i)`?locked`?\\s*(flag|field|key)"
+
+    - id: ddp-p6-contact-admin
+      description: Uses the posture phrase directing to the org admin (§6.2, §8, §12 D3)
+      type: file_match
+      pattern: "(?i)contact your Docker (org|organization) admin"
+
+    - id: ddp-p6-surface-value
+      description: States the enforced/locked value should be surfaced to the user when readable (§12 D3)
+      type: file_match
+      pattern: "(?i)(enforced|locked) value.{0,60}(when it is readable|is readable)"
+
+    - id: ddp-p6-no-edit-admin-file
+      description: Must NOT instruct editing admin-settings.json (§6.2, §8)
+      type: file_must_not_match
+      pattern: "(?i)(edit|modify|write to) admin-settings\\.json"
+
+- eval: docker-desktop-preflight
+  prompt: "Scenario 7: Not a Docker Desktop environment (Colima / native Engine)"
+  asset: skills/docker-desktop-preflight/SKILL.md
+  checks:
+    - id: ddp-p7-detection-order
+      description: Documents resolving DOCKER_HOST/context before enumerating installed software (§5 step 1)
+      type: file_match
+      pattern: "(?i)(DOCKER_HOST|docker context inspect)"
+
+    - id: ddp-p7-not-applicable
+      description: Documents declaring the skill inapplicable outside Docker Desktop (§1, §5)
+      type: file_match
+      pattern: "(?i)(does not apply|not applicable|applies only|confirmed not to be docker desktop|do not carry any of these surfaces)"
+
+    - id: ddp-p7-no-enumeration-only
+      description: Must NOT decide runtime identity from installed-software enumeration alone (§5 step 1, step 5)
+      type: file_must_not_match
+      pattern: "(?i)if Docker\\.app (is|isn't) (installed|present), (assume|conclude)"
+
+    - id: ddp-p7-container-platform-caveat
+      description: Documents that Name=`docker-desktop` is not sufficient proof by itself — a sibling "Container Platform" VM reports the identical hostname (§5 step 3)
+      type: file_match
+      pattern: "Container Platform"
+
+- eval: docker-desktop-preflight
+  prompt: "Scenario 8: Windows WSL2 memory pressure"
+  asset: skills/docker-desktop-preflight/references/resources.md
+  checks:
+    - id: ddp-p8-wslconfig
+      description: Documents .wslconfig as the WSL2 memory/CPU/swap control surface (§6.10)
+      type: file_match
+      pattern: "\\.wslconfig"
+
+    - id: ddp-p8-wsl-shutdown
+      description: Documents `wsl --shutdown` as required to apply .wslconfig changes (§6.10)
+      type: file_match
+      pattern: "wsl --shutdown"
+
+    - id: ddp-p8-unverified-flag
+      description: Flags Windows/WSL2 guidance as documentation-only/unverified (§2, §6.10, §12 Q7)
+      type: file_match
+      pattern: "(?i)(unverified|documentation.derived|documentation.only|not.{0,10}live.verified|inferred, not independently confirmed|confirm on the target host before relying on it)"
+
+    - id: ddp-p8-no-gui-sliders-for-wsl2
+      description: Must NOT direct WSL2 users to the Desktop GUI Resources sliders (§6.10)
+      type: file_must_not_match
+      pattern: "(?i)WSL2.{0,80}Settings.{0,10}(→|->|>)\\s*Resources"
+
+    - id: ddp-p8-no-wsl-d-docker-desktop
+      description: Must NOT suggest `wsl -d docker-desktop` (§6.5 Windows delta, §12 D4)
+      type: file_must_not_match
+      pattern: "wsl -d docker-desktop"
+
+- eval: docker-desktop-preflight
+  prompt: "Scenario 9: Enforced sign-in (407) mistaken for Desktop being stopped"
+  asset: skills/docker-desktop-preflight/references/governance.md
+  checks:
+    - id: ddp-p9-407-code
+      description: Documents the HTTP 407 status as the enforced-sign-in symptom (§6.2/§6.3 "What enforcement looks like at the CLI")
+      type: file_match
+      pattern: "\\b407\\b"
+
+    - id: ddp-p9-signin-message
+      description: Documents the verbatim body text "Sign in to continue using Docker Desktop" (§6.2)
+      type: file_match
+      pattern: "Sign in to continue using Docker Desktop"
+
+    - id: ddp-p9-not-desktop-stopped
+      description: States the diagnostic rule that this pattern means enforced sign-in, not a stopped Docker Desktop (§6.2)
+      type: file_match
+      pattern: "(?i)enforced sign-in, not a stopped Docker Desktop"
+
+    - id: ddp-p9-names-mechanism-tail
+      description: Documents that the message's trailing clause names the enforcing mechanism (registry.json, admin-settings.json, desktop.plist, Config Profile, Registry key) (§6.2/§6.3)
+      type: file_match
+      pattern: "(?i)trailing clause names the mechanism"
+
+    - id: ddp-p9-gui-signin-remediation
+      description: Directs remediation to the Desktop GUI sign-in flow (whale menu), not `docker login` (§7)
+      type: file_match
+      pattern: "(?i)whale menu"
+
+    - id: ddp-p9-no-signout-bypass
+      description: Must NOT affirmatively suggest signing out or another bypass to escape enforced sign-in (§7, §12 D4)
+      type: file_must_not_match
+      pattern: "(?i)\\b(should|can|could|just)\\s+sign(ing)?\\s+out\\b"
+
+- eval: docker-desktop-preflight
+  prompt: "Cross-cutting: platform-signals.md source hygiene and Windows pipe signal"
+  asset: skills/docker-desktop-preflight/references/platform-signals.md
+  checks:
+    - id: ddp-ps-no-pinata
+      description: Must NEVER leak the internal pinata source-verification codename or repo name into a published reference file (docs/pinata-source-verification.md confidentiality rule)
+      type: file_must_not_match
+      pattern: "(?i)pinata"
+
+    - id: ddp-ps-dockerdesktoplinuxengine
+      description: Documents `dockerDesktopLinuxEngine` as the current positive Windows named-pipe signal, distinct from the ambiguous `docker_engine` compatibility pipe (§5 step 4)
+      type: file_match
+      pattern: "dockerDesktopLinuxEngine"
+
+- eval: docker-desktop-preflight
+  prompt: "Cross-cutting: detect-desktop.ps1 stays read-only"
+  asset: skills/docker-desktop-preflight/scripts/detect-desktop.ps1
+  checks:
+    - id: ddp-ps1-no-unguarded-lifecycle-exec
+      description: Must NOT directly invoke docker desktop start/stop/restart/update/enable/disable via the call operator — the script may only read state and offer these as an asked choice, mirroring detect-desktop.sh's read-only invocation set (§12 D1, D4)
+      type: file_must_not_match
+      pattern: "&\\s*[\"']?docker[\"']?\\s+desktop\\s+(start|stop|restart|update|enable|disable)\\b"
+
+    - id: ddp-ps1-no-engine-use-exec
+      description: Must NOT invoke `docker desktop engine use` — a Windows-only Linux/Windows-containers mode switch, not a read (§4 Windows-containers blind spot, §12 D4)
+      type: file_must_not_match
+      pattern: "(?i)docker\\s+desktop\\s+engine\\s+use\\b"
+
+- eval: docker-desktop-preflight
+  prompt: "Cross-cutting: terminology and forbidden-command safety (all skill files)"
+  assets:
+    skill: skills/docker-desktop-preflight/SKILL.md
+    resources: skills/docker-desktop-preflight/references/resources.md
+    governance: skills/docker-desktop-preflight/references/governance.md
+    isolation: skills/docker-desktop-preflight/references/isolation.md
+    registry: skills/docker-desktop-preflight/references/registry-access.md
+    mounts: skills/docker-desktop-preflight/references/mounts-and-network.md
+    kubernetes: skills/docker-desktop-preflight/references/kubernetes.md
+  checks:
+    - id: ddp-x-no-ram-parenthetical-skill
+      description: SKILL.md must not gloss Registry Access Management as "(RAM)" (§2)
+      type: file_must_not_match
+      asset_key: skill
+      pattern: "Registry Access Management\\s*\\(RAM\\)"
+    - id: ddp-x-no-ram-parenthetical-resources
+      description: resources.md must not gloss Registry Access Management as "(RAM)" (§2)
+      type: file_must_not_match
+      asset_key: resources
+      pattern: "Registry Access Management\\s*\\(RAM\\)"
+    - id: ddp-x-no-ram-parenthetical-governance
+      description: governance.md must not gloss Registry Access Management as "(RAM)" (§2)
+      type: file_must_not_match
+      asset_key: governance
+      pattern: "Registry Access Management\\s*\\(RAM\\)"
+    - id: ddp-x-no-ram-parenthetical-isolation
+      description: isolation.md must not gloss Registry Access Management as "(RAM)" (§2)
+      type: file_must_not_match
+      asset_key: isolation
+      pattern: "Registry Access Management\\s*\\(RAM\\)"
+    - id: ddp-x-no-ram-parenthetical-registry
+      description: registry-access.md must not gloss Registry Access Management as "(RAM)" (§2)
+      type: file_must_not_match
+      asset_key: registry
+      pattern: "Registry Access Management\\s*\\(RAM\\)"
+    - id: ddp-x-no-ram-parenthetical-mounts
+      description: mounts-and-network.md must not gloss Registry Access Management as "(RAM)" (§2)
+      type: file_must_not_match
+      asset_key: mounts
+      pattern: "Registry Access Management\\s*\\(RAM\\)"
+    - id: ddp-x-no-ram-parenthetical-kubernetes
+      description: kubernetes.md must not gloss Registry Access Management as "(RAM)" (§2)
+      type: file_must_not_match
+      asset_key: kubernetes
+      pattern: "Registry Access Management\\s*\\(RAM\\)"
+
+    - id: ddp-x-no-autorun-forbidden-skill
+      description: SKILL.md must not present forbidden commands (stop/restart/update/enable|disable/reset-cluster/diagnose) as auto-run (§4, §12 D4)
+      type: file_must_not_match
+      asset_key: skill
+      pattern: "(?i)(then run|just run|automatically run|run this now|execute) \\`?(docker desktop (stop|restart|update|enable|disable)|docker desktop kubernetes reset-cluster|docker desktop diagnose)"
+    - id: ddp-x-no-autorun-forbidden-resources
+      description: resources.md must not present forbidden commands as auto-run (§4, §12 D4)
+      type: file_must_not_match
+      asset_key: resources
+      pattern: "(?i)(then run|just run|automatically run|run this now|execute) \\`?(docker desktop (stop|restart|update|enable|disable)|docker desktop kubernetes reset-cluster|docker desktop diagnose)"
+    - id: ddp-x-no-autorun-forbidden-governance
+      description: governance.md must not present forbidden commands as auto-run (§4, §12 D4)
+      type: file_must_not_match
+      asset_key: governance
+      pattern: "(?i)(then run|just run|automatically run|run this now|execute) \\`?(docker desktop (stop|restart|update|enable|disable)|docker desktop kubernetes reset-cluster|docker desktop diagnose)"
+    - id: ddp-x-no-autorun-forbidden-isolation
+      description: isolation.md must not present forbidden commands as auto-run (§4, §12 D4)
+      type: file_must_not_match
+      asset_key: isolation
+      pattern: "(?i)(then run|just run|automatically run|run this now|execute) \\`?(docker desktop (stop|restart|update|enable|disable)|docker desktop kubernetes reset-cluster|docker desktop diagnose)"
+    - id: ddp-x-no-autorun-forbidden-registry
+      description: registry-access.md must not present forbidden commands as auto-run (§4, §12 D4)
+      type: file_must_not_match
+      asset_key: registry
+      pattern: "(?i)(then run|just run|automatically run|run this now|execute) \\`?(docker desktop (stop|restart|update|enable|disable)|docker desktop kubernetes reset-cluster|docker desktop diagnose)"
+    - id: ddp-x-no-autorun-forbidden-mounts
+      description: mounts-and-network.md must not present forbidden commands as auto-run (§4, §12 D4)
+      type: file_must_not_match
+      asset_key: mounts
+      pattern: "(?i)(then run|just run|automatically run|run this now|execute) \\`?(docker desktop (stop|restart|update|enable|disable)|docker desktop kubernetes reset-cluster|docker desktop diagnose)"
+    - id: ddp-x-no-autorun-forbidden-kubernetes
+      description: kubernetes.md must not present forbidden commands as auto-run (§4, §12 D4)
+      type: file_must_not_match
+      asset_key: kubernetes
+      pattern: "(?i)(then run|just run|automatically run|run this now|execute) \\`?(docker desktop (stop|restart|update|enable|disable)|docker desktop kubernetes reset-cluster|docker desktop diagnose)"

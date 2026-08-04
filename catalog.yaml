@@ -10,3 +10,6 @@ skills:
   - id: docker-build-strategies
     path: skills/docker-build-strategies
     version: 0.1.0
+  - id: docker-desktop-preflight
+    path: skills/docker-desktop-preflight
+    version: 0.1.0
