@@ -131,10 +131,21 @@ Key points:
 - Use `action: rebuild` for files that require a full image rebuild (dependency files like `package.json`, `requirements.txt`).
 - Use `action: sync+restart` for configuration files that need a process restart.
 
+### Destructive commands
+
+Some Compose commands delete data irreversibly. Before running any of the following, state exactly which data will be deleted and get explicit confirmation from the user — do not run them as a side effect of debugging, restarting, or "cleaning up" a stack:
+
+- `docker compose down -v` / `docker compose down --volumes` — deletes named volumes, including database data.
+- `docker volume rm` / `docker volume prune` run against a Compose project's volumes — deletes volumes directly. For the standalone case (no Compose project in play), see `docker-destructive-guardrails` instead. A volume referenced via `external: true` isn't managed by the Compose project either (`down -v` won't touch it) — treat it as the standalone case too: run `docker volume rm` without `-f` first, and get explicit confirmation before deleting it.
+- `docker compose rm -v` — deletes anonymous volumes attached to removed containers.
+
+If the goal is only to restart services or reclaim containers/networks, use `docker compose down` (no `-v`) or `docker compose restart` instead — these leave named volumes intact.
+
 ## Related skills
 
 - For first-time Docker project scaffolding and baseline file creation, use `docker-project-foundations`.
 - For Dockerfile internals, build caching, multi-stage builds, and `.dockerignore`, use `docker-build-strategies`.
+- For destructive Docker CLI commands outside Compose (`docker system prune`, `docker rm -f`, image/network/builder pruning, standalone volume deletion) and a cross-product index of destructive-command guardrails, use `docker-destructive-guardrails`.
 
 ## References
 

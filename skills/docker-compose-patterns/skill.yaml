@@ -17,3 +17,4 @@ do_not_use_when:
 delegates_to:
   - docker-project-foundations
   - docker-build-strategies
+  - docker-destructive-guardrails

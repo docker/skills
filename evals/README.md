@@ -32,6 +32,7 @@ One runbook per catalogued skill. The table is generated from [`catalog.yaml`](.
 | docker-agent-config | [docker-agent-config.md](docker-agent-config.md) |
 | docker-agent-run | [docker-agent-run.md](docker-agent-run.md) |
 | docker-agent-deploy | [docker-agent-deploy.md](docker-agent-deploy.md) |
+| docker-destructive-guardrails | [docker-destructive-guardrails.md](docker-destructive-guardrails.md) |
 <!-- catalog-end -->
 
 ## How to run an evaluation

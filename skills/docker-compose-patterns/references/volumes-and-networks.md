@@ -17,7 +17,7 @@ volumes:
   db-data:
 ```
 
-Named volumes are managed by Docker. They survive `docker compose down` (but not `docker compose down -v`).
+Named volumes are managed by Docker. They survive `docker compose down` (but not `docker compose down -v`, which deletes them and their data irreversibly). Never run `down -v` to work around a startup or connectivity problem — get explicit user confirmation first.
 
 ### Bind mounts
 
