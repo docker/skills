@@ -10,3 +10,12 @@ skills:
   - id: docker-build-strategies
     path: skills/docker-build-strategies
     version: 0.1.0
+  - id: docker-agent-config
+    path: skills/docker-agent-config
+    version: 0.1.0
+  - id: docker-agent-run
+    path: skills/docker-agent-run
+    version: 0.1.0
+  - id: docker-agent-deploy
+    path: skills/docker-agent-deploy
+    version: 0.1.0

@@ -17,6 +17,9 @@ The evaluation loop is the core differentiator -- Docker-authored skills must me
 | docker-project-foundations | [docker-project-foundations.md](docker-project-foundations.md) |
 | docker-compose-patterns | [docker-compose-patterns.md](docker-compose-patterns.md) |
 | docker-build-strategies | [docker-build-strategies.md](docker-build-strategies.md) |
+| docker-agent-config | [docker-agent-config.md](docker-agent-config.md) |
+| docker-agent-run | [docker-agent-run.md](docker-agent-run.md) |
+| docker-agent-deploy | [docker-agent-deploy.md](docker-agent-deploy.md) |
 
 ## How to run an evaluation
 
