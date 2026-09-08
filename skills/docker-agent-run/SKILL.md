@@ -87,11 +87,18 @@ Do not use this skill when:
   docker agent alias add code myorg/notion-expert
   docker agent run code
   ```
-- Override what bare `docker agent run` (no argument) launches by creating a
-  `default` alias — otherwise it falls back to a project `docker-agent.yaml`
-  or the built-in default agent:
+- For a local run with no agent argument, `docker agent run` discovers
+  `docker-agent.yaml`, then `docker-agent.yml`, then `docker-agent.hcl` in
+  the current directory (first match wins). Only if none exists does it
+  resolve the `default` alias, falling back to the built-in default agent.
+  The `agent.yaml` examples in these skills pass a filename explicitly;
+  `agent.yaml` is not an auto-discovery name.
+- Set the fallback for directories without a project config with a
+  `default` alias. To select it even when a project config exists, pass
+  `default` explicitly:
   ```bash
   docker agent alias add default ./my-agent.yaml
+  docker agent run default
   ```
 - CLI flags on `docker agent run <alias>` always override the alias's own
   stored options (e.g. `docker agent run yolo-coder --yolo=false`).

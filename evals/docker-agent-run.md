@@ -68,6 +68,31 @@ docker agent alias list --json
 
 ---
 
+## Prompt 4: Project config versus default alias
+
+**Prompt to agent:**
+
+> I have both agent.yaml and docker-agent.yaml in this folder, and a default alias. Which one does a bare docker agent run use, and how do I select the others?
+
+### Expected behaviors
+- [ ] Explains that a local run without an agent argument discovers `docker-agent.yaml`, then `.yml`, then `.hcl`, before falling back to the `default` alias or built-in default.
+- [ ] Uses `docker agent run ./agent.yaml` to select the explicitly named file and `docker agent run default` to select the alias.
+
+### Must not
+- [ ] Must NOT rename `docker-agent.yaml` to `agent.yaml` as an auto-discovery fix.
+- [ ] Must NOT claim the default alias overrides a discovered project config.
+
+### Verification commands
+```bash
+docker agent run --help
+docker agent alias list --json
+```
+Compare the answer with the pinned discovery implementation and tests in
+`skills/docker-agent-run/references/sources.md`; help alone does not specify
+filename precedence. This is a manual reasoning check, not a live agent run.
+
+---
+
 ## Should not trigger
 - "Add a filesystem tool to my agent" → `docker-agent-config`
 - "Serve my agent as an MCP server" → `docker-agent-deploy`
