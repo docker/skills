@@ -14,31 +14,25 @@ my-agent/
 ```
 
 ## Eval session JSON schema
-Each file is a recorded conversation plus an `evals` object with scoring
-criteria:
+Use `assets/eval-session-example.json` (relative to the skill root) for the
+complete example. The shape below is only a structural skeleton, not an
+eval to run:
+
 ```json
 {
-  "id": "41b179a2-ed19-4ae2-a45d-95775aaa90f7",
-  "title": "Counting Files in Local Folder",
-  "messages": [
-    { "message": { "message": { "role": "user", "content": "How many files in the local folder?" } } },
-    { "message": { "agent_name": "root", "message": { "role": "assistant",
-        "tool_calls": [{ "id": "call_abc123", "type": "function",
-          "function": { "name": "list_directory", "arguments": "{\"path\":\"./\"}" } }] } } },
-    { "message": { "agent_name": "root", "message": { "role": "assistant",
-        "content": "There are 2 files in the local folder..." } } }
-  ],
-  "evals": {
-    "relevance": ["The response mentions exactly 2 files"],
-    "assertions": [
-      { "name": "used list_directory", "type": "tool_called", "value": "list_directory" }
-    ],
-    "size": "S",
-    "working_dir": "my-project",
-    "setup": "echo 'hello' > test.txt"
-  }
+  "id": "<session UUID>",
+  "title": "<scenario title>",
+  "messages": [],
+  "evals": {}
 }
 ```
+
+- `messages` holds the recorded conversation. A user entry nests the message
+  as `message.message`; assistant entries also set `message.agent_name`.
+  Recorded tool calls live in `message.message.tool_calls`.
+- `evals` holds scoring criteria and working-directory setup; see the fields
+  below. Keep the concrete conversation and assertions in the asset rather
+  than maintaining another copy here.
 
 ## `evals` object fields
 | Field | Type | Description |
