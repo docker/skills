@@ -123,7 +123,9 @@ Do not use this skill when:
   agent's provider has no usable credential, or (for `dmr/`) the model
   hasn't been pulled. Run `docker agent doctor ./agent.yaml` first — it
   reports the resolved model/provider and whether credentials were found —
-  before touching the YAML.
+  before touching the YAML. If credentials are missing, export the provider's
+  API key; if a DMR model is missing, run `docker model pull <model>`. Rerun
+  `doctor` before retrying the task.
 - An agent that only *describes* a plan instead of executing it is usually
   missing the tool it needs (add `type: shell` or `type: todo` in
   `agent.yaml`), not a model failure — hand this back to `docker-agent-config`.

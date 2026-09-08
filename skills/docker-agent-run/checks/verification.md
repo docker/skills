@@ -5,8 +5,8 @@
 docker agent doctor ./agent.yaml
 ```
 Pass: the resolved model/provider is reported reachable with credentials
-found. Fail: "No model is currently available" — export the provider's API
-key, or `docker model pull <model>` for a `dmr/` model, then rerun.
+found. Fail: "No model is currently available" — follow the Troubleshooting
+section in this skill's `SKILL.md`, then rerun this check.
 
 ## 2. The chosen safety mode matches the run context
 ```bash

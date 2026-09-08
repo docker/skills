@@ -23,11 +23,10 @@ misspelled — check `references/toolsets-and-providers.md`.
 docker agent doctor ./agent.yaml
 ```
 Pass: reports the resolved model and provider as reachable, with credentials
-found. Fail: "No model is currently available" (no credential / DMR model
-not pulled — either export the provider's API key or run
-`docker model pull <model>` for a `dmr/` model) or a named-provider error
-(typo in `models:`/`providers:` section — recheck spelling against
-`docker agent debug config`).
+found. Fail: "No model is currently available" — use `docker-agent-run` for
+credential/DMR-model troubleshooting, then rerun this check. For a named-provider
+configuration error, recheck `models:`/`providers:` spelling against
+`docker agent debug config`.
 
 ## 4. A minimal smoke run behaves as instructed
 ```bash

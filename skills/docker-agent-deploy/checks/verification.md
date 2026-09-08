@@ -32,9 +32,10 @@ docker agent eval ./agent.yaml ./evals
 Pass: console summary shows per-eval pass/fail plus Tool Calls / Relevance /
 Size / Assertions metrics, and a `results/` directory with JSON, `.db`, and
 log files. Fail: "No model is currently available" inside the eval
-container for a cloud-provider agent — check that the provider's API key is
-set in the shell that invoked `eval` (dedicated model keys are forwarded
-automatically; `GITHUB_TOKEN` is not — pass it with `-e GITHUB_TOKEN`).
+container — use `docker-agent-run` for local credential/model troubleshooting,
+then check the eval-specific boundary: credentials must be set in the invoking
+shell. Dedicated model keys are forwarded automatically; `GITHUB_TOKEN`/`GH_TOKEN`
+are not — pass the one your provider needs explicitly (e.g. `-e GITHUB_TOKEN`).
 
 ## 4. A regression gate actually gates
 ```bash
