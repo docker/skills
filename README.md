@@ -7,6 +7,9 @@ Docker-authored knowledge skills that improve AI coding agent output for Docker-
 - **docker-project-foundations** — Guidance for initializing and structuring a Dockerized project
 - **docker-compose-patterns** — Patterns for robust, maintainable Docker Compose configurations
 - **docker-build-strategies** — Strategies for efficient, secure, and optimized Docker image builds
+- **docker-agent-config** — Authoring agent.yaml configs for Docker Agent (models, providers, toolsets, multi-agent teams)
+- **docker-agent-run** — Running and operating Docker Agent locally (safety modes, sandbox, aliases, worktrees)
+- **docker-agent-deploy** — Serving, sharing, and evaluating Docker Agents (MCP/API/A2A/chat servers, OCI distribution, eval/CI gating)
 
 ## Installation
 
@@ -40,6 +43,9 @@ $skill-installer https://github.com/docker/skills.git
 cp -r skills/docker-project-foundations ~/.agents/skills/
 cp -r skills/docker-compose-patterns ~/.agents/skills/
 cp -r skills/docker-build-strategies ~/.agents/skills/
+cp -r skills/docker-agent-config ~/.agents/skills/
+cp -r skills/docker-agent-run ~/.agents/skills/
+cp -r skills/docker-agent-deploy ~/.agents/skills/
 ```
 See [Codex skills docs](https://developers.openai.com/codex/skills)
 
