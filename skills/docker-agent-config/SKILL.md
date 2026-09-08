@@ -144,26 +144,14 @@ Do not use this skill when:
 - A coordinator delegates via `sub_agents: [name, ...]`; listing sub-agents
   automatically enables the `transfer_task` tool on the parent.
   ```yaml
+  # Fragment: coder and reviewer are defined separately in the full asset.
   agents:
     root:
-      model: openai/gpt-5
-      description: Team coordinator
-      instruction: Route tasks to the best specialist.
       sub_agents: [coder, reviewer]
-    coder:
-      model: anthropic/claude-sonnet-4-5
-      description: Writes and modifies code
-      instruction: Write clean, tested code.
-      toolsets:
-        - type: filesystem
-        - type: shell
-    reviewer:
-      model: anthropic/claude-sonnet-4-5
-      description: Reviews code for quality
-      instruction: Review code for bugs, style, and best practices.
-      toolsets:
-        - type: filesystem
   ```
+  Use `assets/team-agent.yaml` for the complete runnable team, including
+  the reviewer's `readonly: true` restriction. Keep that restriction when
+  adapting the template; a filesystem toolset alone also exposes writes.
 - `sub_agents` also accepts external OCI references (`myorg/agent:tag`).
   Pin external references to a digest (`name@sha256:...`) in production
   configs to skip the per-run registry lookup that a tag incurs.
