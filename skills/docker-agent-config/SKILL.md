@@ -171,14 +171,6 @@ Do not use this skill when:
   `instruction` or `commands` — use `${env.VAR}` interpolation instead, and
   keep the underlying secret in an env file, not the YAML.
 
-### Verify
-- `docker agent debug config <agent-file>` prints the fully-resolved,
-  canonical configuration (defaults applied, references resolved) — use it
-  to confirm a `providers`/`models` reference resolved the way you expect.
-- `docker agent debug toolsets <agent-file>` lists every toolset each agent
-  exposes with each tool's name and description — use it to confirm an MCP
-  `ref:` actually resolved to tools before running the agent.
-
 ## Related skills
 - For running the agent (`docker agent run`, safety modes, sandbox, aliases), use `docker-agent-run`.
 - For serving, sharing, or evaluating the agent, use `docker-agent-deploy`.
@@ -191,4 +183,5 @@ Do not use this skill when:
 - `assets/team-agent.yaml` — a runnable multi-agent team template (coordinator + coder + reviewer).
 
 ## Checks
-- `checks/verification.md` — Verification runbook for an agent.yaml config.
+- Before running an agent, follow `checks/verification.md` to confirm its
+  resolved config, exposed tools, and provider connectivity, then smoke-test it.
