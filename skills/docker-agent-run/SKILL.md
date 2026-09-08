@@ -1,6 +1,6 @@
 ---
 name: docker-agent-run
-description: Use this skill when running a Docker Agent with `docker agent run`, choosing a safety/approval mode, using the `--sandbox` isolation flag, setting up aliases, or troubleshooting a run (missing credentials, worktrees, sessions). Even if the user just says they want to "run my agent", "make my agent auto-approve tool calls", "run this agent safely", or "why can't my agent see my API key", this skill applies. Covers `--safety` (strict/balanced/restricted/autonomous), `--yolo`, `--sandbox` and its network allowlist, `--worktree`, `docker agent alias`, `docker agent doctor`, and `docker agent sessions`.
+description: Use this skill when running a Docker Agent with `docker agent run`, choosing a safety/approval mode, using the `--sandbox` isolation flag, setting up aliases, or troubleshooting a run (missing credentials, worktrees). Even if the user just says they want to "run my agent", "make my agent auto-approve tool calls", "run this agent safely", or "why can't my agent see my API key", this skill applies. Covers `--safety` (strict/balanced/restricted/autonomous), `--yolo`, `--sandbox` and its network allowlist, `--worktree`, `docker agent alias`, and `docker agent doctor`.
 license: Apache-2.0
 compatibility: Requires the docker-agent CLI plugin (Docker Desktop 4.63+, or standalone via Homebrew/GitHub releases). Sandbox mode (`--sandbox`) additionally requires the `sbx` CLI. Verified against docker-agent as shipped with Docker CLI 29.7.2.
 ---
