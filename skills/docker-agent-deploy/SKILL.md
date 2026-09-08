@@ -88,10 +88,9 @@ Do not use this skill when:
 - Four scoring dimensions: Tool Calls (F1 against the recorded sequence),
   Relevance (LLM-judge, `--judge-model`, default `anthropic/claude-opus-5`),
   Size (S/M/L/XL response-length bucket), and Assertions (deterministic
-  checks: `contains`, `not_contains`, `equals`, `regex`, `tool_called`,
-  `cost_threshold` — prefer these over `relevance` when a check can be exact,
-  since they need no judge model and are deterministic, not
-  approximation-prone.
+  checks; see the complete assertion-type list in `references/eval-format.md`).
+  Prefer assertions over `relevance` when a check can be exact: they need no
+  judge model and are deterministic, not approximation-prone.
 - Evaluations run inside containers for isolation; a Docker-compatible
   runtime is required. Dedicated provider API keys
   (`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`) are forwarded automatically.
