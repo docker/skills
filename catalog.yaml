@@ -19,3 +19,15 @@ skills:
   - id: docker-agent-deploy
     path: skills/docker-agent-deploy
     version: 0.1.0
+  - id: docker-sandboxes-lifecycle
+    path: skills/docker-sandboxes-lifecycle
+    version: 0.1.0
+  - id: docker-sandboxes-network-credentials
+    path: skills/docker-sandboxes-network-credentials
+    version: 0.1.0
+  - id: docker-sandboxes-env
+    path: skills/docker-sandboxes-env
+    version: 0.1.0
+  - id: docker-sandboxes-kits
+    path: skills/docker-sandboxes-kits
+    version: 0.1.0
