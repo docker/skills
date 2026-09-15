@@ -94,6 +94,8 @@ filename precedence. This is a manual reasoning check, not a live agent run.
 ---
 
 ## Should not trigger
+- "Create a standalone sbx sandbox with a private Git clone." → `docker-sandboxes-lifecycle`
+- "Set a per-sandbox rule with sbx policy deny network." → `docker-sandboxes-network-credentials`
 - "Add a filesystem tool to my agent" → `docker-agent-config`
 - "Serve my agent as an MCP server" → `docker-agent-deploy`
 - "Set up evaluations for my agent" → `docker-agent-deploy`

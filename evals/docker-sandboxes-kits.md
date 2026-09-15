@@ -90,7 +90,8 @@ sbx --app-name "$APP" kit inspect ./my-shell-kit/ --json  # shows extends: shell
 ### Verification commands
 ```bash
 sbx --app-name "$APP" kit validate ./my-github-mixin/                          # passes: schema only
-sbx --app-name "$APP" create --kit ./my-github-mixin/ --name check shell .     # fails: duplicate github credential
+# WORK/workspace is the disposable directory from the kit runbook setup.
+sbx --app-name "$APP" create --kit ./my-github-mixin/ --name kit-dup-eval shell "$WORK/workspace"  # expect duplicate-service failure
 ```
 
 ---
@@ -131,8 +132,9 @@ sbx --app-name "$APP" create --kit ./my-github-mixin/ --name check shell .     #
 ### Verification commands
 ```bash
 sbx --app-name "$APP" kit validate ./my-mixin/                                    # passes even if allow-list is missing/wrong: schema-only check
-sbx --app-name "$APP" create --kit ./my-mixin/ --name my-sandbox shell .
-sbx --app-name "$APP" policy check network --sandbox my-sandbox api.example.com   # this is what actually proves reachability
+sbx --app-name "$APP" create --kit ./my-mixin/ --name kit-policy-eval shell "$WORK/workspace"
+sbx --app-name "$APP" policy check network --sandbox kit-policy-eval api.example.com
+sbx --app-name "$APP" rm --force kit-policy-eval  # consented test cleanup
 ```
 
 ---
@@ -166,9 +168,36 @@ sbx --app-name "$APP" policy check network --sandbox my-sandbox api.example.com 
 
 ### Verification commands
 ```bash
-sbx --app-name "$APP" kit push ./my-kit/ registry.example.com/org/my-kit:1.0 --sign
-sbx --app-name "$APP" kit verify registry.example.com/org/my-kit@sha256:<digest> --certificate-identity ... --certificate-oidc-issuer ...
+sbx --app-name "$APP" kit push --help
+sbx --app-name "$APP" kit verify --help
 ```
+
+---
+
+## Prompt 6: CIDR and multi-label network rules
+
+**Prompt to agent:**
+
+> Are permissions.network entries like **.example.com and 10.0.0.0/8
+> actually enforced? Will a CIDR deny block an already-allowed hostname?
+
+### Expected behaviors
+- [ ] States that both multi-label `**.` patterns and CIDR prefixes are
+      enforced; `*.` matches one label, not multiple labels.
+- [ ] Explains that a decisive domain decision precedes CIDR evaluation,
+      so a hostname allow can bypass a CIDR deny for its resolved IP.
+- [ ] Recommends checking effective policy, not assuming YAML alone proves
+      a host is blocked. Uses exact ports rather than unsupported ranges.
+
+### Must not
+- [ ] Must NOT repeat the stale spec table's claim that CIDR and `**.` rules
+      are accepted but ignored.
+- [ ] Must NOT claim CIDR denies always override domain allows.
+
+### Verification
+Manual reasoning check against the runtime matcher and proxy references in
+`skills/docker-sandboxes-kits/references/sources.md`; the format document's
+old enforcement table is not authoritative for runtime behavior.
 
 ---
 

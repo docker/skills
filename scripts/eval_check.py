@@ -128,6 +128,20 @@ def run_check(check: dict, content: str, yaml_data, asset_path: str) -> dict:
             )
         elif ctype == "last_from_match":
             passed = check_last_from_match(content, check["pattern"])
+        elif ctype == "yaml_key_absent":
+            if not isinstance(yaml_data, dict):
+                result["status"] = FAIL
+                result["detail"] = f"Expected YAML mapping: {asset_path}"
+                return result
+            passed = resolve_yaml_key(yaml_data, check["key"]) is _MISSING
+        elif ctype == "yaml_value_equals":
+            if not isinstance(yaml_data, dict):
+                result["status"] = FAIL
+                result["detail"] = f"Expected YAML mapping: {asset_path}"
+                return result
+            value = resolve_yaml_key(yaml_data, check["key"])
+            expected = check["value"]
+            passed = type(value) is type(expected) and value == expected
         elif ctype == "yaml_key_exists":
             if yaml_data is None:
                 result["status"] = FAIL

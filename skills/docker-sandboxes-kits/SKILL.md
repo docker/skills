@@ -1,8 +1,9 @@
 ---
 name: docker-sandboxes-kits
-description: Use this skill when authoring, validating, packaging, signing, or composing a Docker Sandboxes kit `spec.yaml` (`sbx kit add/inspect/pack/pull/push/sign/validate/verify`), even if the user just says they want to "add a tool to a sandbox agent", "build a reusable sandbox extension", "publish a kit to a registry", or "give a mixin its own credentials and network access". Covers the kit-spec v2 grammar (`kind: sandbox` vs `kind: mixin`, the `sandbox:` block, `permissions.network`, `ports`, `credentials` apiKey/oauth, `environment`, `setup` install/startup/files, `volumes`, `args`, `extends`, `mixins`, `requires.agent`), composition via `--kit`/`sbx kit add`, and distribution (pack/push/pull/sign/verify/provenance).
+description: >-
+  Use this skill when authoring, validating, packaging, signing, or composing a Docker Sandboxes kit `spec.yaml` (`sbx kit add/inspect/pack/pull/push/sign/validate/verify`), even if the user just says they want to "add a tool to a sandbox agent", "build a reusable sandbox extension", "publish a kit to a registry", or "give a mixin its own credentials and network access". Covers the kit-spec v2 grammar (`kind: sandbox` vs `kind: mixin`, the `sandbox:` block, `permissions.network`, `ports`, `credentials` apiKey/oauth, `environment`, `setup` install/startup/files, `volumes`, `args`, `extends`, `mixins`, `requires.agent`), composition via `--kit`/`sbx kit add`, and distribution (pack/push/pull/sign/verify/provenance).
 license: Apache-2.0
-compatibility: EXPERIMENTAL. `sbx kit` may change or be removed in a future release (per `sbx kit --help`). Standalone `sbx` CLI (not the legacy `docker sandbox` plugin wrapper). Source-verified against the vendored github.com/docker/sbx-kits-contrib spec package in repository docker/sandboxes (github.com/docker/sandboxes) @ commit df5c96ba60484fa2c375469dbac912c205da6c37 (spec.SchemaVersion default "1"; "2" is the current clean v2 grammar this skill documents; SupportedSchemaVersions = ["1","2"]). Cross-checked against an installed sbx v0.42.0-503-g951b7f6d7 (commit 951b7f6d7f6bb260fac15077b607109ffe8ae012); no source-only CLI-flag differences were found for the commands this skill covers. `docker_help` does not cover standalone `sbx` syntax.
+compatibility: EXPERIMENTAL. Requires standalone sbx with sbx kit support and kit-spec schemaVersion "2", not the legacy docker sandbox wrapper. Verified against docker/sandboxes df5c96ba60484fa2c375469dbac912c205da6c37; installed-help version and provenance are in references/sources.md. docker_help does not cover standalone sbx.
 ---
 
 # Docker Sandboxes: Kits (spec.yaml)
@@ -94,10 +95,14 @@ Do not use this skill when:
 ### Egress: `permissions.network` — and the all-egress-declared rule
 
 - `permissions.network.allow`/`deny` are the v2 home for what v1 spelled as
-  top-level `network:`. **Deny always wins** when a host matches both.
-  Enforced entry shapes this release: exact host, exact host+port, and
-  single-label wildcards (`*.example.com`); `**.`-double-wildcards, CIDR,
-  and port ranges are accepted by the schema but **not enforced**.
+  top-level `network:`. Enforced shapes include exact host, exact host+port,
+  single-label wildcards (`*.example.com`), multi-label wildcards
+  (`**.example.com`), and CIDR prefixes. Port ranges are not supported by
+  the runtime matcher; use separate exact ports.
+  **Deny wins within domain rules or within CIDR rules.** A decisive domain
+  decision is evaluated before CIDR rules: an allowed hostname is not
+  checked against a CIDR deny for its resolved IP. Do not rely on a CIDR
+  deny alone to block an already-allowed hostname.
   ```yaml
   permissions:
     network:
@@ -231,7 +236,7 @@ setup:
 
 | Command | Purpose |
 |---|---|
-| `sbx kit validate REFERENCE [--kit-arg ...]` | Schema-only well-formedness check. **Never composes against a base agent** — cannot catch a duplicate-service credential collision or confirm any domain is reachable at runtime. |
+| `sbx kit validate REFERENCE [--kit-arg ...]` | Local directory, ZIP, or git reference; OCI is rejected. Schema-only well-formedness check. **Never composes against a base agent** — cannot catch a duplicate-service credential collision or confirm any domain is reachable at runtime. |
 | `sbx kit inspect REFERENCE [--kit-arg ...] [--json]` | Loads and prints the decoded artifact before composing it, including `--kit-arg` substitution preview. |
 | `sbx kit pack DIRECTORY [-o OUTPUT.zip]` | Packages a validated directory as a ZIP. |
 | `sbx kit pull REFERENCE [-o OUTPUT]` | Pulls a kit's raw layer payload from an OCI registry without composing it. |

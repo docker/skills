@@ -9,14 +9,12 @@ compatibility: Standalone `sbx` CLI (not the legacy `docker sandbox` plugin wrap
 
 ## Overview
 
-Every sandbox's outbound network access and every credential it can use are
-governed by one proxy-mediated model: nothing reaches the network or holds a
-secret except through the proxy, which enforces the current allow/deny policy
-and injects credentials by domain. This skill owns `sbx policy` (network
-egress) and `sbx secret` (service secrets and registry credentials) as a
-single security concern, because a credential is useless — and a leaked one
-harmless — only in combination with the domain policy that scopes where it
-can be sent.
+This skill owns `sbx policy` (network egress) and `sbx secret` (service
+secrets and registry credentials). The proxy enforces egress policy and
+injects stored credentials on matching domains. Proxy-managed sentinels are
+not usable upstream credentials, but OAuth passthrough can expose real
+tokens to the sandbox. Egress policy does not protect a real credential
+once leaked outside the sandbox; revoke or rotate a leaked credential.
 
 ## When to use this skill
 
@@ -33,6 +31,10 @@ Activate this skill when:
 ## Do not use this skill when
 
 Do not use this skill when:
+- The task is running `docker agent run --sandbox` or managing its
+  `docker agent sandbox` allowlist — use `docker-agent-run`. If the CLI
+  is unclear, establish whether the user runs Docker Agent or standalone
+  `sbx` before choosing commands.
 - The task is creating, reattaching to, or removing a sandbox itself — use
   `docker-sandboxes-lifecycle`.
 - The task is declaring secrets/registries/bindings inside a checked-in
@@ -52,8 +54,8 @@ Do not use this skill when:
   is the recommended starting point (typical dev traffic — AI services,
   package registries — allowed). This is a one-time setup.
 - **`sbx policy reset` is destructive: it deletes the entire local policy
-  store and restarts the daemon, stopping every currently running sandbox
-  in the process.** It is not a lightweight way to "start over" or a
+  store and stops the daemon and every currently running sandbox.** The
+  daemon restarts on the next daemon-backed command. It is not a lightweight way to "start over" or a
   routine diagnostic step — never propose it as a first troubleshooting
   move for a single misbehaving rule. Use targeted `sbx policy rm network`
   (by `--id` or `--resource`) to remove one rule instead; reserve
@@ -62,8 +64,9 @@ Do not use this skill when:
   before running it.
 - Add rules with `sbx policy allow network RESOURCES` /
   `sbx policy deny network RESOURCES`. `RESOURCES` is a comma-separated list
-  of exact hosts, `*.example.com` single-label wildcards, optional
-  `:port` suffixes, or `**` for "all hosts".
+  of exact hosts, `*.example.com` single-label wildcards, `**.example.com`
+  multi-label wildcards, optional `:port` suffixes, CIDR prefixes, or `**`
+  for "all hosts".
   ```bash
   sbx policy init balanced
   sbx policy allow network "api.example.com,cdn.example.com"
@@ -99,14 +102,22 @@ Do not use this skill when:
 ### Service secrets: how injection works
 
 - `sbx secret set [SERVICE]` stores a credential the **proxy** uses to
-  authenticate outbound requests on behalf of the agent. **The sandbox never
-  sees the raw secret value** — it sees a proxy-managed sentinel, and the
-  proxy substitutes the real value only on requests to the domains the
-  matching kit/binding declares.
+  authenticate outbound requests on behalf of the agent. In the normal
+  proxy-managed flow, the sandbox sees a sentinel rather than the raw
+  secret; the proxy substitutes the real value on requests to the domains
+  the matching kit/binding declares.
   ```bash
   sbx secret set github                       # interactive
   echo "$ANTHROPIC_API_KEY" | sbx secret set anthropic
   ```
+- **OAuth passthrough is an exception, not a no-secret-exposure guarantee.**
+  When a kit sets `oauth.passthrough: true` without a refresh sentinel, the
+  proxy forwards the real token response to the sandbox. The built-in
+  `devin` kit uses this mode. Review the agent's credential configuration
+  before promising that it cannot read a token; do not enable passthrough
+  merely to bypass an authentication failure. Even with sentinels, the
+  agent can exercise the credential's permissions on allowed services —
+  restrict token privileges as well as network access.
 - Service secrets are global by default; `--sandbox NAME` scopes one to a
   single sandbox.
 - **Dynamic secrets** resolve the value on the host at use time instead of
@@ -170,6 +181,9 @@ Do not use this skill when:
   global (all-sandboxes) entries, matching what `set` created.
 
 ## Related skills
+
+- For `docker agent run --sandbox` and `docker agent sandbox` commands,
+  use `docker-agent-run`.
 
 - For creating, reattaching to, and removing the sandboxes these policies
   and secrets apply to, use `docker-sandboxes-lifecycle`.

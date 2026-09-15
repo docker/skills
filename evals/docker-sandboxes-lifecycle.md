@@ -33,8 +33,12 @@ the default daemon or approve untrusted files just to execute an eval.
 
 ### Verification commands
 ```bash
-sbx --app-name "$APP" create claude    # no path -> no workspace mounted
-sbx --app-name "$APP" run claude        # no path -> cwd mounted
+# First prepare APP, WORK, and REPO with the lifecycle runbook's step 1.
+# shell tests the same workspace semantics without provider authentication.
+sbx --app-name "$APP" create --name eval-no-mount shell
+(cd "$REPO" && sbx --app-name "$APP" run --name eval-cwd -d shell)
+sbx --app-name "$APP" ls --json
+sbx --app-name "$APP" rm --force eval-no-mount eval-cwd  # consented test cleanup
 ```
 
 ---
@@ -70,9 +74,11 @@ sbx --app-name "$APP" run claude        # no path -> cwd mounted
 
 ### Verification commands
 ```bash
-sbx --app-name "$APP" create --clone --name demo claude .
-git remote -v | grep sandbox-demo
-git fetch sandbox-demo   # before any rm/prune of "demo"
+# REPO is the disposable Git repository from the lifecycle runbook's step 1.
+sbx --app-name "$APP" create --clone --name eval-clone shell "$REPO"
+git -C "$REPO" remote -v | grep sandbox-eval-clone
+git -C "$REPO" fetch sandbox-eval-clone
+sbx --app-name "$APP" rm --force eval-clone  # consented test cleanup after fetch
 ```
 
 ---
@@ -111,6 +117,8 @@ sbx --app-name "$APP" prune --dry-run --filter until=168h
 ---
 
 ## Should not trigger
+
+- "Run my Docker Agent config with docker agent run --sandbox." → `docker-agent-run`
 
 - "How do I stop an agent from reaching an internal API?" → `docker-sandboxes-network-credentials`
 - "How do I write a checked-in config so my whole team gets the same sandbox setup?" → `docker-sandboxes-env`

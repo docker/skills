@@ -20,10 +20,12 @@ use_when:
   - The user wants extra read-only workspaces mounted alongside the primary one, or wants to copy files/publish ports/exec into a sandbox.
   - The user wants to clean up stopped sandboxes or remove a specific one.
 do_not_use_when:
+  - The task is docker agent run --sandbox or its docker agent sandbox allowlist.
   - The task is about sandbox network egress policy or service/registry credentials.
   - The task is authoring or running a declarative sbxenv.yaml file.
   - The task is authoring, packaging, signing, or composing a kit spec.yaml.
 delegates_to:
+  - docker-agent-run
   - docker-sandboxes-network-credentials
   - docker-sandboxes-env
   - docker-sandboxes-kits

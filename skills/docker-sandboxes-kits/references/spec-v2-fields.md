@@ -86,10 +86,12 @@ permissions:
     allow: ["*.anthropic.com", "api.example.com:443"]
     deny: ["telemetry.example.com"]
 ```
-Enforced: exact host, exact host+port, single-label wildcard (`*.example.com`).
-Declared but not enforced this release: `**.` double wildcards, CIDR, port
-ranges. Deny always wins on overlap. `allow` lists are **additive across
-composition** — a sandbox's effective allow set is the union of every
+Enforced: exact host, exact host+port, single-label wildcard (`*.example.com`),
+multi-label wildcard (`**.example.com`), and CIDR prefixes. Port ranges are
+not supported by the runtime matcher; use separate exact ports. Deny wins
+within domain rules or within CIDR rules, but a decisive domain decision
+precedes CIDR evaluation: a domain allow can bypass a CIDR deny for its
+resolved IP. `allow` lists are **additive across composition** — a sandbox's effective allow set is the union of every
 composed kit's `allow`, plus whatever the global/per-sandbox network policy
 independently permits (see `docker-sandboxes-network-credentials`). Removing
 a host from one kit's `allow` does NOT by itself prove that host is

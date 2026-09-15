@@ -23,6 +23,11 @@ Activate this skill when:
 
 ## Do not use this skill when
 Do not use this skill when:
+- The task uses standalone `sbx run/create/stop/rm` rather than
+  `docker agent run --sandbox` — use `docker-sandboxes-lifecycle`.
+- The task is standalone `sbx policy` or `sbx secret` configuration — use
+  `docker-sandboxes-network-credentials`. Establish which CLI is in use
+  before recommending commands when the request only says "my sandbox".
 - The task is writing or editing the `agent.yaml` itself (models, toolsets, sub_agents) — use `docker-agent-config`.
 - The task is exposing an agent as a server (`serve`), sharing it via a registry (`share`), or evaluating it (`eval`) — use `docker-agent-deploy`.
 
@@ -133,6 +138,8 @@ Do not use this skill when:
   destination isn't allowlisted; use `docker agent sandbox allow <host>`.
 
 ## Related skills
+- For standalone `sbx` lifecycle commands, use `docker-sandboxes-lifecycle`.
+- For standalone `sbx policy` and `sbx secret`, use `docker-sandboxes-network-credentials`.
 - For writing or changing the underlying `agent.yaml` (models, toolsets, sub_agents), use `docker-agent-config`.
 - For serving, sharing, or evaluating the agent, use `docker-agent-deploy`.
 

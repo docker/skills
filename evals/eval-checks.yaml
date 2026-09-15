@@ -394,3 +394,166 @@
   prompt: "Prompt 3: Go + Redis"
   skip: true
   skip_reason: Partial coverage only — Go Dockerfile is in build-strategies skill, not foundations
+
+# ─── docker-sandboxes-env ───────────────────────────────────────────────────
+
+- eval: docker-sandboxes-env
+  prompt: "Prompt 4: Credential-free minimal environment (static asset checks)"
+  asset: skills/docker-sandboxes-env/assets/sbxenv.yaml
+  checks:
+    - id: se-schema
+      description: Environment schema version is the string "1"
+      type: yaml_value_equals
+      key: schemaVersion
+      value: "1"
+    - id: se-agent
+      description: Minimal environment uses the credential-free shell agent
+      type: yaml_value_equals
+      key: agent
+      value: shell
+    - id: se-workspace
+      description: File is located at the workspace mount root
+      type: yaml_value_equals
+      key: workspace
+      value: .
+    - id: se-no-secrets
+      description: Minimal environment declares no service secrets
+      type: yaml_key_absent
+      key: secrets
+    - id: se-no-registries
+      description: Minimal environment declares no registry credentials
+      type: yaml_key_absent
+      key: registries
+    - id: se-no-bindings
+      description: Minimal environment changes no global credential bindings
+      type: yaml_key_absent
+      key: bindings
+    - id: se-no-hooks
+      description: Minimal environment runs no host lifecycle commands
+      type: yaml_key_absent
+      key: lifecycle
+    - id: se-no-writable-env
+      description: Minimal environment retains default environment-file protection
+      type: yaml_key_absent
+      key: sandboxOptions.writableEnvFiles
+
+# ─── docker-sandboxes-kits ──────────────────────────────────────────────────
+
+- eval: docker-sandboxes-kits
+  prompt: "Prompt 2: Minimal sandbox kit (static asset checks)"
+  asset: skills/docker-sandboxes-kits/assets/spec-sandbox.yaml
+  checks:
+    - id: sk-sandbox-schema
+      description: Sandbox kit schema version is the string "2"
+      type: yaml_value_equals
+      key: schemaVersion
+      value: "2"
+    - id: sk-sandbox-kind
+      description: Sandbox asset declares the sandbox kind
+      type: yaml_value_equals
+      key: kind
+      value: sandbox
+    - id: sk-sandbox-parent
+      description: Sandbox kit inherits the built-in shell agent
+      type: yaml_value_equals
+      key: extends
+      value: shell
+    - id: sk-no-invented-image
+      description: Sandbox kit does not override the inherited image
+      type: yaml_key_absent
+      key: sandbox.image
+
+- eval: docker-sandboxes-kits
+  prompt: "Prompts 1 and 3: Portable mixin (static asset checks, not composition)"
+  asset: skills/docker-sandboxes-kits/assets/spec-mixin.yaml
+  checks:
+    - id: sk-mixin-schema
+      description: Mixin kit schema version is the string "2"
+      type: yaml_value_equals
+      key: schemaVersion
+      value: "2"
+    - id: sk-mixin-kind
+      description: Extension asset declares the mixin kind
+      type: yaml_value_equals
+      key: kind
+      value: mixin
+    - id: sk-mixin-no-sandbox
+      description: Mixin does not declare a forbidden sandbox block
+      type: yaml_key_absent
+      key: sandbox
+    - id: sk-mixin-no-extends
+      description: Mixin does not declare forbidden inheritance
+      type: yaml_key_absent
+      key: extends
+    - id: sk-mixin-no-mixins
+      description: Mixin does not compose other mixins
+      type: yaml_key_absent
+      key: mixins
+    - id: sk-mixin-no-credentials
+      description: Example mixin avoids duplicate base-agent credential definitions
+      type: yaml_key_absent
+      key: credentials
+    - id: sk-mixin-network
+      description: Example mixin declares its required egress
+      type: yaml_value_equals
+      key: permissions.network.allow
+      value: [registry.npmjs.org]
+    - id: sk-mixin-env
+      description: Mixin variable used by the runbook is a string
+      type: yaml_value_equals
+      key: environment.variables.MY_MIXIN
+      value: "1"
+
+# These assert test-fixture hygiene, not runtime behavior or agent responses.
+- eval: docker-sandboxes-lifecycle
+  prompt: "Verification snippet safety (static checks)"
+  asset: evals/docker-sandboxes-lifecycle.md
+  checks:
+    - id: sl-disposable-clone
+      description: Clone verification uses the disposable repository and shell agent
+      type: file_match
+      pattern: '^sbx .* create --clone .* shell "\$REPO"$'
+    - id: sl-detached-cwd
+      description: Omitted-path verification runs detached from the disposable repository
+      type: file_match
+      pattern: '^\(cd "\$REPO" && sbx .* run .* -d shell\)$'
+    - id: sl-no-provider-run
+      description: Verification does not launch a provider agent interactively
+      type: file_must_not_match
+      pattern: '^sbx .* (create|run) .*\b(claude|codex|devin)\b'
+    - id: sl-fetch-scoped
+      description: Clone fetch is scoped to the disposable repository
+      type: file_match
+      pattern: '^git -C "\$REPO" fetch sandbox-eval-clone$'
+
+- eval: docker-sandboxes-network-credentials
+  prompt: "Verification credential safety (static checks)"
+  assets:
+    eval: evals/docker-sandboxes-network-credentials.md
+    integration: skills/docker-sandboxes-network-credentials/checks/verification.md
+  checks:
+    - id: sn-dummy-service-token
+      description: Service credential verification uses a throwaway token
+      type: file_match
+      asset_key: eval
+      pattern: "^printf 'throwaway-token' \\| sbx .* secret set github$"
+    - id: sn-dummy-registry-token
+      description: Registry verification uses a throwaway token
+      type: file_match
+      asset_key: eval
+      pattern: "^printf 'throwaway-token' \\| sbx .* --registry ghcr.io --password-stdin$"
+    - id: sn-no-production-token
+      description: Eval does not read live GitHub credentials
+      type: file_must_not_match
+      asset_key: eval
+      pattern: 'gh auth token|\$(\{)?(GH_TOKEN|GITHUB_TOKEN|ANTHROPIC_API_KEY)\b'
+    - id: sn-integration-no-production-token
+      description: Integration runbook does not read live GitHub credentials
+      type: file_must_not_match
+      asset_key: integration
+      pattern: 'gh auth token|\$(\{)?(GH_TOKEN|GITHUB_TOKEN)\b'
+    - id: sn-sentinel-assertion
+      description: Runbook checks the shell agent sentinel rather than printing secrets
+      type: file_match
+      asset_key: integration
+      pattern: 'exec policy-check sh -c.*test "\$ANTHROPIC_API_KEY" = proxy-managed'

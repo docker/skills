@@ -40,6 +40,9 @@ Paths below are relative to the repository root.
   bare `name` with no `=` is rejected rather than resolved from the host
   environment the way `--env-file` does" (confirms args never read the
   ambient host environment implicitly).
+- `cli-plugin/commands/env_plan.go` — `valueFingerprint` and
+  `secretSourceFields` replace literal secret values with full `sha256:`
+  digests in both the displayed plan and recorded state.
 - `cli-plugin/commands/env_plan.go` — `reachedEnvFile` (`root` field:
   whether the file sits directly at the mount's own directory, "where a
   read-only bind of it cannot be worked around: the mount point is the one

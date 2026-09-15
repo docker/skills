@@ -9,6 +9,17 @@ Paths below are relative to the repository root.
   confirms the design principle behind `sbx secret import` needing explicit
   opt-in and behind never using host env vars as an implicit channel).
 
+- `sandboxlib/agentkits/agents/devin/spec.yaml` — OAuth passthrough without
+  sentinels in the built-in Devin kit.
+- `sandboxd/pkg/proxy/oauth_handler.go` — `rewriteTokenResponse` forwards
+  the original token response when passthrough has no refresh sentinel.
+  `oauth_handler_test.go` covers real-refresh-token forwarding and masking
+  when a sentinel is configured. The generic help's no-exposure wording
+  does not describe the passthrough exception.
+- `vendor/github.com/docker/governor-lib/internal/authorization/definitions/allowlist/v0/matching.go`
+  — domain glob and CIDR matching; `docs/yml/sbx_policy_deny.yaml` documents
+  the domain-before-CIDR precedence caveat.
+
 ## Captured standalone CLI help, cross-checked against an older installed build
 
 Installed `sbx` reports `v0.42.0-503-g951b7f6d7` (commit
@@ -17,11 +28,11 @@ HEAD. Verified with `sbx <cmd> --help` under an isolated `--app-name`, no
 daemon started. No source-only differences were found for the commands this
 skill covers.
 
-- `sbx policy --help` — subcommand list, deny-over-allow precedence statement.
+- `sbx policy --help` — subcommand list.
 - `sbx policy init --help` — one-time setup requirement, `allow-all`/`balanced`/`deny-all` presets, distinction between initial global policy and per-sandbox rules.
 - `sbx policy allow network --help` / `sbx policy deny network --help` — `RESOURCES` format (exact/wildcard/port/`**`), `--sandbox` scoping, deny precedence restated.
 - `sbx policy check --help` / `sbx policy check network --help` — read-only check against the daemon-side authorizer, `--sandbox`, `--verbose`, `--json`.
-- `sbx policy log --help` — allowed/blocked history with matching rule, `--sandbox`, `--json`, `--limit`.
+- `sbx policy log --help` — allowed/blocked history with matching rule, positional `[SANDBOX]`, `--json`, `--limit`.
 - `sbx policy ls --help` / `sbx policy inspect --help` — `--wide` rule IDs, org-governance read-only rules and their exact removal command or reason.
 - `sbx policy rm network --help` — `--id` vs `--resource` removal, `--sandbox` scoping.
 - `sbx policy reset --help` — exact destructive-scope text: "This deletes the local policy store and stops the daemon... If sandboxes are currently running, they will be stopped when the daemon shuts down." This is the direct source for the must-fix rule that `sbx policy reset` is never a routine diagnostic step.

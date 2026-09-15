@@ -8,7 +8,8 @@ sbx_kit_*.yaml` reference. `sbx kit` is EXPERIMENTAL.
 
 ## `sbx kit validate REFERENCE [flags]`
 
-Validates a local directory, ZIP, or git repository. A kit with required
+Validates a local directory, ZIP, or git repository; OCI references are
+rejected. A kit with required
 arguments needs the same `--kit-arg` values `sbx create` would need, or it
 reports unresolved arguments rather than a false pass.
 

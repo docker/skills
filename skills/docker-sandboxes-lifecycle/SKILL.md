@@ -32,6 +32,10 @@ Activate this skill when:
 ## Do not use this skill when
 
 Do not use this skill when:
+- The task is running `docker agent run --sandbox` or managing its
+  `docker agent sandbox` allowlist — use `docker-agent-run`. If the CLI
+  is unclear, establish whether the user runs Docker Agent or standalone
+  `sbx` before choosing commands.
 - The task is about what a sandbox can reach on the network or which
   credentials it uses — use `docker-sandboxes-network-credentials`.
 - The task is authoring or running a declarative `sbxenv.yaml` file — use
@@ -206,6 +210,9 @@ Do not use this skill when:
   `default` is reserved.
 
 ## Related skills
+
+- For `docker agent run --sandbox` and `docker agent sandbox` commands,
+  use `docker-agent-run`.
 
 - For network egress policy and service/registry credentials, use
   `docker-sandboxes-network-credentials`.

@@ -20,8 +20,10 @@ the default daemon or approve untrusted files just to execute an eval.
 ### Expected behaviors
 - [ ] Recommends `sbx secret set github` (interactively, or piped via stdin),
       not passing the token as `--env` or a kit argument.
-- [ ] Explains the proxy injects the credential by domain and the sandbox
-      never sees the raw value.
+- [ ] Explains that GitHub's proxy-managed flow uses a sentinel and
+      domain-scoped injection, not the raw token inside the sandbox.
+- [ ] Does not generalize this to OAuth passthrough or claim that a leaked
+      real credential is harmless outside the sandbox.
 - [ ] Mentions `--sandbox NAME` to scope it to one sandbox vs. the global
       default.
 
@@ -31,7 +33,7 @@ the default daemon or approve untrusted files just to execute an eval.
 
 ### Verification commands
 ```bash
-echo "$GH_TOKEN" | sbx --app-name "$APP" secret set github
+printf 'throwaway-token' | sbx --app-name "$APP" secret set github
 sbx --app-name "$APP" secret ls --json
 ```
 
@@ -60,7 +62,7 @@ sbx --app-name "$APP" secret ls --json
 
 ### Verification commands
 ```bash
-gh auth token | sbx --app-name "$APP" secret set --all-sandboxes --registry ghcr.io --password-stdin
+printf 'throwaway-token' | sbx --app-name "$APP" secret set --all-sandboxes --registry ghcr.io --password-stdin
 sbx --app-name "$APP" secret ls --json
 ```
 
@@ -103,7 +105,8 @@ sbx --app-name "$APP" policy check network telemetry.example.com --verbose
 
 ### Expected behaviors
 - [ ] Warns that `sbx policy reset` deletes the ENTIRE local policy store
-      and restarts the daemon, stopping every currently running sandbox.
+      and stops the daemon and every currently running sandbox; the daemon
+      restarts on the next daemon-backed command.
 - [ ] Recommends targeted removal instead: `sbx policy rm network --id ...`
       or `--resource ...` for the one bad rule.
 - [ ] Does not present `sbx policy reset` as a routine or low-cost fix.
@@ -117,12 +120,41 @@ sbx --app-name "$APP" policy check network telemetry.example.com --verbose
 ### Verification commands
 ```bash
 sbx --app-name "$APP" policy ls --wide           # find the rule's ID or resource
-sbx --app-name "$APP" policy rm network --resource <bad-host>
+sbx --app-name "$APP" policy rm network --resource telemetry.example.com
 ```
 
 ---
 
+## Prompt 5: OAuth passthrough and a leaked token
+
+**Prompt to agent:**
+
+> My Devin sandbox uses OAuth passthrough. Can it see the real token, and
+> does my network allowlist make a leaked token harmless?
+
+### Expected behaviors
+- [ ] Explains that passthrough without a refresh sentinel forwards the real
+      OAuth token response; the built-in Devin kit uses that configuration.
+- [ ] Distinguishes unusable proxy sentinels from usable upstream credentials.
+- [ ] States that sandbox egress policy does not restrict off-sandbox use of
+      a leaked token, and recommends revoking or rotating it.
+- [ ] Notes that hiding a token does not prevent authorized API use from
+      inside the sandbox; scopes and service permissions still matter.
+
+### Must not
+- [ ] Must NOT promise that all sandbox agents are unable to read credentials.
+- [ ] Must NOT attempt a real login or import production tokens to verify this.
+
+### Verification
+Manual reasoning check against the passthrough implementation cited in
+`skills/docker-sandboxes-network-credentials/references/sources.md`. Do not
+log in to Devin or expose a real token to run this eval.
+
+---
+
 ## Should not trigger
+
+- "My docker agent run --sandbox cannot reach an API." → `docker-agent-run`
 
 - "How do I reattach to my sandbox after closing the terminal?" → `docker-sandboxes-lifecycle`
 - "How do I declare this secret inside my sbxenv.yaml file?" → `docker-sandboxes-env`

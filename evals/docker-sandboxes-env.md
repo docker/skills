@@ -131,6 +131,29 @@ sbx --app-name "$APP" env plan assets/sbxenv.yaml
 
 ---
 
+## Prompt 5: literal secrets in plan output
+
+**Prompt to agent:**
+
+> If I put a literal value under secrets in sbxenv.yaml, does env plan print
+> it once before hashing it for state? Is it then safe to commit that file?
+
+### Expected behaviors
+- [ ] States that both the displayed plan and saved state use a `sha256:`
+      digest, not the plaintext value.
+- [ ] Warns that the environment file itself still contains the plaintext
+      secret and must not be committed; recommends `ref:` or `command:`.
+
+### Must not
+- [ ] Must NOT claim the plan displays the raw secret even once.
+- [ ] Must NOT confuse redacted plan output with redaction of the source file.
+
+### Verification
+Manual reasoning check against `valueFingerprint` and `secretSourceFields`
+in the source cited by the skill. No real secret is needed for this eval.
+
+---
+
 ## Should not trigger
 
 - "How do I run `sbx create --clone` directly without a config file?" → `docker-sandboxes-lifecycle`

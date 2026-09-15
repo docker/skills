@@ -1,8 +1,8 @@
 # Verification Runbook for kit spec.yaml commands
 
-`sbx kit` is EXPERIMENTAL. Validation is local and safe; packing/pushing/
-signing touch a registry or a signing identity; composing/creating touches
-an actual sandbox. This runbook is unexecuted; use an isolated, unique
+`sbx kit` is EXPERIMENTAL. The local validation and inspection steps below
+do not create sandboxes; composing/creating does. This runbook does not
+publish artifacts or use a signing identity. This runbook is unexecuted; use an isolated, unique
 `--app-name` (≤20 characters) on every `sbx` invocation, a scratch registry
 namespace, and never a production signing key. Edits to a copied spec.yaml
 below use a small portable Python one-liner rather than `sed -i` (whose
@@ -11,10 +11,10 @@ works on POSIX shells with Python 3. Docker login and a supported local
 runtime are prerequisites; login changes shared authentication, not just
 the test app. Run from the skill directory in one shell.
 
-Every `sbx kit` subcommand's `REFERENCE` argument accepts a local
-**directory**, a ZIP file, an OCI registry reference, or a git repository —
-never a bare spec.yaml file path. Copy each asset into its own directory
-named `spec.yaml` before running any command below.
+`sbx kit validate` accepts a local **directory**, ZIP file, or git repository,
+not an OCI reference or a bare spec.yaml file. Other kit subcommands accept
+different reference types; consult their help. Copy each asset to a file
+named `spec.yaml` in its own directory before running these checks.
 
 ```bash
 APP="k-$(date +%s)-$$"  # fresh suffix, at most 20 characters

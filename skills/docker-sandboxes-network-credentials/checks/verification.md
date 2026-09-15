@@ -51,16 +51,19 @@ check (no `--sandbox`) still reports **allowed** for
 `policy-check` alone without widening or otherwise changing the global
 policy that every other sandbox still sees.
 
-## 4. Confirm a service secret never appears in cleartext
+## 4. Confirm secret listing redaction and the shell agent sentinel
 
 ```bash
 printf 'throwaway-test-value' | sbx --app-name "$APP" secret set anthropic --sandbox policy-check
 sbx --app-name "$APP" secret ls --sandbox policy-check --json
+sbx --app-name "$APP" exec policy-check sh -c 'test "$ANTHROPIC_API_KEY" = proxy-managed'
 ```
-Pass: `secret ls` lists the entry's service and scope but never the value
-itself.
+Pass: `secret ls` lists metadata without the value, and the shell agent's
+Anthropic environment variable contains the sentinel. This does not test
+outbound header substitution or OAuth response masking. In particular, it
+does not establish a no-exposure guarantee for OAuth passthrough agents.
 
-## 5. Confirm registry credential injection scope difference
+## 5. Confirm registry credential storage scopes
 
 ```bash
 printf 'throwaway-token' | sbx --app-name "$APP" secret set --registry ghcr.io --password-stdin
@@ -68,9 +71,10 @@ printf 'throwaway-token' | sbx --app-name "$APP" secret set --sandbox policy-che
 sbx --app-name "$APP" secret ls --json
 ```
 Pass: two distinct registry entries are listed — one host-only (no
-`--all-sandboxes`/`--sandbox`), one scoped to `policy-check` — confirming
-`--sandbox` and (if tested) `--all-sandboxes` produce different injection
-scopes, never the sandbox filesystem itself.
+`--all-sandboxes`/`--sandbox`), one scoped to `policy-check`. This checks
+stored scope metadata only, not registry authentication, runtime injection,
+or the absence of credentials from the sandbox filesystem. A live pull
+check would need a disposable registry and short-lived test credentials.
 
 ## 6. Confirm targeted rule removal, not a full reset, is the routine fix
 

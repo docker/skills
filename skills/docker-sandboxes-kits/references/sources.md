@@ -142,10 +142,9 @@ daemon started. No source-only CLI-flag differences were found for the
   the `w.notImplemented("mixins", ...)` warning) and `SPEC-v2.md` §3.5 both
   state it is schema-accepted only; this skill states that explicitly
   rather than implying it works.
-- No claim is made about `**.`-double-wildcard, CIDR, or port-range
-  `permissions.network` entries being enforced — `SPEC-v2.md`'s table
-  explicitly marks them "Declared; not enforced this release," reproduced
-  verbatim in `references/spec-v2-fields.md`.
+- `SPEC-v2.md`'s network enforcement table is stale for CIDR and `**.`
+  wildcards. The runtime implementation below takes precedence. Port
+  ranges are not matched as ranges; exact ports are supported.
 - No docs.docker.com URL beyond the canonical product page
   (https://docs.docker.com/ai/sandboxes/) is cited here: this review did
   not independently fetch a dedicated kit-spec docs page, so no more
@@ -155,6 +154,16 @@ daemon started. No source-only CLI-flag differences were found for the
 ## Runtime implementation cross-checks
 
 At docker/sandboxes commit `df5c96ba60484fa2c375469dbac912c205da6c37`:
+- `sandboxd/pkg/server/options_governance.go` — `ApplyKitNetworkPolicyScoped`
+  passes kit entries to `local.NetworkRule` without filtering CIDR or globs.
+- `vendor/github.com/docker/governor-lib/internal/authorization/v2/rule_spec.go`
+  — `lowerSpec` detects CIDR prefixes; other entries become domain rules.
+- `vendor/github.com/docker/governor-lib/internal/authorization/definitions/allowlist/v0/matching.go`
+  — `MatchDomain` supports multi-label `**` globs; `matchCIDR` checks prefix
+  containment; `portsEqual` compares exact ports, not ranges.
+- `sandboxd/pkg/proxy/engine_governance.go` — the `net:endpoint` request
+  carries domain then resolved-IP identifiers. A decisive domain allow
+  precedes a CIDR deny, as documented in `docs/yml/sbx_policy_deny.yaml`.
 - `sandboxlib/kit/resolve.go` — artifact references, not built-in agent names.
 - `sandboxlib/agentkits/resolver.go` and `sandboxlib/kitpolicy/kitpolicy.go` — built-in-only parent resolver; remote `extends` is not implemented.
 - `sandboxlib/kit/compose.go` — additive routing-only credentials, duplicate definitions, and rejection of mixin OAuth.
