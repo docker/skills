@@ -3,17 +3,42 @@
 # Usage: bash scripts/verify-setup.sh [--help]
 set -euo pipefail
 
-if [[ "${1:-}" == "--help" ]]; then
-    echo "Usage: bash scripts/verify-setup.sh"
+usage() {
+    echo "Usage: bash scripts/verify-setup.sh [--help]"
     echo "Checks: .dockerignore, Dockerfile, and compose.yaml exist; compose config passes."
+}
+
+if [[ "${1:-}" == "--help" && $# == 1 ]]; then
+    usage
     exit 0
 fi
 
-echo "Checking required files..."
-test -f .dockerignore && echo "OK: .dockerignore" || echo "MISSING: .dockerignore"
-test -f Dockerfile && echo "OK: Dockerfile" || echo "MISSING: Dockerfile"
-test -f compose.yaml && echo "OK: compose.yaml" || echo "MISSING: compose.yaml"
+if (( $# != 0 )); then
+    usage >&2
+    exit 2
+fi
 
-echo ""
-echo "Validating compose.yaml..."
-docker compose config --quiet && echo "OK: compose config valid" || echo "FAIL: compose config invalid"
+status=0
+
+echo "Checking required files..."
+for file in .dockerignore Dockerfile compose.yaml; do
+    if [[ -f "$file" ]]; then
+        echo "OK: $file"
+    else
+        echo "MISSING: $file" >&2
+        status=1
+    fi
+done
+
+if [[ -f compose.yaml ]]; then
+    echo ""
+    echo "Validating compose.yaml..."
+    if docker compose config --quiet; then
+        echo "OK: compose config valid"
+    else
+        echo "FAIL: compose config invalid" >&2
+        status=1
+    fi
+fi
+
+exit "$status"

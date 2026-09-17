@@ -85,10 +85,11 @@ When a project needs a database (Postgres, MySQL, MongoDB), cache (Redis, Memcac
 
 ## Scripts
 
-- **`scripts/verify-setup.sh`** — Checks required files exist and compose config passes.
+- **`scripts/verify-setup.sh`** — Checks required files exist and validates `compose.yaml`.
   ```bash
-  bash scripts/verify-setup.sh
+  bash scripts/verify-setup.sh [--help]
   ```
+  Exit status is `0` when verification succeeds or help is requested, `1` when required files are missing or the Compose configuration is invalid, and `2` for invalid arguments.
 
 ## Checks
 

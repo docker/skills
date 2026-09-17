@@ -154,8 +154,9 @@ Always configure the final image to run as a non-root user.
 
 - **`scripts/verify-build.sh`** — Builds the image, reports size and configured user.
   ```bash
-  bash scripts/verify-build.sh [IMAGE_NAME]
+  bash scripts/verify-build.sh [--help] [IMAGE_NAME]
   ```
+  Exit status is `0` when all Docker commands succeed or help is requested, the failing Docker command's non-zero status when verification fails, and `2` for invalid arguments.
 
 ## Checks
 
