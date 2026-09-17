@@ -10,6 +10,20 @@ Paths below are relative to the repository root.
 - `cli-plugin/commands/create.go` — `validateCloneOptions` (the four `--clone` preconditions: explicit workspace path, inside a Git repository, not a Git worktree, `.git` a real directory not a file/submodule pointer), `addCreateAgentSubcommand` (`:ro` semantics: "holds that one path out of reach inside a workspace the sandbox can otherwise write" — a write restriction, not a read restriction).
 - `cli-plugin/commands/rm.go` — `warnUnsavedCloneChanges` (the exact `git fetch sandbox-<name>` / `refs/remotes/sandbox-<name>/*` vs. survivor `refs/sandboxes/<name>/*` / `git branch <local> refs/sandboxes/<name>/<branch>` recovery text), `removeAll`/`removeByNameConfirmedWithSecretRemoval` (confirmation-prompt and `--force` semantics for `sbx rm`/`sbx rm --all`), `errRemovalDeclined`.
 - `cli-plugin/commands/root.go` — `rootFlags` (`--app-name`, hidden persistent flag, "Storagekit application name for isolated daemon instance"), `commandsWithoutDaemon`/`needDaemonAutoStart` (daemon-free commands).
+- `docs/yml/sbx_ls.yaml` — agent/status/published-ports/workspace listing,
+  `--json`, and `-q`/`--quiet` (sandbox names only).
+- `docs/yml/sbx_stop.yaml` — stops one or more sandboxes without removing
+  them; retains state for restart with `sbx run`.
+- `docs/yml/sbx_exec.yaml` — starts a stopped sandbox before execution;
+  local exec flags `-i`, `-t`, `-d`, `-u`, `-w`, `-e`, `--env-file`, and
+  `--privileged`.
+- `docs/yml/sbx_cp.yaml` — exactly one of SRC/DST must be `SANDBOX:PATH`;
+  the other is local, and sandbox-to-sandbox copies are unsupported.
+- `docs/yml/sbx_ports.yaml` — lists ports or changes existing bindings with
+  `--publish`/`--unpublish`.
+- `docs/yml/sbx_create.yaml` / `docs/yml/sbx_run.yaml` — `-p`/`--publish`
+  applies at creation only; run's flag explicitly says reattach ignores it
+  and directs users to `sbx ports`.
 - `docs/yml/sbx_prune.yaml` — current, pinned-source usage text: `--filter until=TIMESTAMP` ("stopped before TIMESTAMP... RFC 3339 timestamp, Unix timestamp, or Go duration relative to now, e.g. until=168h"), not `since=`.
 
 ## Captured standalone CLI help, cross-checked against an older installed build
