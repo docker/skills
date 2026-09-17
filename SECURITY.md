@@ -34,3 +34,8 @@ Security reports are greatly appreciated and we will publicly thank you,
 although we will keep your name confidential if you request it. We also like to
 send gifts - if you're into swag, make sure to let us know. We do not currently
 offer a paid security bounty program at this time.
+
+## Further Information
+
+See Docker's [Vulnerability Disclosure Policy](https://www.docker.com/trust/vulnerability-disclosure-policy/)
+for further information.
