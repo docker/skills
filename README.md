@@ -76,11 +76,13 @@ See [Copilot CLI plugins docs](https://docs.github.com/en/copilot/how-tos/copilo
 
 ## Local Development
 
-Prerequisites: [Task](https://taskfile.dev/) and Python 3 with PyYAML (`pip install pyyaml`).
+Prerequisites: [Task](https://taskfile.dev/) and Docker.
 
 ```bash
+task             # Run the complete CI/release validation suite
 task validate    # Check skill structure, frontmatter, and manifests; run validator tests
 task eval        # Static asset and verification-snippet checks, not live agent evals
+task links       # Check local Markdown links and heading anchors
 ```
 
 ## Repository Structure
@@ -96,7 +98,8 @@ evals/                — Evaluation runbooks
 .claude-plugin/       — Claude Code plugin + marketplace manifests
 .github/plugin/       — Copilot CLI plugin + marketplace manifests
 gemini-extension.json — Gemini CLI extension manifest
-Taskfile.yml          — Validation tasks
+Taskfile.yml          — CI and validation tasks
+scripts/ci.sh         — Shared CI and release validation entrypoint
 ```
 
 ## License

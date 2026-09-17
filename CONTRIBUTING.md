@@ -19,10 +19,10 @@ problem or suggestion has already been reported.
      skills and update `catalog.yaml` accordingly.
    - When updating an existing skill, keep the `SKILL.md` frontmatter and
      section structure consistent with the rest of the repo.
-4. Run validation locally:
+4. Run the complete validation suite locally (requires
+   [Task](https://taskfile.dev/) and Docker):
    ```bash
-   task validate
-   task eval
+   task
    ```
 5. Commit your changes with a `Signed-off-by` line (see *Sign your work* below).
 6. Open a pull request and fill out the template.
