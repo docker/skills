@@ -227,6 +227,7 @@ Use this as a starting point — confirm with the user before executing if assum
 - `references/templates.md` — Sandbox image templates: built-in flavors and writing a custom template.
 - `references/workspaces-networking.md` — Workspace mount semantics, port publishing, network policy.
 - `references/credentials.md` — Secret store, OAuth, scope rules, proxy-managed injection.
+- `references/sources.md` — Provenance for every rule above (installed-CLI `--help` captures and pinned source paths/commits).
 
 ## Assets
 
