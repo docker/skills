@@ -10,6 +10,10 @@ Docker-authored knowledge skills that improve AI coding agent output for Docker-
 - **docker-agent-config** — Authoring agent.yaml configs for Docker Agent (models, providers, toolsets, multi-agent teams)
 - **docker-agent-run** — Running and operating Docker Agent locally (safety modes, sandbox, aliases, worktrees)
 - **docker-agent-deploy** — Serving, sharing, and evaluating Docker Agents (MCP/API/A2A/chat servers, OCI distribution, eval/CI gating)
+- **docker-sandboxes-lifecycle** — Standalone sbx lifecycle, workspace mounts, clone isolation, and safe cleanup
+- **docker-sandboxes-network-credentials** — sbx egress policy, proxy credentials, registry scopes, and OAuth passthrough boundaries
+- **docker-sandboxes-env** — Experimental sbxenv.yaml environments, host hooks, and approval plans
+- **docker-sandboxes-kits** — Experimental sandbox/mixin kits, composition, and signed distribution
 
 ## Installation
 
@@ -46,6 +50,10 @@ cp -r skills/docker-build-strategies ~/.agents/skills/
 cp -r skills/docker-agent-config ~/.agents/skills/
 cp -r skills/docker-agent-run ~/.agents/skills/
 cp -r skills/docker-agent-deploy ~/.agents/skills/
+cp -r skills/docker-sandboxes-lifecycle ~/.agents/skills/
+cp -r skills/docker-sandboxes-network-credentials ~/.agents/skills/
+cp -r skills/docker-sandboxes-env ~/.agents/skills/
+cp -r skills/docker-sandboxes-kits ~/.agents/skills/
 ```
 See [Codex skills docs](https://developers.openai.com/codex/skills)
 
@@ -71,7 +79,8 @@ See [Copilot CLI plugins docs](https://docs.github.com/en/copilot/how-tos/copilo
 Prerequisites: [Task](https://taskfile.dev/) and Python 3 with PyYAML (`pip install pyyaml`).
 
 ```bash
-task validate    # Check skill structure, frontmatter, and manifests
+task validate    # Check skill structure, frontmatter, and manifests; run validator tests
+task eval        # Static asset and verification-snippet checks, not live agent evals
 ```
 
 ## Repository Structure

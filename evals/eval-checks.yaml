@@ -394,3 +394,285 @@
   prompt: "Prompt 3: Go + Redis"
   skip: true
   skip_reason: Partial coverage only — Go Dockerfile is in build-strategies skill, not foundations
+
+# ─── docker-sandboxes-env ───────────────────────────────────────────────────
+
+- eval: docker-sandboxes-env
+  prompt: "Prompt 1: checked-in reproducible environment"
+  skip: true
+  skip_reason: No fixtures-clone asset; host initialization and approval require manual evaluation
+
+- eval: docker-sandboxes-env
+  prompt: "Prompt 2: my agent keeps editing its own environment file"
+  skip: true
+  skip_reason: No subdirectory-protection asset; mount rename behavior requires runtime verification
+
+- eval: docker-sandboxes-env
+  prompt: "Prompt 3: preRemove hook fails, teardown blocked?"
+  skip: true
+  skip_reason: No teardown asset; warning-only failure and destroy-plan drift require manual verification
+
+- eval: docker-sandboxes-env
+  prompt: "Prompt 4: quick sanity check with no credentials on hand"
+  asset: skills/docker-sandboxes-env/assets/sbxenv.yaml
+  checks:
+    - id: se-schema
+      description: Environment schema version is the string "1"
+      type: yaml_value_equals
+      key: schemaVersion
+      value: "1"
+    - id: se-agent
+      description: Minimal environment uses the credential-free shell agent
+      type: yaml_value_equals
+      key: agent
+      value: shell
+    - id: se-workspace
+      description: File is located at the workspace mount root
+      type: yaml_value_equals
+      key: workspace
+      value: .
+    - id: se-no-secrets
+      description: Minimal environment declares no service secrets
+      type: yaml_key_absent
+      key: secrets
+    - id: se-no-registries
+      description: Minimal environment declares no registry credentials
+      type: yaml_key_absent
+      key: registries
+    - id: se-no-bindings
+      description: Minimal environment changes no global credential bindings
+      type: yaml_key_absent
+      key: bindings
+    - id: se-no-hooks
+      description: Minimal environment runs no host lifecycle commands
+      type: yaml_key_absent
+      key: lifecycle
+    - id: se-no-writable-env
+      description: Minimal environment retains default environment-file protection
+      type: yaml_key_absent
+      key: sandboxOptions.writableEnvFiles
+
+- eval: docker-sandboxes-env
+  prompt: "Prompt 5: literal secrets in plan output"
+  skip: true
+  skip_reason: No literal-secret asset; plan and state redaction require a manual source check
+
+- eval: docker-sandboxes-env
+  prompt: "Prompt 6: seed fixtures once after creation"
+  skip: true
+  skip_reason: No postCreate asset; hook ordering and rerun behavior require the manual runbook
+
+- eval: docker-sandboxes-env
+  prompt: "Prompt 7: non-interactive CI approval"
+  skip: true
+  skip_reason: No CI asset; non-interactive approval and untrusted-input refusal require manual evaluation
+
+# ─── docker-sandboxes-kits ──────────────────────────────────────────────────
+
+- eval: docker-sandboxes-kits
+  prompt: "Prompt 1: adding a tool to an existing agent"
+  # Partial asset coverage: portable mixin structure, not the Postgres MCP setup.
+  asset: skills/docker-sandboxes-kits/assets/spec-mixin.yaml
+  checks:
+    - id: sk-mixin-schema
+      description: Mixin kit schema version is the string "2"
+      type: yaml_value_equals
+      key: schemaVersion
+      value: "2"
+    - id: sk-mixin-kind
+      description: Extension asset declares the mixin kind
+      type: yaml_value_equals
+      key: kind
+      value: mixin
+    - id: sk-mixin-no-sandbox
+      description: Mixin does not declare a forbidden sandbox block
+      type: yaml_key_absent
+      key: sandbox
+    - id: sk-mixin-no-extends
+      description: Mixin does not declare forbidden inheritance
+      type: yaml_key_absent
+      key: extends
+    - id: sk-mixin-no-mixins
+      description: Mixin does not compose other mixins
+      type: yaml_key_absent
+      key: mixins
+    - id: sk-mixin-no-credentials
+      description: Example mixin avoids duplicate base-agent credential definitions
+      type: yaml_key_absent
+      key: credentials
+    - id: sk-mixin-network
+      description: Example mixin declares its required egress
+      type: yaml_value_equals
+      key: permissions.network.allow
+      value: [registry.npmjs.org]
+    - id: sk-mixin-env
+      description: Mixin variable used by the runbook is a string
+      type: yaml_value_equals
+      key: environment.variables.MY_MIXIN
+      value: "1"
+
+- eval: docker-sandboxes-kits
+  prompt: "Prompt 2: a minimal kit that should just work"
+  asset: skills/docker-sandboxes-kits/assets/spec-sandbox.yaml
+  checks:
+    - id: sk-sandbox-schema
+      description: Sandbox kit schema version is the string "2"
+      type: yaml_value_equals
+      key: schemaVersion
+      value: "2"
+    - id: sk-sandbox-kind
+      description: Sandbox asset declares the sandbox kind
+      type: yaml_value_equals
+      key: kind
+      value: sandbox
+    - id: sk-sandbox-parent
+      description: Sandbox kit inherits the built-in shell agent
+      type: yaml_value_equals
+      key: extends
+      value: shell
+    - id: sk-no-invented-image
+      description: Sandbox kit does not override the inherited image
+      type: yaml_key_absent
+      key: sandbox.image
+
+- eval: docker-sandboxes-kits
+  prompt: "Prompt 3: mixin fails when composed, even though it validated"
+  skip: true
+  skip_reason: No duplicate-credential asset; schema validation versus composition requires a runtime check
+
+- eval: docker-sandboxes-kits
+  prompt: "Prompt 4: credential domain not allow-listed, and additive policy"
+  skip: true
+  skip_reason: No credential-policy asset; effective egress requires composition and a policy check
+
+- eval: docker-sandboxes-kits
+  prompt: "Prompt 5: publishing and trusting a kit"
+  skip: true
+  skip_reason: No signed asset; the manual snippet generates ephemeral keys and verifies tamper rejection
+
+- eval: docker-sandboxes-kits
+  prompt: "Prompt 6: CIDR and multi-label network rules"
+  skip: true
+  skip_reason: No runtime-matcher asset; CIDR and domain precedence require the manual source check
+
+# ─── docker-sandboxes-lifecycle ───────────────────────────────────────────────
+
+- eval: docker-sandboxes-lifecycle
+  prompt: "Prompt 1: create vs. run and the omitted-path trap"
+  skip: true
+  skip_reason: No lifecycle asset; omitted workspace and reattachment require runtime verification
+
+- eval: docker-sandboxes-lifecycle
+  prompt: "Prompt 2: isolate an agent from the host working tree"
+  skip: true
+  skip_reason: No clone asset; Git fetch and survivor refs require a disposable sandbox
+
+- eval: docker-sandboxes-lifecycle
+  prompt: "Prompt 3: routine cleanup"
+  skip: true
+  skip_reason: No cleanup asset; stopped-only pruning requires runtime verification
+
+- eval: docker-sandboxes-lifecycle
+  prompt: "Prompt 4: run a diagnostic and copy its output"
+  skip: true
+  skip_reason: No diagnostic asset; exec startup and bidirectional copy require a disposable sandbox
+
+- eval: docker-sandboxes-lifecycle
+  prompt: "Prompt 5: publish a port on an existing sandbox"
+  skip: true
+  skip_reason: No port asset; publish and unpublish require runtime verification
+
+- eval: docker-sandboxes-lifecycle
+  prompt: "Prompt 6: stop now, resume later without losing state"
+  skip: true
+  skip_reason: No resume asset; state retention requires stopping and restarting a sandbox
+
+- eval: docker-sandboxes-lifecycle
+  prompt: "Prompt 7: read-only reference files are not secret"
+  skip: true
+  skip_reason: No read-only asset; mount readability and write protection require runtime verification
+
+# ─── docker-sandboxes-network-credentials ─────────────────────────────────────
+
+- eval: docker-sandboxes-network-credentials
+  prompt: "Prompt 1: giving an agent a credential safely"
+  skip: true
+  skip_reason: No credential asset; sentinel injection and egress separation require manual evaluation
+
+- eval: docker-sandboxes-network-credentials
+  prompt: "Prompt 2: private registry image, sandbox-wide vs. one sandbox"
+  skip: true
+  skip_reason: No registry asset; storage and removal scopes require the manual runbook
+
+- eval: docker-sandboxes-network-credentials
+  prompt: "Prompt 3: network policy precedence"
+  skip: true
+  skip_reason: No policy asset; effective deny precedence requires runtime verification
+
+- eval: docker-sandboxes-network-credentials
+  prompt: "Prompt 4: tempted to reset policy to fix one bad rule"
+  skip: true
+  skip_reason: No policy-removal asset; reset warnings and scoped removal require manual evaluation
+
+- eval: docker-sandboxes-network-credentials
+  prompt: "Prompt 5: OAuth passthrough and a leaked token"
+  skip: true
+  skip_reason: No OAuth asset; passthrough and leaked-token risks require the manual source check
+
+# These assert test-fixture hygiene, not runtime behavior or agent responses.
+- eval: docker-sandboxes-lifecycle
+  prompt: "Verification snippet safety (static checks)"
+  asset: evals/docker-sandboxes-lifecycle.md
+  checks:
+    - id: sl-disposable-clone
+      description: Clone verification uses the disposable repository and shell agent
+      type: file_match
+      pattern: '^sbx .* create --clone .* shell "\$REPO"$'
+    - id: sl-detached-cwd
+      description: Omitted-path verification runs detached from the disposable repository
+      type: file_match
+      pattern: '^\(cd "\$REPO" && sbx .* run .* -d shell\)$'
+    - id: sl-disposable-resume
+      description: Stop and resume verification mounts only the disposable repository
+      type: file_match
+      pattern: '^sbx .* run --name eval-resume -d shell "\$REPO"$'
+    - id: sl-no-provider-run
+      description: Verification does not launch a provider agent interactively
+      type: file_must_not_match
+      pattern: '^sbx .* (create|run) .*\b(claude|codex|devin)\b'
+    - id: sl-fetch-scoped
+      description: Clone fetch is scoped to the disposable repository
+      type: file_match
+      pattern: '^git -C "\$REPO" fetch sandbox-eval-clone$'
+
+- eval: docker-sandboxes-network-credentials
+  prompt: "Verification credential safety (static checks)"
+  assets:
+    eval: evals/docker-sandboxes-network-credentials.md
+    integration: skills/docker-sandboxes-network-credentials/checks/verification.md
+  checks:
+    - id: sn-dummy-service-token
+      description: Service credential verification uses a throwaway token
+      type: file_match
+      asset_key: eval
+      pattern: "^printf 'throwaway-token' \\| sbx .* secret set github$"
+    - id: sn-dummy-registry-token
+      description: Registry verification uses a throwaway token
+      type: file_match
+      asset_key: eval
+      pattern: "^printf 'throwaway-token' \\| sbx .* --registry ghcr.io --password-stdin$"
+    - id: sn-no-production-token
+      description: Eval does not read live GitHub credentials
+      type: file_must_not_match
+      asset_key: eval
+      pattern: 'gh auth token|\$(\{)?(GH_TOKEN|GITHUB_TOKEN|ANTHROPIC_API_KEY)\b'
+    - id: sn-integration-no-production-token
+      description: Integration runbook does not read live GitHub credentials
+      type: file_must_not_match
+      asset_key: integration
+      pattern: 'gh auth token|\$(\{)?(GH_TOKEN|GITHUB_TOKEN)\b'
+    - id: sn-sentinel-assertion
+      description: Runbook checks the shell agent sentinel rather than printing secrets
+      type: file_match
+      asset_key: integration
+      pattern: 'exec policy-check sh -c.*test "\$ANTHROPIC_API_KEY" = proxy-managed'

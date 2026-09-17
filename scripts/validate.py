@@ -8,6 +8,8 @@ import sys
 
 import yaml
 
+from frontmatter import validate_frontmatter
+
 errors = 0
 skill_defs = {}
 
@@ -98,23 +100,10 @@ for skill in catalog["skills"]:
     if not os.path.isfile(skill_md):
         continue
     print("  Checking frontmatter: " + skill_md)
-    with open(skill_md) as f:
-        lines = f.readlines()
-    if not lines or lines[0].rstrip() != "---":
-        error(skill_md + " does not start with '---'")
-        continue
-    # Extract only frontmatter lines (between first and second ---)
-    fm_lines = []
-    for line in lines[1:]:
-        if line.rstrip() == "---":
-            break
-        fm_lines.append(line)
-    has_name = any(l.startswith("name:") for l in fm_lines)
-    has_desc = any(l.startswith("description:") for l in fm_lines)
-    if not has_name:
-        error(skill_md + " missing 'name:' in frontmatter")
-    if not has_desc:
-        error(skill_md + " missing 'description:' in frontmatter")
+    with open(skill_md, encoding="utf-8") as f:
+        content = f.read()
+    for message in validate_frontmatter(content, os.path.basename(path)):
+        error(skill_md + ": " + message)
 
 # --- 4. Validate SKILL.md required sections ---
 print("==> Validating SKILL.md required sections")
