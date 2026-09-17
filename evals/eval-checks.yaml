@@ -315,6 +315,12 @@
       asset_key: dockerignore
       pattern: "\\.env"
 
+    - id: fp-p1-ignore-npmrc
+      description: .dockerignore excludes .npmrc
+      type: file_match
+      asset_key: dockerignore
+      pattern: "^\\.npmrc$"
+
     - id: fp-p1-ignore-ide
       description: .dockerignore excludes IDE config directories
       type: file_match
@@ -346,6 +352,19 @@
       type: file_match
       asset_key: dockerfile
       pattern: "^USER"
+
+    - id: fp-p1-secret-mount
+      description: Uses a secret mount for optional npm registry configuration during each dependency install
+      type: count_match
+      asset_key: dockerfile
+      pattern: "--mount=type=secret,id=npmrc,target=/root/\\.npmrc,required=false"
+      min_count: 2
+
+    - id: fp-p1-no-copy-npmrc
+      description: Must NOT copy or add .npmrc to an image layer
+      type: file_must_not_match
+      asset_key: dockerfile
+      pattern: "^(COPY|ADD) .*\\.npmrc"
 
     # Compose checks
     - id: fp-p1-postgres-service

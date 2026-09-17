@@ -13,7 +13,7 @@ Use this checklist to verify that generated Docker project setup follows the ski
 - [ ] Excludes `.git` directory.
 - [ ] Excludes dependency caches (`node_modules/`, `__pycache__/`, `.venv/`, `vendor/`).
 - [ ] Excludes IDE/editor configs (`.vscode/`, `.idea/`).
-- [ ] Excludes secret files (`.env`, `*.pem`, `*.key`).
+- [ ] Excludes secret and local credential files (`.env`, `.npmrc`, `*.pem`, `*.key`).
 - [ ] Does not exclude files that the build actually needs (source code, dependency manifests).
 
 ## Dockerfile
@@ -23,6 +23,7 @@ Use this checklist to verify that generated Docker project setup follows the ski
 - [ ] Dependency manifests are copied and installed before source code (layer caching).
 - [ ] A non-root `USER` is set before `CMD`/`ENTRYPOINT`.
 - [ ] No secrets or credentials are hardcoded (`ENV SECRET=...`, `ARG PASSWORD=...`).
+- [ ] Package-manager credentials are provided only to the dependency-install instruction with a BuildKit secret mount; credential files such as `.npmrc` are not copied or added to image layers.
 - [ ] Multi-stage build is used when a build step exists (compile, bundle, transpile).
 - [ ] Production stage does not contain dev tools, test frameworks, or build toolchains.
 

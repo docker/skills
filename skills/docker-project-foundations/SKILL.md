@@ -52,6 +52,7 @@ When a project needs a database (Postgres, MySQL, MongoDB), cache (Redis, Memcac
 
 - Name the file `compose.yaml` rather than legacy Compose filenames.
 - Put all three files at the project root unless there is a clear multi-service layout that justifies a `docker/` subdirectory.
+- Exclude local credential files such as `.npmrc` from the build context, and provide package-manager credentials only through BuildKit secret mounts scoped to dependency-install instructions; do not copy or add credential files to image layers.
 - Ensure the initial setup can build and start locally with one command path.
 - Use Compose services for local databases, caches, and queues instead of host installs.
 - Keep the first scaffold simple; defer detailed image optimization and advanced Compose tuning to the owning skills.
@@ -70,7 +71,7 @@ When a project needs a database (Postgres, MySQL, MongoDB), cache (Redis, Memcac
 
 ## Related skills
 
-- For Dockerfile optimization, cache strategy, non-root execution, and image hardening, use `docker-build-strategies`.
+- For Dockerfile optimization, cache strategy, non-root execution, image hardening, and detailed dependency-install patterns, use `docker-build-strategies`.
 - For service dependencies, health checks, overrides, volumes, networks, and Compose debugging, use `docker-compose-patterns`.
 
 ## References

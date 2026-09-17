@@ -13,10 +13,11 @@ Skill under test: `skills/docker-project-foundations/`
 ### Expected behaviors
 
 - [ ] Agent creates a `.dockerignore` file
-- [ ] `.dockerignore` excludes `node_modules/`, `.git/`, `.env`, and IDE config directories
+- [ ] `.dockerignore` excludes `node_modules/`, `.git/`, `.env`, `.npmrc`, and IDE config directories
 - [ ] Agent creates a `Dockerfile` with a multi-stage build
 - [ ] Dockerfile pins the base image to a specific version (e.g., `node:22-slim`), not `latest`
 - [ ] Dockerfile copies `package.json` and `package-lock.json` before copying source code (layer caching)
+- [ ] Dockerfile uses a BuildKit secret mount for optional npm registry configuration during each dependency install
 - [ ] Dockerfile sets a non-root `USER` before `CMD`/`ENTRYPOINT`
 - [ ] Agent creates a `compose.yaml` (not `docker-compose.yml`)
 - [ ] Compose file defines PostgreSQL as a service using the official `postgres` image
@@ -33,6 +34,7 @@ Skill under test: `skills/docker-project-foundations/`
 - [ ] Must NOT use the legacy filename `docker-compose.yml`
 - [ ] Must NOT run the application as root in the final image
 - [ ] Must NOT hardcode database passwords directly in `compose.yaml`
+- [ ] Must NOT use `COPY` or `ADD` for `.npmrc`; provide registry configuration with a build secret when needed
 
 ### Verification commands
 

@@ -29,6 +29,7 @@ docker-compose*.yaml
 # Environment and secrets
 .env
 .env.*
+.npmrc
 *.pem
 *.key
 

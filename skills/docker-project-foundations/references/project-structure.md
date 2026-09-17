@@ -120,5 +120,7 @@ Start with `docker compose --profile monitoring up` when needed.
 
 - Never bake secrets into images (no `ENV SECRET_KEY=...` in a `Dockerfile`).
 - Use environment variables or Docker secrets for runtime credentials.
-- Add secret files (`.env`, `*.pem`, `credentials.json`) to `.dockerignore` and `.gitignore`.
+- Add secret and local credential files (`.env`, `.npmrc`, `*.pem`, `credentials.json`) to `.dockerignore` and `.gitignore`.
+- Provide package-manager credentials needed during a build with a BuildKit secret mount scoped to the dependency-install instruction; do not `COPY` or `ADD` credential files such as `.npmrc`.
 - For development, use `env_file:` in Compose pointing to a `.env` file that is gitignored.
+- For further Dockerfile dependency-install patterns, use `docker-build-strategies`.
