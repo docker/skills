@@ -21,6 +21,13 @@ Realm: `realms.DockerSandbox` for credentials, `realms.DockerSandboxOAuth` for O
 - **Global** (`-g`): available to all sandboxes on this host.
 - **Per-sandbox**: scoped to a single sandbox by name.
 
+Newer `sbx` releases make global the **default** scope for service secrets
+and deprecate the explicit `-g`/`--global` flag (it still works but prints
+a deprecation warning); check `sbx secret set --help` for your installed
+version before assuming `-g` is required. The examples below use `-g`
+explicitly for clarity across versions; omit it if your installed CLI
+marks it deprecated.
+
 For a personal developer machine, prefer global for credentials shared across all sandboxes of the same agent (e.g., your Anthropic key for Claude). **On shared hosts, CI runners, or any machine where multiple users or tenants run sandboxes under the same OS user**, scope secrets per-sandbox instead of globally — global secrets are visible to every sandbox spawned by that OS user.
 
 ## Storing credentials
@@ -80,11 +87,19 @@ sbx secret set -g github -t "$GITHUB_PAT"   # if $GITHUB_PAT comes from .bashrc
 
 ```bash
 # `--password-stdin` is REQUIRED here and is the only place it is valid.
-# Host-only when -g is omitted; with -g, also written into every new
-# sandbox as ~/.docker/config.json (which can leak the credential into
-# sandbox images you build from inside the sandbox).
+# Host-only when -g is omitted: used only for template/kit pulls on the
+# host. With -g, the credential is ALSO injected by the sbx proxy into the
+# registry login of every new sandbox at pull time — it is never written
+# to the sandbox filesystem (no ~/.docker/config.json is created inside
+# the sandbox).
 printf '%s' "$REGISTRY_PASSWORD" | sbx secret set --registry my-registry.example.com --password-stdin
 ```
+
+Newer `sbx` releases deprecate `-g`/`--global` for `secret set` (global is
+now the default scope for service secrets) and replace the registry `-g`
+axis with an explicit `--all-sandboxes` flag alongside `--sandbox NAME`;
+if your installed `sbx --help` output shows `--all-sandboxes`, prefer it
+over `-g` for registry credentials.
 
 ### Onboarding helper (Experimental)
 
