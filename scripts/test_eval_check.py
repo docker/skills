@@ -1,8 +1,10 @@
+from pathlib import Path
+import re
 import unittest
 
 import yaml
 
-from eval_check import FAIL, PASS, run_check
+from eval_check import CHECKS_FILE, FAIL, PASS, REPO_ROOT, run_check
 
 
 class YAMLAssertionTests(unittest.TestCase):
@@ -36,6 +38,33 @@ class YAMLAssertionTests(unittest.TestCase):
     def test_unquoted_schema_version_fails(self):
         data = yaml.safe_load("schemaVersion: 2\n")
         self.assertEqual(self.check("yaml_value_equals", data, key="schemaVersion", value="2"), FAIL)
+
+
+class SandboxPromptCoverageTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.groups = yaml.safe_load(Path(CHECKS_FILE).read_text(encoding="utf-8"))
+
+    def test_each_prompt_has_one_check_group_or_explicit_skip(self):
+        paths = sorted(Path(REPO_ROOT, "evals").glob("docker-sandboxes-*.md"))
+        self.assertTrue(paths)
+        for path in paths:
+            with self.subTest(eval=path.stem):
+                prompts = re.findall(r"^## (Prompt \d+: .+)$", path.read_text(encoding="utf-8"), re.MULTILINE)
+                groups = [
+                    group["prompt"] for group in self.groups
+                    if group["eval"] == path.stem and group["prompt"].startswith("Prompt ")
+                ]
+                self.assertCountEqual(prompts, groups)
+
+    def test_skipped_prompts_explain_why(self):
+        for group in self.groups:
+            if group.get("skip"):
+                with self.subTest(eval=group["eval"], prompt=group["prompt"]):
+                    self.assertIs(group["skip"], True)
+                    reason = group.get("skip_reason")
+                    self.assertIsInstance(reason, str)
+                    self.assertTrue(reason.strip())
 
 
 if __name__ == "__main__":
