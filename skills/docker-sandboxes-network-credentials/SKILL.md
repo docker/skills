@@ -97,7 +97,14 @@ Do not use this skill when:
   adds rule IDs (needed for `sbx policy rm network --id`) and per-resource
   status. `sbx policy inspect <policy-or-rule>` gives full detail including
   each rule's exact removal command or the reason it is read-only (e.g.
-  org-managed).
+  org-managed). To remove a sandbox-scoped rule, retain `--sandbox NAME`;
+  omitting it targets the global policy instead:
+  ```bash
+  sbx policy rm network --sandbox my-sandbox --resource api.example.com
+  sbx policy check network --sandbox my-sandbox api.example.com
+  ```
+  Removing one rule does not determine the final decision; other matching
+  rules still apply.
 
 ### Service secrets: how injection works
 

@@ -110,7 +110,8 @@ sbx --app-name "$APP" policy check network telemetry.example.com --verbose
       and stops the daemon and every currently running sandbox; the daemon
       restarts on the next daemon-backed command.
 - [ ] Recommends targeted removal instead: `sbx policy rm network --id ...`
-      or `--resource ...` for the one bad rule.
+      or `--resource ...` for the one bad rule, retaining `--sandbox NAME`
+      if it belongs to a sandbox rather than the global policy.
 - [ ] Does not present `sbx policy reset` as a routine or low-cost fix.
 
 ### Must not

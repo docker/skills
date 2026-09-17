@@ -51,6 +51,14 @@ check (no `--sandbox`) still reports **allowed** for
 `policy-check` alone without widening or otherwise changing the global
 policy that every other sandbox still sees.
 
+Remove only the sandbox-scoped deny, then check both scopes again:
+```bash
+sbx --app-name "$APP" policy rm network --sandbox policy-check --resource internal.example.com
+sbx --app-name "$APP" policy check network --sandbox policy-check internal.example.com
+sbx --app-name "$APP" policy check network internal.example.com
+```
+Pass: both checks report **allowed**; the global allow rule is unchanged.
+
 ## 4. Confirm secret listing redaction and the shell agent sentinel
 
 ```bash
