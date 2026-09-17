@@ -104,24 +104,53 @@ over `-g` for registry credentials.
 ### Onboarding helper (Experimental)
 
 ```bash
-# `sbx setup` scans host env vars and offers to import them. The discovery
-# path also fires automatically on `sbx create` for kit-declared sources.
-# Always audit with `sbx secret ls -g` afterwards to confirm what was imported.
+# `sbx setup` scans host env vars and offers to import them, with an
+# interactive accept/skip step per detected value — it does not import
+# anything without confirmation.
 sbx setup
+
+# Non-interactive equivalent, per service or --all:
+sbx secret import anthropic
+sbx secret import --all --dry-run   # preview only, nothing is stored
 ```
 
-## Discovery (auto-pickup from host env)
+## Discovery (host env vars are never auto-picked-up silently)
 
-Each agent kit declares a `credentials.sources` list — an ordered set of env vars `sbx` checks on the host when the kit is created. If found, the value is silently moved into the host secret store and removed from any later proxy state.
+Older `sbx` releases silently imported a kit-declared env var (e.g.
+`ANTHROPIC_API_KEY`) into the secret store the first time you ran
+`sbx create` — no prompt, no confirmation. **That behavior was removed.**
+The keychain (populated by `sbx secret set` or `sbx secret import`) is now
+the single runtime source of credentials; `sbx create`/`sbx run` never read
+or import host environment variables on their own. If a required
+credential has no stored secret and no approved binding, creation fails
+with an actionable error instead of silently reaching into your shell
+environment.
 
-**This discovery fires automatically on `sbx create` (not just `sbx setup`).** If `ANTHROPIC_API_KEY` is set in your shell rc file and you `sbx create claude .`, the value is imported into the global secret store without an explicit prompt. After first sandbox creation, audit with `sbx secret ls -g` and remove anything you did not intend with `sbx secret rm -g <service>`.
+To bring a host env var into the store, do it explicitly:
 
-Example (GitHub):
+```bash
+sbx secret import anthropic          # prompts to import ANTHROPIC_API_KEY if set
+sbx secret import --all --force      # import every detected credential, no prompts
+```
+
+Always confirm what is stored with `sbx secret ls` after importing.
+
+A kit does not declare which host env vars to auto-import — it declares
+the service's injection contract instead (see `agent-kits.md` → "What a
+kit injects"), e.g.:
 ```yaml
 credentials:
-  sources:
-    - env: [GH_TOKEN, GITHUB_TOKEN]
+  - service: github
+    apiKey:
+      name: GH_TOKEN
+      inject:
+        - domain: api.github.com
+          header: Authorization
+          format: "Bearer %s"
 ```
+`sbx secret import`/`sbx setup` match well-known service names (like
+`github`) against a fixed set of env vars they know about (`GH_TOKEN`,
+`GITHUB_TOKEN`, ...) — that lookup is not read from the kit spec.
 
 Run `sbx setup` to walk through discovery interactively before any `sbx create` if you want explicit control over what gets imported.
 

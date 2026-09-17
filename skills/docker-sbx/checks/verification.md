@@ -28,7 +28,7 @@ Use this checklist to verify that a generated sbx sandbox setup follows the skil
 - [ ] No literal token appears in any `--token` / `-t` argument in any committed script. Values must come from `$(credential-helper)` substitutions (`$(gh auth token)`, `$(op read ...)`, `$(vault kv get ...)`, `$(aws secretsmanager get-secret-value ...)`) or from stdin pipes — never from a hardcoded string or a long-lived plain env var.
 - [ ] Credential-provisioning scripts suppress shell tracing around the secret handling block (`{ set +x; } 2>/dev/null` before the pipe) so `bash -x` does not leak the value into CI logs.
 - [ ] On shared hosts or CI runners with multiple tenants under one OS user, secrets are scoped per-sandbox (no `-g`) to prevent cross-tenant exposure.
-- [ ] After first `sbx create`, the user has audited the auto-imported secrets with `sbx secret ls -g` (kit-declared `credentials.sources` are picked up automatically without an explicit prompt).
+- [ ] The user has not been told that `sbx create` silently auto-imports host env vars into the secret store — it does not; imports go through `sbx setup` or `sbx secret import [SERVICE] [--all|--dry-run|--force]`, both of which confirm before writing (unless `--force`).
 
 ## Network & ports
 
