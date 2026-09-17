@@ -156,6 +156,86 @@ in the source cited by the skill. No real secret is needed for this eval.
 
 ---
 
+## Prompt 6: seed fixtures once after creation
+
+**Prompt to agent:**
+
+> I need a host-side script to seed fixtures after the sandbox exists,
+> before the agent attaches. Should I use initialize or postCreate? Will
+> it run again when I reattach or use `sbx env exec`?
+
+### Expected behaviors
+- [ ] Uses `lifecycle.postCreate` for work requiring an existing sandbox;
+      distinguishes it from `initialize`, which reruns on create/reattach.
+- [ ] States `postCreate` runs once after creation, before interactive
+      attachment, and does not rerun just because the user reattaches.
+- [ ] Explains the command runs on the host with the user's privileges,
+      from the project directory unless `workdir:` overrides it.
+- [ ] States `sbx env exec` runs no lifecycle commands and requires an
+      existing sandbox.
+- [ ] Requires review of the host command and its script before approval.
+
+### Must not
+- [ ] Must NOT describe `postCreate` as a command automatically executed
+      inside the sandbox, or recommend `initialize` for one-time work.
+- [ ] Must NOT claim reattachment silently trusts declared host commands
+      just because `postCreate` has already run.
+
+### Verification commands
+```bash
+# Use the known marker-only hooks fixture from the env runbook's step 1.
+sbx --app-name "$APP" env run -d "$WORK/hooks"
+sbx --app-name "$APP" env run -d "$WORK/hooks"
+sbx --app-name "$APP" env exec "$WORK/hooks" -- pwd
+cat "$WORK/hooks/initialize.log"
+cat "$WORK/hooks/post-create.log"
+```
+Review and approve both runs interactively. From a fresh fixture, pass: two
+initialize markers and one postCreate marker on the host. Exec adds neither.
+The runbook covers cleanup; do not substitute an unreviewed script.
+
+---
+
+## Prompt 7: non-interactive CI approval
+
+**Prompt to agent:**
+
+> CI has no terminal and `sbx env run` asks for approval. Can I just add
+> `-y` for every PR's sbxenv.yaml, including contributions from forks?
+
+### Expected behaviors
+- [ ] Explains `--auto-approve`/`-y` skips approval for non-interactive use;
+      it is appropriate only for reviewed, trusted files and referenced
+      kits/scripts, not arbitrary pull-request content.
+- [ ] Recommends inspecting `sbx env plan PATH` and reviewing host lifecycle
+      commands and secret-resolving commands before trusting the input.
+- [ ] Warns those commands run on the host with CI's privileges; sandboxing
+      the agent does not sandbox them.
+- [ ] Distinguishes `-d` (detached run) from `-y` (approval bypass).
+- [ ] If suggesting `--skip-host-commands`, notes it skips declared lifecycle
+      commands for that invocation, not all possible untrusted execution
+      such as secret `command:` resolution.
+
+### Must not
+- [ ] Must NOT default to `-y` or remembered approval for untrusted PRs.
+- [ ] Must NOT claim printing a plan makes untrusted files safe to approve.
+
+### Verification commands
+```bash
+# Run from the skill directory. This asset has no credentials or host hooks.
+mkdir "$WORK/ci"
+cp assets/sbxenv.yaml "$WORK/ci/sbxenv.yaml"
+cat "$WORK/ci/sbxenv.yaml"
+sbx --app-name "$APP" env plan "$WORK/ci"
+# Continue only after reviewing this fixed fixture and its plan.
+sbx --app-name "$APP" env run --auto-approve -d "$WORK/ci" < /dev/null
+sbx --app-name "$APP" env rm --force "$WORK/ci"  # consented test cleanup
+```
+Pass: the reviewed fixture runs without an approval prompt or interactive
+attach. Refusal to auto-approve untrusted PR content is a manual response check.
+
+---
+
 ## Should not trigger
 
 - "How do I run `sbx create --clone` directly without a config file?" → `docker-sandboxes-lifecycle`

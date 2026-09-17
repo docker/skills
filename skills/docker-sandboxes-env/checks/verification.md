@@ -25,6 +25,8 @@ agent: shell
 lifecycle:
   initialize:
     - command: printf 'initialize-ran\n' >> initialize.log
+  postCreate:
+    - command: printf 'post-create-ran\n' >> post-create.log
 YAML
 cat > "$WORK/remove/sbxenv.yaml" <<'YAML'
 schemaVersion: "1"
@@ -54,18 +56,22 @@ or running commands. The first declares the directory holding its file as
 a workspace; the second declares no workspace. Plan itself never prompts;
 this does not prove that a later create/run will apply silently.
 
-## 3. Verify initialize runs again on an unchanged environment
+## 3. Verify initialize reruns but postCreate runs only once
 
 ```bash
 sbx --app-name "$APP" policy init balanced
 sbx --app-name "$APP" env run -d "$WORK/hooks"
 sbx --app-name "$APP" env run -d "$WORK/hooks"
+sbx --app-name "$APP" env exec "$WORK/hooks" -- pwd
 cat "$WORK/hooks/initialize.log"
+cat "$WORK/hooks/post-create.log"
 ```
 Approve both invocations interactively after reviewing the plan. Pass: two
-`initialize-ran` lines. Initialize runs from the project directory on the
-host on every create/run, including reattachment. This assumes the default
-`env.rememberHostCommands` setting, not an override that remembers consent.
+`initialize-ran` lines and one `post-create-ran` line; exec adds neither.
+Initialize runs from the project directory on the host on every create/run,
+including reattachment. PostCreate runs on the host once after creation.
+This assumes the default `env.rememberHostCommands` setting, not an override
+that remembers consent.
 
 ## 4. Verify unchanged approved configuration without host commands is silent
 
