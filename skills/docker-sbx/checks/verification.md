@@ -15,7 +15,7 @@ Use this checklist to verify that a generated sbx sandbox setup follows the skil
 
 ## Sandbox creation
 
-- [ ] Agent kit name is one of the supported kits (`claude`, `claude-bedrock`, `claude-vertex`, `gemini`, `codex`, `copilot`, `cursor`, `kiro`, `opencode`, `docker-agent`, `droid`, `shell`) or supplied via `--kit`.
+- [ ] Agent kit name is one of the supported kits (`claude`, `claude-bedrock`, `claude-vertex`, `gemini`, `codex`, `cursor`, `devin`, `opencode`, `docker-agent`, `shell`) or supplied via `--kit`. `copilot`, `kiro`, and `droid` are no longer built-in kits — use `--kit` instead of the bare agent name for them.
 - [ ] At least one workspace path is provided to `sbx create` (or implicit `.` is acceptable for `sbx run`).
 - [ ] Extra workspaces that should not be written to are mounted with `:ro`.
 - [ ] Sandbox name (if specified) uses only letters, numbers, hyphens, periods, plus, minus.

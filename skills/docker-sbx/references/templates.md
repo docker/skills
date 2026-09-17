@@ -10,7 +10,12 @@ The project publishes images at `docker/sandbox-templates:<flavor>` for each sup
 
 - `claude-code-docker` — Claude Code with Docker tooling.
 - `claude-code-minimal` — Slimmer Claude image.
-- `gemini`, `codex`, `copilot`, `kiro`, `droid`, `opencode`, `cursor-agent`, `docker-agent`, `shell`.
+- `gemini`, `codex`, `cursor-agent`, `devin-docker`, `opencode`, `docker-agent`, `shell`.
+
+`copilot`, `kiro`, and `droid` template flavors existed for the built-in
+kits of the same names; those kits were later removed (see
+`agent-kits.md`), so these flavors are only relevant with a custom `--kit`
+that still targets them.
 
 Tagging convention:
 

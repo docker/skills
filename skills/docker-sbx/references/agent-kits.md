@@ -13,13 +13,15 @@ The following kits ship embedded in the `sbx` binary. Reference them by name as 
 | `claude-vertex` | Claude via Google Vertex AI | GCP credential chain expected. Unlisted in `sbx create --help`; invoke as `sbx create claude-vertex`. |
 | `gemini` | Gemini CLI | Yolo mode. `GEMINI_API_KEY` injected via proxy. MCP settings are merged (not overwritten) at startup. |
 | `codex` | OpenAI Codex | Yolo mode. Persistent volumes. OAuth supported via `sbx secret set -g openai --oauth`. |
-| `copilot` | GitHub Copilot CLI | Ephemeral. Uses runtime-substituted `initFiles` for `${WORKDIR}`-aware config. |
 | `cursor` | Cursor agent | |
-| `kiro` | AWS Kiro | Minimal kit. No declared credentials or network config. |
+| `devin` | Devin CLI (Cognition) | OAuth passthrough: the real access token is forwarded into the sandbox rather than staying proxy-managed — see `credentials.md`. |
 | `opencode` | OpenCode | |
 | `docker-agent` | Docker Agent | Multi-provider. Requires Docker socket access (declared in kit). |
-| `droid` | Factory.ai Droid | |
 | `shell` | Generic shell | No specific agent binary; useful as a base or for ad-hoc work. |
+
+`copilot`, `kiro`, and `droid` shipped as built-in kits in older `sbx`
+releases and have since been removed as embedded agents; use `--kit
+<path|oci-ref>` with a custom or community kit to run them now.
 
 For custom kits, pass `--kit <path|oci-ref>` to `sbx create` or `sbx run`. Repeatable.
 
@@ -50,8 +52,7 @@ Reading the `spec.yaml` of a kit (v2 form, `schemaVersion: "2"`) reveals what wi
 
 - **Claude** — `--dangerously-skip-permissions` is part of the entrypoint, intentional: that is what makes the sandbox a *real* sandbox (agent can act freely inside it because the host is protected by Docker). Persistent volumes preserve agent state across runs.
 - **Gemini** — Settings files (`~/.gemini/settings.json`) are merged with `jq` at startup, not overwritten. This preserves user customizations.
-- **Copilot** — Cannot use the static `files/` directory because the config references `${WORKDIR}`. Uses `initFiles` to apply placeholder substitution.
-- **Kiro** — Intentionally minimal — useful as a reference when authoring a new kit.
+- **Devin** — Its `oauth.passthrough: true` forwards the real access token into the sandbox instead of keeping it proxy-managed; do not assume every built-in kit hides the raw credential from the agent process.
 - **docker-agent** — Requests Docker socket access explicitly via its kit. This is the only path by which `/var/run/docker.sock` enters a sandbox; otherwise it is *not* mounted.
 
 ## How agent selection works under the hood

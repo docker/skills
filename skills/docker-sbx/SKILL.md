@@ -1,6 +1,6 @@
 ---
 name: docker-sbx
-description: Use this skill when the user wants to run an AI coding agent (Claude, Gemini, Codex, Kiro, Copilot, Cursor, opencode, shell) securely, safely, or in isolation via the standalone sbx CLI — OR (just as important) when the user wants to run the agent in yolo / unrestricted / "skip permissions" mode and the right answer is to do that inside a sandbox so the host stays protected. Triggers on framings like "run Claude securely", "sandbox my agent", "execute the agent safely", "I don't trust this agent on my host", "isolate the agent's actions", "prevent host credential leakage", "use --dangerously-skip-permissions", "yolo mode", "skip the permission prompts", "let the agent do whatever it wants", "bypass permissions", or comparing multiple agents in parallel. Covers sandbox creation, workspace mounting, credential injection, port publishing, and agent-kit selection. Helps the agent pick and provision the optimal sandbox for a given project.
+description: Use this skill when the user wants to run an AI coding agent (Claude, Gemini, Codex, Devin, Cursor, opencode, shell) securely, safely, or in isolation via the standalone sbx CLI — OR (just as important) when the user wants to run the agent in yolo / unrestricted / "skip permissions" mode and the right answer is to do that inside a sandbox so the host stays protected. Triggers on framings like "run Claude securely", "sandbox my agent", "execute the agent safely", "I don't trust this agent on my host", "isolate the agent's actions", "prevent host credential leakage", "use --dangerously-skip-permissions", "yolo mode", "skip the permission prompts", "let the agent do whatever it wants", "bypass permissions", or comparing multiple agents in parallel. Covers sandbox creation, workspace mounting, credential injection, port publishing, and agent-kit selection. Helps the agent pick and provision the optimal sandbox for a given project.
 license: Apache-2.0
 compatibility: Requires the standalone `sbx` CLI from https://github.com/docker/sandboxes on PATH. `sbx` runs sandboxes via its own VM runtime (sandboxd) and does not require a host Docker engine.
 ---
@@ -60,13 +60,15 @@ Built-in agent kits:
 | `claude-vertex` | Claude via Google Vertex AI (unlisted in top-level help; invoke as `sbx create claude-vertex`) |
 | `gemini` | Gemini CLI |
 | `codex` | OpenAI Codex |
-| `copilot` | GitHub Copilot CLI |
 | `cursor` | Cursor agent |
-| `kiro` | AWS Kiro |
+| `devin` | Devin CLI (Cognition) |
 | `opencode` | OpenCode |
 | `docker-agent` | Docker Agent (multi-provider) |
-| `droid` | Factory.ai Droid |
 | `shell` | Generic shell sandbox (no specific agent) |
+
+`copilot`, `kiro`, and `droid` were built-in kits in older `sbx` releases and
+have since been removed as embedded agents; if a user asks for one of them,
+supply it via `--kit <path-or-oci-ref>` instead (see `references/agent-kits.md`).
 
 For a user-supplied kit, pass `--kit <path-or-oci-ref>` (repeatable). See `references/agent-kits.md`. To build and pass a custom container image with `--template`, see `references/templates.md`.
 
