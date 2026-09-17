@@ -108,7 +108,7 @@ Do not use this skill when:
   the matching kit/binding declares.
   ```bash
   sbx secret set github                       # interactive
-  echo "$ANTHROPIC_API_KEY" | sbx secret set anthropic
+  printf '%s' "$ANTHROPIC_API_KEY" | sbx secret set anthropic
   ```
 - **OAuth passthrough is an exception, not a no-secret-exposure guarantee.**
   When a kit sets `oauth.passthrough: true` without a refresh sentinel, the
