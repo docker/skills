@@ -88,10 +88,12 @@ sbx --app-name "$APP" env plan sbxenv.yaml   # read the writable/protected-files
 > just started failing. Will `sbx env rm` now refuse to remove the sandbox?
 
 ### Expected behaviors
-- [ ] States a `preRemove` failure is only a warning and never blocks
-      removal.
-- [ ] Explains what CAN block removal is a resource the environment added
-      (a stored credential, an approved network rule) — not the hook itself.
+- [ ] States a `preRemove` failure is only a warning; the failure itself
+      does not block removal.
+- [ ] Explains that drift after approval (such as a new scoped credential
+      or a changed binding being pruned), or a replacement sandbox under
+      the same name, stops removal before deletion. Resources already
+      covered by the approved destroy plan are not inherently blockers.
 - [ ] Recommends running `sbx env rm` without `--force` and reviewing its
       destroy plan before confirming; `sbx env plan` shows the apply plan.
 

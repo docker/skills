@@ -131,10 +131,11 @@ Do not use this skill when:
     interactive attach takes the terminal.
   - **`preRemove`** — runs before `sbx env rm` deletes the sandbox, while
     `sbx env exec` can still reach it. **A failing `preRemove` is only a
-    warning** — it never blocks removal. What blocks removal instead is
-    whatever the environment *added* (a stored credential, an approved
-    network rule): those are resources this environment applied, and
-    removing them is what `sbx env rm` actually guards on.
+    warning** — the failure itself does not block removal. After the hook,
+    removal rechecks the approved destroy plan and sandbox identity. A new
+    credential or changed binding not covered by that approval, or a
+    replacement sandbox under the same name, stops removal before deletion.
+    Review the new destroy plan before retrying.
   - `sbx env exec` **runs no lifecycle commands at all, and requires the
     sandbox to already exist** — it does not create one. Run
     `sbx env create`/`sbx env run` first.

@@ -34,6 +34,16 @@ Paths below are relative to the repository root.
   sandbox... sbx env exec runs no commands at all"; `LifecycleCommand`
   (`Name`, `Command` run via `sh -c`/`cmd /c`, `Workdir` default =
   project directory, `Timeout`).
+- `cli-plugin/commands/env_lifecycle.go` — `envContext.teardown` warns on
+  a failed `preRemove`, then calls `recheckDestroy` and `recheckSandbox`
+  before deletion. The failure itself is not fatal; drift from the approved
+  destroy plan or replacement of the sandbox is.
+- `cli-plugin/commands/env_plan_test.go` —
+  `TestTeardown_ACommandThatFailedIsNotADeadEnd` verifies warning-only hook
+  failure; `TestRecheckDestroy_SomethingThatAppearedAfterTheAnswer`,
+  `TestTeardown_WhatAPreRemoveCommandLeftBehind`, and
+  `TestTeardown_ASandboxReplacedWhileTheCommandsRan` verify the
+  post-approval credential/binding/identity guards stop deletion.
 - `sandboxlib/sbxenv/args.go` — `Args` map, `argNamePattern`, the
   distinction between author bugs (`ErrArgSyntax`, `ErrArgUndeclared`) and
   caller errors (`ErrArgUnresolved`, `ErrArgInvalid`, `ErrArgUnused`); "A
