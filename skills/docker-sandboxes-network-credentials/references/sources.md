@@ -9,6 +9,10 @@ Paths below are relative to the repository root.
   confirms the design principle behind `sbx secret import` needing explicit
   opt-in and behind never using host env vars as an implicit channel).
 
+- `cli-plugin/commands/registry_secret.go` — `runRegistryCredentialDelete`
+  removes exactly the requested sandbox scope; only an unscoped removal
+  expands to both host-only and all-sandboxes entries.
+
 - `sandboxlib/agentkits/agents/devin/spec.yaml` — OAuth passthrough without
   sentinels in the built-in Devin kit.
 - `sandboxd/pkg/proxy/oauth_handler.go` — `rewriteTokenResponse` forwards

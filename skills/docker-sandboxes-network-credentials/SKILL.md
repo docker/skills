@@ -189,9 +189,16 @@ Do not use this skill when:
 - For a registry whose Bearer auth endpoint lives on a different hostname
   than the registry itself, pass `--registry-auth-endpoint` naming the exact
   trusted HTTPS URL — otherwise the cross-host token exchange is rejected.
-- `sbx secret rm --registry HOST [--all-sandboxes] -f` removes registry
-  credentials; without `--all-sandboxes` it removes both the host-only and
-  global (all-sandboxes) entries, matching what `set` created.
+- `sbx secret rm --registry HOST --sandbox NAME` removes only that sandbox's
+  registry credential; host-only and global (all-sandboxes) entries are
+  untouched. This does not revoke the upstream token or prevent use of
+  another applicable credential.
+  ```bash
+  sbx secret rm --registry ghcr.io --sandbox my-sandbox
+  ```
+- Without `--sandbox`, `sbx secret rm --registry HOST` removes both the
+  host-only and global entries. Add `--all-sandboxes` to remove only the
+  global entry instead.
 
 ## Related skills
 

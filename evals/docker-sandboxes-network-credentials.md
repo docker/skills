@@ -57,6 +57,8 @@ sbx --app-name "$APP" secret ls --json
       and never injected into any sandbox.
 - [ ] Distinguishes `--all-sandboxes` (every new sandbox) from `--sandbox NAME`
       (one sandbox only) as different injection scopes.
+- [ ] Explains that `sbx secret rm --registry ghcr.io --sandbox NAME` removes
+      only that sandbox's entry, leaving host-only/global credentials alone.
 
 ### Must not
 - [ ] Must NOT claim registry credentials behave like service secrets

@@ -84,6 +84,14 @@ stored scope metadata only, not registry authentication, runtime injection,
 or the absence of credentials from the sandbox filesystem. A live pull
 check would need a disposable registry and short-lived test credentials.
 
+Remove the sandbox-scoped test entry without touching the host-only entry:
+```bash
+sbx --app-name "$APP" secret rm --registry ghcr.io --sandbox policy-check --force
+sbx --app-name "$APP" secret ls --json
+```
+Pass: only the host-only registry entry remains. The forced removal is
+consented cleanup of the throwaway credential just created above.
+
 ## 6. Confirm targeted rule removal, not a full reset, is the routine fix
 
 ```bash
