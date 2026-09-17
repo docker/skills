@@ -110,6 +110,12 @@ Do not use this skill when:
   sbx secret set github                       # interactive
   printf '%s' "$ANTHROPIC_API_KEY" | sbx secret set anthropic
   ```
+  **Storing a secret does not grant network access.** Egress is governed
+  separately by `sbx policy`; check the target domain in the intended scope
+  before debugging authentication:
+  ```bash
+  sbx policy check network --sandbox my-sandbox api.anthropic.com
+  ```
 - **OAuth passthrough is an exception, not a no-secret-exposure guarantee.**
   When a kit sets `oauth.passthrough: true` without a refresh sentinel, the
   proxy forwards the real token response to the sandbox. The built-in

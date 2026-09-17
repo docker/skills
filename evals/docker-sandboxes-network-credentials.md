@@ -26,6 +26,8 @@ the default daemon or approve untrusted files just to execute an eval.
       real credential is harmless outside the sandbox.
 - [ ] Mentions `--sandbox NAME` to scope it to one sandbox vs. the global
       default.
+- [ ] Explains that storing the token does not grant egress; checks the
+      target domain with `sbx policy check network --sandbox NAME api.github.com`.
 
 ### Must not
 - [ ] Must NOT recommend `sbx create --env GH_TOKEN=<value>` or
