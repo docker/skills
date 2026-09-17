@@ -47,7 +47,7 @@ sbx run --name <sandbox-name>             # attach to the agent interactively
 
 For convenience, `sbx run <agent> <workspace>` does both in one step. Prefer `create` + `run --name` when scripting — more predictable, easier to inspect, easier to re-attach.
 
-The sandbox name defaults to `<agent>-<workdir>` and is overridable with `--name`. Allowed characters: letters, numbers, hyphens, periods, plus, minus.
+The sandbox name defaults to `<agent>-<workdir>` and is overridable with `--name`. Rules: at least 2 characters, ASCII letters/numbers/hyphens/periods only (no `+`, no `_`), must start and end with a letter or number, at most 63 characters, and `default` is reserved.
 
 ### 2. Pick the agent kit that matches the user's tool
 

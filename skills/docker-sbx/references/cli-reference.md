@@ -17,7 +17,7 @@ All commands invoke the standalone `sbx` binary.
 
 Provision a sandbox without attaching.
 
-- `--name <name>` — Override the default name (`<agent>-<workdir>`). Allowed: letters, numbers, hyphens, periods, plus, minus.
+- `--name <name>` — Override the default name (`<agent>-<workdir>`). Rules: at least 2 characters, ASCII letters/numbers/hyphens/periods only (no `+`, no `_`), must start and end with a letter or number, at most 63 characters, `default` is reserved.
 - `-t, --template <ref>` — Override the agent kit's default container image.
 - `-m, --memory <limit>` — Memory limit (e.g., `2g`, `8192m`). Default: 50% host RAM, capped at 32 GiB.
 - `--cpus <n>` — CPU count. Default: all host CPUs.
