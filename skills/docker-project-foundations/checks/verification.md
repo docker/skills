@@ -42,6 +42,16 @@ Use this checklist to verify that generated Docker project setup follows the ski
 - [ ] Production configuration does not mount source code.
 - [ ] A single `Dockerfile` supports both via build stages or build arguments when feasible.
 
+## Validation script
+
+Run the bundled script from the project root before the broader smoke tests:
+
+```bash
+bash scripts/verify-setup.sh [--help]
+```
+
+It checks `.dockerignore`, `Dockerfile`, and `compose.yaml`, then validates the Compose configuration. Exit status is `0` on success or help, `1` for missing files or invalid Compose configuration, and `2` for invalid arguments.
+
 ## Validation commands
 
 Run these to smoke-test the generated setup:

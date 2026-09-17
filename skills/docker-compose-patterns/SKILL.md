@@ -149,10 +149,11 @@ Key points:
 
 ## Scripts
 
-- **`scripts/verify-compose.sh`** — Validates compose.yaml with `docker compose config`.
+- **`scripts/verify-compose.sh`** — Validates `compose.yaml` with `docker compose config`.
   ```bash
-  bash scripts/verify-compose.sh
+  bash scripts/verify-compose.sh [--help]
   ```
+  Exit status is `0` when the Compose configuration is valid or help is requested, the non-zero status from `docker compose config` when validation fails, and `2` for invalid arguments.
 
 ## Checks
 

@@ -4,6 +4,16 @@ Run these checks against every generated `compose.yaml` before considering it co
 
 ## 1. Syntax and schema validation
 
+Run the bundled script from the project root:
+
+```bash
+bash scripts/verify-compose.sh [--help]
+```
+
+Exit status is `0` when the Compose configuration is valid or help is requested, the non-zero status from `docker compose config` when validation fails, and `2` for invalid arguments.
+
+To run the underlying validation directly:
+
 ```bash
 docker compose config
 ```

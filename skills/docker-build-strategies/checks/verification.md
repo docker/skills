@@ -2,6 +2,16 @@
 
 Use these checks to verify a generated Dockerfile meets quality standards.
 
+## Scripted verification
+
+Run the bundled script from the project root:
+
+```bash
+bash scripts/verify-build.sh [--help] [IMAGE_NAME]
+```
+
+The image name defaults to `verify-build-test`. Exit status is `0` when the build and inspection commands succeed or help is requested, the failing Docker command's non-zero status when verification fails, and `2` for invalid arguments.
+
 ## 1. Build succeeds
 
 ```bash
