@@ -205,8 +205,8 @@ volumes:
     mode: "0755"               # octal
 ```
 Creation-time only (`sbx kit add` skips volume changes). Always set `size:`
-on a block volume — an unsized one costs ~800 MiB immediately from ext4
-inode-table zeroing at the 50 GiB default; 512 MiB is the practical floor.
+on a block volume — an unsized one incurs ext4 inode-table zeroing at the
+50 GiB default; 512 MiB is the practical floor.
 
 ## `files/` directory
 
