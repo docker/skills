@@ -206,7 +206,7 @@ not HTTP reachability; no server is started by this fixture.
 
 ### Verification commands
 ```bash
-sbx --app-name "$APP" run --name eval-resume -d shell
+sbx --app-name "$APP" run --name eval-resume -d shell "$REPO"
 sbx --app-name "$APP" exec eval-resume sh -c 'printf retained > /tmp/retained.txt'
 sbx --app-name "$APP" stop eval-resume
 sbx --app-name "$APP" ls --json

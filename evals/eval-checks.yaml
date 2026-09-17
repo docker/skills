@@ -632,6 +632,10 @@
       description: Omitted-path verification runs detached from the disposable repository
       type: file_match
       pattern: '^\(cd "\$REPO" && sbx .* run .* -d shell\)$'
+    - id: sl-disposable-resume
+      description: Stop and resume verification mounts only the disposable repository
+      type: file_match
+      pattern: '^sbx .* run --name eval-resume -d shell "\$REPO"$'
     - id: sl-no-provider-run
       description: Verification does not launch a provider agent interactively
       type: file_must_not_match
