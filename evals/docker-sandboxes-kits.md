@@ -169,8 +169,32 @@ sbx --app-name "$APP" rm --force kit-policy-eval  # consented test cleanup
 ### Verification commands
 ```bash
 sbx --app-name "$APP" kit push --help
-sbx --app-name "$APP" kit verify --help
+# Run from the skill directory; all keys and artifacts stay in this scratch dir.
+(
+  set -eu
+  SIGN_WORK=$(mktemp -d)
+  trap 'rm -rf "$SIGN_WORK"' EXIT
+  umask 077
+  mkdir "$SIGN_WORK/kit"
+  cp assets/spec-mixin.yaml "$SIGN_WORK/kit/spec.yaml"
+  openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out "$SIGN_WORK/key.pem"
+  openssl pkey -in "$SIGN_WORK/key.pem" -pubout -out "$SIGN_WORK/key.pub"
+  sbx --app-name "$APP" kit sign --key "$SIGN_WORK/key.pem" "$SIGN_WORK/kit"
+  test -s "$SIGN_WORK/kit/kit.sig.bundle"
+  sbx --app-name "$APP" kit verify --key "$SIGN_WORK/key.pub" "$SIGN_WORK/kit"
+  printf '\n# tampered after signing\n' >> "$SIGN_WORK/kit/spec.yaml"
+  if sbx --app-name "$APP" kit verify --key "$SIGN_WORK/key.pub" "$SIGN_WORK/kit"; then
+    printf 'FAIL: tampered kit verified\n' >&2
+    exit 1
+  fi
+)
 ```
+Requires OpenSSL and a standalone sbx build supporting key-based kit signing.
+Pass: signing writes a bundle, verification succeeds, and modifying the
+signed spec makes verification fail. Keys are ephemeral ECDSA P-256 PEMs,
+kept outside the kit with owner-only permissions. Key-based local signing
+and verification use no registry, OIDC login, or transparency log; this does
+not test OCI push/provenance or production keyless trust.
 
 ---
 

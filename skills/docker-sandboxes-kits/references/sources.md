@@ -167,4 +167,11 @@ At docker/sandboxes commit `df5c96ba60484fa2c375469dbac912c205da6c37`:
 - `sandboxlib/kit/resolve.go` — artifact references, not built-in agent names.
 - `sandboxlib/agentkits/resolver.go` and `sandboxlib/kitpolicy/kitpolicy.go` — built-in-only parent resolver; remote `extends` is not implemented.
 - `sandboxlib/kit/compose.go` — additive routing-only credentials, duplicate definitions, and rejection of mixin OAuth.
+- `sandboxlib/kit/signing/keys.go` — `loadPrivateKey`/`loadPublicKey`
+  require ECDSA P-256 PEM keys; `readSecretFile` rejects private keys
+  accessible to group/others. The local signing eval generates ephemeral
+  keys outside the artifact with `umask 077`.
+- `sandboxlib/kit/signing/signing.go` — `signWithKey`/`verifyWithKey` use
+  the supplied keys without Fulcio, Rekor, or an OIDC token; key-based
+  verification checks the signed artifact against the bundle.
 - `AGENTS.md` — OpenAI OAuth precedence during provisioning; no universal API-key-first rule.
