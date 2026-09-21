@@ -8,6 +8,7 @@ import sys
 
 import yaml
 
+from catalog import overview_skill, stale_files, validate_catalog
 from frontmatter import validate_frontmatter
 from manifests import validate_codex_marketplace, validate_skills_index, validate_versions
 
@@ -30,7 +31,30 @@ except Exception as e:
     error("catalog.yaml is not valid YAML: " + str(e))
     sys.exit(1)
 
+for message in validate_catalog(catalog):
+    error(message)
+if errors:
+    print("\n" + str(errors) + " error(s) found in catalog.yaml; fix them before the remaining checks can run")
+    sys.exit(1)
+print("  OK: every skill belongs to exactly one declared product")
+
 catalog_paths = [s["path"] for s in catalog["skills"]]
+
+# --- 1a. Every skills/ directory has exactly one catalog entry and vice versa ---
+print("==> Checking skills/ directory against catalog.yaml")
+skill_dirs = sorted(
+    "skills/" + name
+    for name in os.listdir("skills")
+    if os.path.isdir(os.path.join("skills", name)) and not name.startswith(".")
+)
+for skill_dir in skill_dirs:
+    if skill_dir not in catalog_paths:
+        error(skill_dir + " has no entry in catalog.yaml")
+for path in catalog_paths:
+    if not os.path.isdir(path):
+        error("catalog.yaml path " + path + " is not a directory")
+if not errors:
+    print("  OK: " + str(len(skill_dirs)) + " skill directories match " + str(len(catalog_paths)) + " catalog entries")
 
 # --- 2. Validate skill directories and skill.yaml files ---
 print("==> Validating skill directories and skill.yaml files")
@@ -105,6 +129,48 @@ for skill in catalog["skills"]:
         content = f.read()
     for message in validate_frontmatter(content, os.path.basename(path)):
         error(skill_md + ": " + message)
+    frontmatter_name = None
+    if content.startswith("---"):
+        try:
+            frontmatter = yaml.safe_load(content.split("---", 2)[1])
+            frontmatter_name = frontmatter.get("name") if isinstance(frontmatter, dict) else None
+        except yaml.YAMLError:
+            frontmatter_name = None
+    if frontmatter_name is not None and frontmatter_name != skill["id"]:
+        error(skill_md + ": frontmatter name '" + str(frontmatter_name) + "' does not match catalog id " + skill["id"])
+
+# --- 3a. The overview skill routes to every other catalogued skill ---
+print("==> Checking overview skill routing")
+overview = overview_skill(catalog)
+if overview is None:
+    error("catalog.yaml declares no overview skill")
+else:
+    overview_md = overview["path"] + "/SKILL.md"
+    if os.path.isfile(overview_md):
+        overview_content = open(overview_md, encoding="utf-8").read()
+        for skill in catalog["skills"]:
+            if skill is overview:
+                continue
+            if "`" + skill["id"] + "`" not in overview_content:
+                error(overview_md + " does not route to catalogued skill '" + skill["id"] + "'")
+        print("  OK: " + overview_md + " references every other catalogued skill")
+
+# --- 3b. Every catalogued skill has an evaluation runbook ---
+print("==> Checking evaluation runbooks")
+for skill in catalog["skills"]:
+    runbook = os.path.join("evals", skill["id"] + ".md")
+    if not os.path.isfile(runbook):
+        error("missing evaluation runbook " + runbook)
+    else:
+        print("  OK: " + runbook)
+
+# --- 3c. Generated files are up to date with catalog.yaml ---
+print("==> Checking generated catalog files")
+try:
+    for rel_path in stale_files("."):
+        error(rel_path + " is out of date with catalog.yaml; run `task catalog` to regenerate it")
+except ValueError as e:
+    error("cannot render catalog files: " + str(e))
 
 # --- 4. Validate SKILL.md required sections ---
 print("==> Validating SKILL.md required sections")

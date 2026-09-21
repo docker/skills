@@ -3,7 +3,7 @@ name: docker-sandboxes-kits
 description: >-
   Use this skill when authoring, validating, packaging, signing, or composing a Docker Sandboxes kit `spec.yaml` (`sbx kit add/inspect/pack/pull/push/sign/validate/verify`), even if the user just says they want to "add a tool to a sandbox agent", "build a reusable sandbox extension", "publish a kit to a registry", or "give a mixin its own credentials and network access". Covers the kit-spec v2 grammar (`kind: sandbox` vs `kind: mixin`, the `sandbox:` block, `permissions.network`, `ports`, `credentials` apiKey/oauth, `environment`, `setup` install/startup/files, `volumes`, `args`, `extends`, `mixins`, `requires.agent`), composition via `--kit`/`sbx kit add`, and distribution (pack/push/pull/sign/verify/provenance).
 license: Apache-2.0
-compatibility: EXPERIMENTAL. Requires standalone sbx with sbx kit support and kit-spec schemaVersion "2", not the legacy docker sandbox wrapper. Verified against docker/sandboxes df5c96ba60484fa2c375469dbac912c205da6c37; installed-help version and provenance are in references/sources.md. docker_help does not cover standalone sbx.
+compatibility: Requires standalone sbx with sbx kit support and kit-spec schemaVersion "2", not the legacy docker sandbox wrapper. Verified against docker/sandboxes df5c96ba60484fa2c375469dbac912c205da6c37; installed-help version and provenance are in references/sources.md. docker_help does not cover standalone sbx.
 ---
 
 # Docker Sandboxes: Kits (spec.yaml)

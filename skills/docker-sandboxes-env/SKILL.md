@@ -2,7 +2,7 @@
 name: docker-sandboxes-env
 description: Use this skill when authoring, planning, or running a declarative `sbxenv.yaml` file for Docker Sandboxes (`sbx env create/run/plan/exec/rm`), even if the user just says they want to "check in a sandbox config", "make onboarding reproducible for a sandbox", "run a setup script before the agent starts", or "define arguments for a shared sandbox environment". Covers the sbxenv.yaml schema (schemaVersion, agent, kits, workspace/additionalWorkspaces, args, env, secrets, registries, bindings, mcp, ports, sandboxOptions), host `lifecycle:` commands (initialize/postCreate/preRemove) and their approval-plan model, multi-file merge (`-f`-style deep merge and the user-level `.sbxenv.yaml` base layer), and file-write-protection (`sandboxOptions.writableEnvFiles`).
 license: Apache-2.0
-compatibility: EXPERIMENTAL. Requires standalone sbx with sbx env support and sbxenv.yaml schemaVersion "1", not the legacy docker sandbox wrapper. Verified against docker/sandboxes df5c96ba60484fa2c375469dbac912c205da6c37; installed-help version and provenance are in references/sources.md. docker_help does not cover standalone sbx.
+compatibility: Requires standalone sbx with sbx env support and sbxenv.yaml schemaVersion "1", not the legacy docker sandbox wrapper. Verified against docker/sandboxes df5c96ba60484fa2c375469dbac912c205da6c37; installed-help version and provenance are in references/sources.md. docker_help does not cover standalone sbx.
 ---
 
 # Docker Sandboxes: Declarative sbxenv.yaml Environments
