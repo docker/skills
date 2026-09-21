@@ -12,6 +12,7 @@ class CheckLinksTest(unittest.TestCase):
         (self.root / "README.md").write_text("# Installation\n", encoding="utf-8")
         (self.root / "CONTRIBUTING.md").write_text("# Contributing\n", encoding="utf-8")
         (self.root / "SECURITY.md").write_text("# Security\n", encoding="utf-8")
+        (self.root / "AGENTS.md").write_text("# Repository guidance\n", encoding="utf-8")
         (self.root / "evals").mkdir()
 
     def tearDown(self):
@@ -31,6 +32,14 @@ class CheckLinksTest(unittest.TestCase):
         )
 
         self.assertEqual([], check_documentation(self.root))
+
+    def test_root_agents_document_is_checked(self):
+        (self.root / "AGENTS.md").write_text("[Missing](missing.md)\n", encoding="utf-8")
+
+        self.assertEqual(
+            ["AGENTS.md:1: target not found: missing.md"],
+            check_documentation(self.root),
+        )
 
     def test_missing_file_fails_with_location(self):
         self.write_eval("[Missing](missing.md)\n")

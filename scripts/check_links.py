@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-ROOT_DOCUMENTS = ("README.md", "CONTRIBUTING.md", "SECURITY.md")
+ROOT_DOCUMENTS = ("README.md", "CONTRIBUTING.md", "SECURITY.md", "AGENTS.md")
 DOCUMENTATION_GLOBS = ("evals/**/*.md", "skills/**/*.md", "docs/**/*.md")
 EXTERNAL_SCHEMES = {"data", "http", "https", "mailto", "tel"}
 
