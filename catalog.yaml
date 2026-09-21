@@ -1,33 +1,89 @@
+# Skill registry: the single source of truth for which skills exist, which product
+# family each belongs to, and whether it is stable or experimental.
+#
+# `task catalog` renders the README skill table, the evals/README.md runbook table
+# and skills.sh.json from this file; `task validate` fails when they drift.
 schema: v1
 name: docker-skills
+
+# The router skill listed first in the README under "Start here". It belongs to no
+# product family and must reference every other skill in this catalog.
+overview: docker
+
+products:
+  - id: docker-build
+    name: Dockerfile & Build
+    description: Containerize a project and write, optimize, and harden Dockerfiles and images.
+    docs: https://docs.docker.com/build/
+    repo: https://github.com/docker/buildx
+  - id: docker-compose
+    name: Docker Compose
+    description: Wire multi-container stacks with robust, maintainable Compose configurations.
+    docs: https://docs.docker.com/compose/
+    repo: https://github.com/docker/compose
+  - id: docker-sandboxes
+    name: Docker Sandboxes
+    description: Run AI coding agents in isolated microVMs with the sbx CLI, including network policy, credentials, environments, and kits.
+    docs: https://docs.docker.com/ai/sandboxes/
+    repo: https://github.com/docker/sandboxes
+  - id: docker-agent
+    name: Docker Agent
+    description: Author, run, and ship AI agents with Docker Agent, from agent.yaml to serving and distribution.
+    docs: https://docs.docker.com/ai/docker-agent/
+    repo: https://github.com/docker/docker-agent
+
 skills:
+  - id: docker
+    path: skills/docker
+    version: 0.1.0
+    status: stable
   - id: docker-project-foundations
+    product: docker-build
     path: skills/docker-project-foundations
     version: 0.1.0
-  - id: docker-compose-patterns
-    path: skills/docker-compose-patterns
-    version: 0.1.0
+    status: stable
   - id: docker-build-strategies
+    product: docker-build
     path: skills/docker-build-strategies
     version: 0.1.0
-  - id: docker-agent-config
-    path: skills/docker-agent-config
+    status: stable
+  - id: docker-compose-patterns
+    product: docker-compose
+    path: skills/docker-compose-patterns
     version: 0.1.0
-  - id: docker-agent-run
-    path: skills/docker-agent-run
-    version: 0.1.0
-  - id: docker-agent-deploy
-    path: skills/docker-agent-deploy
-    version: 0.1.0
+    status: stable
   - id: docker-sandboxes-lifecycle
+    product: docker-sandboxes
     path: skills/docker-sandboxes-lifecycle
     version: 0.1.0
+    status: stable
   - id: docker-sandboxes-network-credentials
+    product: docker-sandboxes
     path: skills/docker-sandboxes-network-credentials
     version: 0.1.0
+    status: stable
   - id: docker-sandboxes-env
+    product: docker-sandboxes
     path: skills/docker-sandboxes-env
     version: 0.1.0
+    status: experimental
   - id: docker-sandboxes-kits
+    product: docker-sandboxes
     path: skills/docker-sandboxes-kits
     version: 0.1.0
+    status: experimental
+  - id: docker-agent-config
+    product: docker-agent
+    path: skills/docker-agent-config
+    version: 0.1.0
+    status: stable
+  - id: docker-agent-run
+    product: docker-agent
+    path: skills/docker-agent-run
+    version: 0.1.0
+    status: stable
+  - id: docker-agent-deploy
+    product: docker-agent
+    path: skills/docker-agent-deploy
+    version: 0.1.0
+    status: stable

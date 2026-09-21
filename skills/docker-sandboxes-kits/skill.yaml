@@ -2,7 +2,7 @@ schema: v1
 id: docker-sandboxes-kits
 version: 0.1.0
 title: 'Docker Sandboxes: Kits (spec.yaml)'
-description: Author, validate, package, sign, and compose reusable sandbox/mixin kits (spec.yaml, schema v2). Experimental.
+description: Author, validate, package, sign, and compose reusable sandbox/mixin kits (spec.yaml, schema v2).
 owns:
   - spec.yaml
   - sbx-kit

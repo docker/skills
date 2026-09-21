@@ -1,0 +1,24 @@
+schema: v1
+id: docker
+version: 0.1.0
+title: 'Docker Skills: Start Here'
+description: Routes any Docker-related task to the specific Docker skill that owns it.
+owns:
+  - docker-skill-routing
+use_when:
+  - The task involves Docker, Docker Sandboxes, or Docker Agent and it is not yet clear which specific skill applies.
+  - The task spans several Docker concerns and the skills must be loaded in a sensible order.
+do_not_use_when:
+  - The specific Docker skill that applies is already known.
+  - The task does not involve Docker, Docker Sandboxes, or Docker Agent.
+delegates_to:
+  - docker-project-foundations
+  - docker-build-strategies
+  - docker-compose-patterns
+  - docker-sandboxes-lifecycle
+  - docker-sandboxes-network-credentials
+  - docker-sandboxes-env
+  - docker-sandboxes-kits
+  - docker-agent-config
+  - docker-agent-run
+  - docker-agent-deploy

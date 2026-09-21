@@ -3,31 +3,44 @@
   "notGrouped": "bottom",
   "groupings": [
     {
-      "title": "Dockerfile & Compose",
-      "description": "Containerize a project and keep it healthy: initial Docker scaffolding, efficient and secure image builds, and robust Compose service wiring.",
+      "title": "Start here",
+      "description": "Not sure which skill applies? Load this one first: it routes any Docker task to the right skill below and holds no guidance of its own.",
+      "skills": [
+        "docker"
+      ]
+    },
+    {
+      "title": "Dockerfile & Build",
+      "description": "Containerize a project and write, optimize, and harden Dockerfiles and images.",
       "skills": [
         "docker-project-foundations",
-        "docker-build-strategies",
+        "docker-build-strategies"
+      ]
+    },
+    {
+      "title": "Docker Compose",
+      "description": "Wire multi-container stacks with robust, maintainable Compose configurations.",
+      "skills": [
         "docker-compose-patterns"
       ]
     },
     {
-      "title": "Docker Agent",
-      "description": "Author, run, and ship AI agents with Docker Agent: agent.yaml configuration, safety modes and sandboxed runs, and serving or distributing agents.",
-      "skills": [
-        "docker-agent-config",
-        "docker-agent-run",
-        "docker-agent-deploy"
-      ]
-    },
-    {
       "title": "Docker Sandboxes",
-      "description": "Run AI coding agents in isolated microVMs with the sbx CLI: lifecycle and workspaces, network policy and credentials, and the experimental declarative environments and kits.",
+      "description": "Run AI coding agents in isolated microVMs with the sbx CLI, including network policy, credentials, environments, and kits.",
       "skills": [
         "docker-sandboxes-lifecycle",
         "docker-sandboxes-network-credentials",
         "docker-sandboxes-env",
         "docker-sandboxes-kits"
+      ]
+    },
+    {
+      "title": "Docker Agent",
+      "description": "Author, run, and ship AI agents with Docker Agent, from agent.yaml to serving and distribution.",
+      "skills": [
+        "docker-agent-config",
+        "docker-agent-run",
+        "docker-agent-deploy"
       ]
     }
   ]

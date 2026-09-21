@@ -4,6 +4,10 @@
 # Repository-wide fallback. Domain-specific rules below override this rule.
 * @docker/gordon
 
+# Docker overview (router) skill and its evaluation
+/skills/docker/ @docker/gordon
+/evals/docker.md @docker/gordon
+
 # Docker project foundations
 /skills/docker-project-foundations/ @docker/compose-maintainers @docker/gordon
 /evals/docker-project-foundations.md @docker/compose-maintainers @docker/gordon

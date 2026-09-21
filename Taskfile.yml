@@ -21,6 +21,16 @@ tasks:
     cmds:
       - docker run --rm -v "{{.ROOT_DIR}}:/work" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d sh -c "pip install -q pyyaml && python3 scripts/eval_check.py"
 
+  catalog:
+    desc: Regenerate the README skill table, evals/README.md runbook table, and skills.sh.json from catalog.yaml
+    cmds:
+      - docker run --rm -v "{{.ROOT_DIR}}:/work" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d sh -c "pip install -q pyyaml && python3 scripts/render_catalog.py"
+
+  catalog:check:
+    desc: Fail when the generated catalog files differ from catalog.yaml
+    cmds:
+      - docker run --rm -v "{{.ROOT_DIR}}:/work" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d sh -c "pip install -q pyyaml && python3 scripts/render_catalog.py --check"
+
   links:
     desc: Check local Markdown links and heading anchors
     cmds:

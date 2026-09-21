@@ -22,6 +22,7 @@ docker run --rm \
             docker-compose=2.26.1-4 >/dev/null
         pip install -q pyyaml
         python3 -m unittest discover -s scripts -p "test_*.py"
+        python3 scripts/render_catalog.py --check
         python3 scripts/validate.py
         python3 scripts/eval_check.py
         python3 scripts/check_links.py

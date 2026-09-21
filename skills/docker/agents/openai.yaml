@@ -1,0 +1,6 @@
+interface:
+  display_name: 'Docker Skills: Start Here'
+  short_description: Routes any Docker task to the right Docker skill (Dockerfile and build, Compose, Docker Sandboxes, Docker Agent).
+  default_prompt: Use this skill to decide which Docker skill applies to the task, then load that skill.
+policy:
+  allow_implicit_invocation: true

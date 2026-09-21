@@ -4,16 +4,17 @@ Docker-authored knowledge skills that improve AI coding agent output for Docker-
 
 ## Skills
 
-- **docker-project-foundations** — Guidance for initializing and structuring a Dockerized project
-- **docker-compose-patterns** — Patterns for robust, maintainable Docker Compose configurations
-- **docker-build-strategies** — Strategies for efficient, secure, and optimized Docker image builds
-- **docker-agent-config** — Authoring agent.yaml configs for Docker Agent (models, providers, toolsets, multi-agent teams)
-- **docker-agent-run** — Running and operating Docker Agent locally (safety modes, sandbox, aliases, worktrees)
-- **docker-agent-deploy** — Serving, sharing, and evaluating Docker Agents (MCP/API/A2A/chat servers, OCI distribution, eval/CI gating)
-- **docker-sandboxes-lifecycle** — Standalone sbx lifecycle, workspace mounts, clone isolation, and safe cleanup
-- **docker-sandboxes-network-credentials** — sbx egress policy, proxy credentials, registry scopes, and OAuth passthrough boundaries
-- **docker-sandboxes-env** — Experimental sbxenv.yaml environments, host hooks, and approval plans
-- **docker-sandboxes-kits** — Experimental sandbox/mixin kits, composition, and signed distribution
+Skills are grouped by the Docker product they cover. The table is generated from [`catalog.yaml`](catalog.yaml) by `task catalog`; edit the catalog, not the table.
+
+<!-- catalog-start -->
+| Product | Description | Skills |
+|---------|-------------|--------|
+| **Start here** | Not sure which skill applies? Load this one first: it routes any Docker task to the right skill below and holds no guidance of its own. | [`docker`](skills/docker) — Routes any Docker-related task to the specific Docker skill that owns it. |
+| **[Dockerfile & Build](https://docs.docker.com/build/)**<br>[source](https://github.com/docker/buildx) | Containerize a project and write, optimize, and harden Dockerfiles and images. | [`docker-project-foundations`](skills/docker-project-foundations) — Guidance for initializing and structuring a Dockerized project.<br>[`docker-build-strategies`](skills/docker-build-strategies) — Strategies for efficient, secure, and optimized Docker image builds. |
+| **[Docker Compose](https://docs.docker.com/compose/)**<br>[source](https://github.com/docker/compose) | Wire multi-container stacks with robust, maintainable Compose configurations. | [`docker-compose-patterns`](skills/docker-compose-patterns) — Patterns for robust, maintainable Docker Compose configurations. |
+| **[Docker Sandboxes](https://docs.docker.com/ai/sandboxes/)**<br>[source](https://github.com/docker/sandboxes) | Run AI coding agents in isolated microVMs with the sbx CLI, including network policy, credentials, environments, and kits. | [`docker-sandboxes-lifecycle`](skills/docker-sandboxes-lifecycle) — Create, reattach to, and tear down local `sbx` sandboxes; choose workspace bind-mount vs --clone isolation.<br>[`docker-sandboxes-network-credentials`](skills/docker-sandboxes-network-credentials) — Configure sandbox network egress policy and provision service/registry credentials safely through the proxy-injection model.<br>[`docker-sandboxes-env`](skills/docker-sandboxes-env) *(experimental)* — Author, plan, and run declarative sbxenv.yaml environments (workspace, kits, args, host lifecycle hooks, secrets/registries/bindings, ports) for Docker Sandboxes.<br>[`docker-sandboxes-kits`](skills/docker-sandboxes-kits) *(experimental)* — Author, validate, package, sign, and compose reusable sandbox/mixin kits (spec.yaml, schema v2). |
+| **[Docker Agent](https://docs.docker.com/ai/docker-agent/)**<br>[source](https://github.com/docker/docker-agent) | Author, run, and ship AI agents with Docker Agent, from agent.yaml to serving and distribution. | [`docker-agent-config`](skills/docker-agent-config) — Reference and rules for authoring agent.yaml configs for Docker Agent (cagent) — agents, models, providers, toolsets, and multi-agent teams.<br>[`docker-agent-run`](skills/docker-agent-run) — Rules for running Docker Agent locally — safety/approval modes, sandbox isolation, aliases, worktrees, and troubleshooting a run.<br>[`docker-agent-deploy`](skills/docker-agent-deploy) — Rules for exposing Docker Agents as servers, distributing them via OCI registries, and evaluating them for regressions in CI. |
+<!-- catalog-end -->
 
 ## Installation
 
@@ -105,6 +106,7 @@ task             # Run the complete CI/release validation suite
 task validate    # Check skill structure, frontmatter, and manifests; run validator tests
 task eval        # Static asset and verification-snippet checks, not live agent evals
 task links       # Check local Markdown links and heading anchors
+task catalog     # Regenerate the README skill table, evals/README.md runbook table, and skills.sh.json from catalog.yaml
 ```
 
 ## Repository Structure
@@ -115,8 +117,9 @@ skills/               — Canonical skill directories (SKILL.md + supporting fil
 .claude/skills        — Symlink to skills/ (Claude Code)
 .gemini/skills        — Symlink to skills/ (Gemini CLI)
 .github/skills        — Symlink to skills/ (Copilot CLI)
-catalog.yaml          — Skill registry
-skills.sh.json        — Product-grouped index read by the skills CLI (validated against catalog.yaml)
+catalog.yaml          — Skill registry: product families, skill ids, versions, and stable/experimental status
+skills.sh.json        — Product-grouped index read by the skills CLI (generated from catalog.yaml)
+scripts/render_catalog.py — Renders README, evals/README.md, and skills.sh.json from catalog.yaml
 evals/                — Evaluation runbooks
 .claude-plugin/       — Claude Code plugin + marketplace manifests
 .codex-plugin/        — Codex plugin manifest

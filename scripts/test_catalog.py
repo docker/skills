@@ -1,0 +1,199 @@
+import copy
+import json
+import os
+import tempfile
+import unittest
+
+import yaml
+
+from catalog import (
+    CATALOG_END,
+    CATALOG_START,
+    render_evals_table,
+    render_readme_table,
+    render_skills_index,
+    replace_section,
+    stale_files,
+    validate_catalog,
+    write_generated,
+)
+
+CATALOG = {
+    "schema": "v1",
+    "name": "test",
+    "overview": "docker",
+    "products": [
+        {"id": "build", "name": "Build", "description": "Images.", "docs": "https://example.com/build"},
+        {"id": "agent", "name": "Agent", "description": "Agents.", "repo": "https://example.com/agent"},
+    ],
+    "skills": [
+        {"id": "docker", "path": "skills/docker", "version": "0.1.0", "status": "stable"},
+        {"id": "build-a", "product": "build", "path": "skills/build-a", "version": "0.1.0", "status": "stable"},
+        {"id": "agent-a", "product": "agent", "path": "skills/agent-a", "version": "0.1.0", "status": "experimental"},
+    ],
+}
+DESCRIPTIONS = {"docker": "Routes.", "build-a": "Builds.", "agent-a": "Agents."}
+
+
+def catalog(**overrides):
+    data = copy.deepcopy(CATALOG)
+    data.update(overrides)
+    return data
+
+
+class ValidateCatalogTests(unittest.TestCase):
+    def test_valid(self):
+        self.assertEqual(validate_catalog(CATALOG), [])
+
+    def test_status_defaults_to_stable_when_omitted(self):
+        data = catalog()
+        del data["skills"][1]["status"]
+        self.assertEqual(validate_catalog(data), [])
+
+    def test_structure_errors(self):
+        self.assertTrue(validate_catalog([]))
+        self.assertTrue(validate_catalog({"skills": CATALOG["skills"]}))
+        self.assertTrue(validate_catalog({"products": CATALOG["products"]}))
+
+    def test_duplicate_ids_and_paths(self):
+        data = catalog()
+        data["skills"].append(dict(data["skills"][1]))
+        errors = validate_catalog(data)
+        self.assertTrue(any("lists skill 'build-a' twice" in e for e in errors))
+        self.assertTrue(any("lists path 'skills/build-a' twice" in e for e in errors))
+        data = catalog()
+        data["products"].append(dict(data["products"][0]))
+        self.assertTrue(any("product 'build' twice" in e for e in validate_catalog(data)))
+
+    def test_path_must_end_with_id(self):
+        data = catalog()
+        data["skills"][1]["path"] = "skills/other"
+        self.assertTrue(any("must end with the skill id" in e for e in validate_catalog(data)))
+
+    def test_unknown_product_and_missing_product(self):
+        data = catalog()
+        data["skills"][1]["product"] = "nope"
+        self.assertTrue(any("unknown product 'nope'" in e for e in validate_catalog(data)))
+        data = catalog()
+        del data["skills"][1]["product"]
+        errors = validate_catalog(data)
+        self.assertTrue(any("skill 'build-a' missing 'product'" in e for e in errors))
+        self.assertTrue(any("product 'build' has no skills" in e for e in errors))
+
+    def test_overview_rules(self):
+        data = catalog()
+        data["skills"][0]["product"] = "build"
+        self.assertTrue(any("overview skill and must not declare a 'product'" in e for e in validate_catalog(data)))
+        data = catalog(overview="missing")
+        errors = validate_catalog(data)
+        self.assertTrue(any("overview skill 'missing' is not listed" in e for e in errors))
+        self.assertTrue(any("skill 'docker' missing 'product'" in e for e in errors))
+
+    def test_bad_status_urls_and_unknown_fields(self):
+        data = catalog()
+        data["skills"][1]["status"] = "beta"
+        self.assertTrue(any("status 'beta'" in e for e in validate_catalog(data)))
+        data = catalog()
+        data["products"][0]["docs"] = "docs.docker.com"
+        self.assertTrue(any("'docs' must be an http(s) URL" in e for e in validate_catalog(data)))
+        data = catalog()
+        data["products"][0]["colour"] = "blue"
+        data["skills"][1]["owner"] = "me"
+        errors = validate_catalog(data)
+        self.assertTrue(any("products[0] has unsupported fields: colour" in e for e in errors))
+        self.assertTrue(any("skill 'build-a' has unsupported fields: owner" in e for e in errors))
+
+
+class RenderTests(unittest.TestCase):
+    def test_readme_table_groups_by_product_with_overview_first(self):
+        table = render_readme_table(CATALOG, DESCRIPTIONS)
+        lines = table.strip().splitlines()
+        self.assertEqual(lines[0], "| Product | Description | Skills |")
+        self.assertTrue(lines[2].startswith("| **Start here** |"))
+        self.assertIn("[`docker`](skills/docker) — Routes.", lines[2])
+        self.assertIn("**[Build](https://example.com/build)**", lines[3])
+        self.assertIn("[`build-a`](skills/build-a) — Builds.", lines[3])
+        self.assertIn("**Agent**<br>[source](https://example.com/agent)", lines[4])
+        self.assertIn("[`agent-a`](skills/agent-a) *(experimental)* — Agents.", lines[4])
+        self.assertEqual(len(lines), 5)
+
+    def test_readme_table_without_overview(self):
+        data = catalog()
+        del data["overview"]
+        data["skills"] = data["skills"][1:]
+        table = render_readme_table(data, DESCRIPTIONS)
+        self.assertNotIn("Start here", table)
+        self.assertEqual(len(table.strip().splitlines()), 4)
+
+    def test_evals_table_lists_every_skill_overview_first(self):
+        table = render_evals_table(CATALOG)
+        lines = table.strip().splitlines()
+        self.assertEqual(lines[2], "| docker | [docker.md](docker.md) |")
+        self.assertEqual(lines[3], "| build-a | [build-a.md](build-a.md) |")
+        self.assertEqual(len(lines), 5)
+
+    def test_skills_index_has_one_grouping_per_product_plus_start_here(self):
+        index = json.loads(render_skills_index(CATALOG))
+        self.assertEqual(index["$schema"], "https://skills.sh/schemas/skills.sh.schema.json")
+        self.assertEqual(index["notGrouped"], "bottom")
+        titles = [g["title"] for g in index["groupings"]]
+        self.assertEqual(titles, ["Start here", "Build", "Agent"])
+        listed = [s for g in index["groupings"] for s in g["skills"]]
+        self.assertEqual(listed, ["docker", "build-a", "agent-a"])
+        self.assertEqual(index["groupings"][1]["description"], "Images.")
+
+    def test_replace_section(self):
+        content = "before\n" + CATALOG_START + "\nold\n" + CATALOG_END + "\nafter\n"
+        self.assertEqual(
+            replace_section(content, "new\n"),
+            "before\n" + CATALOG_START + "\nnew\n" + CATALOG_END + "\nafter\n",
+        )
+        with self.assertRaises(ValueError):
+            replace_section("no markers", "new\n")
+        with self.assertRaises(ValueError):
+            replace_section(CATALOG_END + "\n" + CATALOG_START, "new\n")
+
+
+class GeneratedFilesTests(unittest.TestCase):
+    def make_repo(self):
+        root = tempfile.mkdtemp()
+        with open(os.path.join(root, "catalog.yaml"), "w") as handle:
+            yaml.safe_dump(CATALOG, handle)
+        for skill in CATALOG["skills"]:
+            os.makedirs(os.path.join(root, skill["path"]))
+            with open(os.path.join(root, skill["path"], "skill.yaml"), "w") as handle:
+                yaml.safe_dump({"description": DESCRIPTIONS[skill["id"]]}, handle)
+        os.makedirs(os.path.join(root, "evals"))
+        for rel in ("README.md", os.path.join("evals", "README.md")):
+            with open(os.path.join(root, rel), "w") as handle:
+                handle.write("# Title\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n")
+        return root
+
+    def test_write_then_check_round_trip(self):
+        root = self.make_repo()
+        self.assertEqual(sorted(stale_files(root)), ["README.md", "evals/README.md", "skills.sh.json"])
+        changed = write_generated(root)
+        self.assertEqual(sorted(changed), ["README.md", "evals/README.md", "skills.sh.json"])
+        self.assertEqual(stale_files(root), [])
+        self.assertEqual(write_generated(root), [])
+        readme = open(os.path.join(root, "README.md")).read()
+        self.assertTrue(readme.startswith("# Title\n\n" + CATALOG_START + "\n| Product |"))
+        self.assertIn("[`agent-a`](skills/agent-a) *(experimental)* — Agents.", readme)
+
+    def test_hand_edit_is_detected(self):
+        root = self.make_repo()
+        write_generated(root)
+        with open(os.path.join(root, "skills.sh.json"), "a") as handle:
+            handle.write("\n")
+        self.assertEqual(stale_files(root), ["skills.sh.json"])
+
+    def test_missing_skill_yaml_description_renders_link_only(self):
+        root = self.make_repo()
+        os.remove(os.path.join(root, "skills", "build-a", "skill.yaml"))
+        write_generated(root)
+        readme = open(os.path.join(root, "README.md")).read()
+        self.assertIn("[`build-a`](skills/build-a) |", readme)
+
+
+if __name__ == "__main__":
+    unittest.main()

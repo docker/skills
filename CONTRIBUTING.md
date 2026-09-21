@@ -16,12 +16,22 @@ problem or suggestion has already been reported.
 3. Make your changes.
    - When adding a new skill, place it under `skills/<skill-id>/` with a
      `SKILL.md` and any supporting files. Follow the structure of existing
-     skills and update `catalog.yaml` accordingly. Add the skill id to the
-     matching product group in `skills.sh.json`; validation fails if a
-     catalog skill is missing from the index. Ensure both the skill and its
-     evaluation runbook are covered by specific family rules in
-     `.github/CODEOWNERS`, adding rules when needed; the repository-wide
-     fallback is not a substitute for a domain owner.
+     skills. Then:
+     - Add an entry to `catalog.yaml` with the skill's `product` (one of the
+       declared product families) and `status` (`stable` or `experimental`).
+       Validation fails when a skill directory has no catalog entry or vice
+       versa.
+     - Run `task catalog` to regenerate the README skill table, the
+       `evals/README.md` runbook table, and `skills.sh.json`. Do not edit
+       those sections by hand; CI fails when they drift from the catalog.
+     - Add a routing row for the skill to `skills/docker/SKILL.md` (the
+       "Start here" overview skill). Validation fails when a catalogued skill
+       is missing from it.
+     - Add an evaluation runbook at `evals/<skill-id>.md`.
+     - Ensure both the skill and its evaluation runbook are covered by
+       specific family rules in `.github/CODEOWNERS`, adding rules when
+       needed; the repository-wide fallback is not a substitute for a domain
+       owner.
    - When updating an existing skill, keep the `SKILL.md` frontmatter and
      section structure consistent with the rest of the repo.
 4. Run the complete validation suite locally (requires
