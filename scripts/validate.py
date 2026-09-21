@@ -139,11 +139,11 @@ for skill in catalog["skills"]:
     if frontmatter_name is not None and frontmatter_name != skill["id"]:
         error(skill_md + ": frontmatter name '" + str(frontmatter_name) + "' does not match catalog id " + skill["id"])
 
-# --- 3a. The overview skill routes to every other catalogued skill ---
+# --- 3a. An overview skill, when the catalog declares one, routes to every other skill ---
 print("==> Checking overview skill routing")
 overview = overview_skill(catalog)
 if overview is None:
-    error("catalog.yaml declares no overview skill")
+    print("  OK: catalog.yaml declares no overview skill; skills trigger directly")
 else:
     overview_md = overview["path"] + "/SKILL.md"
     if os.path.isfile(overview_md):

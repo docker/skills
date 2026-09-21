@@ -42,7 +42,6 @@ Keep these repository-wide contracts intact:
   versions agree with the catalog and required metadata is present.
 - Every catalogued skill has `evals/<skill-id>.md` and specific skill plus eval
   ownership rules in `.github/CODEOWNERS`.
-- `skills/docker/SKILL.md` routes to every other catalogued skill.
 - Every skill includes the required sections enforced by `scripts/validate.py`.
 - Files under `references/`, `assets/`, `checks/`, and `scripts/` are referenced
   from that skill's `SKILL.md`; referenced files exist.
@@ -57,8 +56,7 @@ For a new skill:
 1. Create `skills/<skill-id>/` following a neighboring skill's structure.
 2. Add matching `SKILL.md`, `skill.yaml`, and `agents/openai.yaml` metadata.
 3. Register the skill's product, version, and status in `catalog.yaml`.
-4. Add its route to `skills/docker/SKILL.md` and its runbook to
-   `evals/<skill-id>.md`.
+4. Add its runbook to `evals/<skill-id>.md`.
 5. Add specific `.github/CODEOWNERS` rules for both the skill and runbook.
 6. Add or update focused assets, checks, references, and validator tests.
 7. Run `task catalog`, review every generated change, then run `task`.

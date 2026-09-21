@@ -24,9 +24,6 @@ problem or suggestion has already been reported.
      - Run `task catalog` to regenerate the README skill table, the
        `evals/README.md` runbook table, and `skills.sh.json`. Do not edit
        those sections by hand; CI fails when they drift from the catalog.
-     - Add a routing row for the skill to `skills/docker/SKILL.md` (the
-       "Start here" overview skill). Validation fails when a catalogued skill
-       is missing from it.
      - Add an evaluation runbook at `evals/<skill-id>.md`.
      - Ensure both the skill and its evaluation runbook are covered by
        specific family rules in `.github/CODEOWNERS`, adding rules when
