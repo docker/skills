@@ -2,6 +2,8 @@
 .github
 .claude
 .claude-plugin
+.codex-plugin
+.cursor-plugin
 .agents
 .gemini
 .venv

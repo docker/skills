@@ -16,7 +16,9 @@ problem or suggestion has already been reported.
 3. Make your changes.
    - When adding a new skill, place it under `skills/<skill-id>/` with a
      `SKILL.md` and any supporting files. Follow the structure of existing
-     skills and update `catalog.yaml` accordingly. Ensure both the skill and its
+     skills and update `catalog.yaml` accordingly. Add the skill id to the
+     matching product group in `skills.sh.json`; validation fails if a
+     catalog skill is missing from the index. Ensure both the skill and its
      evaluation runbook are covered by specific family rules in
      `.github/CODEOWNERS`, adding rules when needed; the repository-wide
      fallback is not a substitute for a domain owner.

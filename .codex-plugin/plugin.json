@@ -1,0 +1,29 @@
+{
+  "name": "docker-skills",
+  "version": "0.1.0",
+  "description": "Docker-authored knowledge skills for AI coding agents — Dockerfile and Compose patterns, Docker Agent, and Docker Sandboxes.",
+  "author": {
+    "name": "Docker, Inc.",
+    "url": "https://www.docker.com/"
+  },
+  "homepage": "https://github.com/docker/skills",
+  "repository": "https://github.com/docker/skills",
+  "license": "Apache-2.0",
+  "keywords": ["docker", "dockerfile", "compose", "containers", "devops", "docker-agent", "sandboxes"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Docker Skills",
+    "shortDescription": "Docker, Compose, Docker Agent, and Docker Sandboxes guidance",
+    "longDescription": "Official Docker-authored skills that teach coding agents how to containerize projects with Dockerfiles and Compose, build efficient and secure images, author and run Docker Agents, and operate Docker Sandboxes for isolated agent runs.",
+    "developerName": "Docker, Inc.",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://www.docker.com/",
+    "defaultPrompt": [
+      "Dockerize this project with a production-ready Dockerfile and compose.yaml",
+      "Review my Dockerfile for image size, caching, and security issues",
+      "Write an agent.yaml for a Docker Agent with a filesystem tool and an MCP server",
+      "Run this coding agent in an isolated Docker Sandbox with a restricted network policy"
+    ]
+  }
+}

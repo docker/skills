@@ -1,0 +1,34 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "Dockerfile & Compose",
+      "description": "Containerize a project and keep it healthy: initial Docker scaffolding, efficient and secure image builds, and robust Compose service wiring.",
+      "skills": [
+        "docker-project-foundations",
+        "docker-build-strategies",
+        "docker-compose-patterns"
+      ]
+    },
+    {
+      "title": "Docker Agent",
+      "description": "Author, run, and ship AI agents with Docker Agent: agent.yaml configuration, safety modes and sandboxed runs, and serving or distributing agents.",
+      "skills": [
+        "docker-agent-config",
+        "docker-agent-run",
+        "docker-agent-deploy"
+      ]
+    },
+    {
+      "title": "Docker Sandboxes",
+      "description": "Run AI coding agents in isolated microVMs with the sbx CLI: lifecycle and workspaces, network policy and credentials, and the experimental declarative environments and kits.",
+      "skills": [
+        "docker-sandboxes-lifecycle",
+        "docker-sandboxes-network-credentials",
+        "docker-sandboxes-env",
+        "docker-sandboxes-kits"
+      ]
+    }
+  ]
+}

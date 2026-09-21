@@ -9,6 +9,7 @@ import sys
 import yaml
 
 from frontmatter import validate_frontmatter
+from manifests import validate_codex_marketplace, validate_skills_index, validate_versions
 
 errors = 0
 skill_defs = {}
@@ -143,8 +144,14 @@ manifests = [
     ".claude-plugin/marketplace.json",
     ".github/plugin/plugin.json",
     ".github/plugin/marketplace.json",
+    ".codex-plugin/plugin.json",
+    ".cursor-plugin/plugin.json",
+    ".cursor-plugin/marketplace.json",
     "gemini-extension.json",
 ]
+codex_marketplace = ".agents/plugins/marketplace.json"
+skills_index = "skills.sh.json"
+loaded_manifests = {}
 
 
 def check_fields(data, required, filename):
@@ -192,15 +199,50 @@ def check_gemini_extension(filename):
 for f in manifests:
     try:
         if "marketplace" in f:
-            check_marketplace(f)
+            loaded_manifests[f] = check_marketplace(f)
         elif "gemini" in f:
-            check_gemini_extension(f)
+            loaded_manifests[f] = check_gemini_extension(f)
         else:
-            check_plugin(f)
+            loaded_manifests[f] = check_plugin(f)
     except FileNotFoundError:
         error("missing " + f)
     except json.JSONDecodeError as e:
         error("invalid JSON in " + f + ": " + str(e))
+
+try:
+    codex_data = json.load(open(codex_marketplace))
+    codex_errors = validate_codex_marketplace(codex_data, codex_marketplace)
+    for message in codex_errors:
+        error(message)
+    if not codex_errors:
+        print("  OK: " + codex_marketplace)
+        loaded_manifests[codex_marketplace] = codex_data
+except FileNotFoundError:
+    error("missing " + codex_marketplace)
+except json.JSONDecodeError as e:
+    error("invalid JSON in " + codex_marketplace + ": " + str(e))
+
+# --- 5a. All plugin manifests must declare the same version ---
+print("==> Checking manifest version consistency")
+version_errors = validate_versions(loaded_manifests)
+for message in version_errors:
+    error(message)
+if not version_errors:
+    print("  OK: all manifests agree on version")
+
+# --- 5c. Validate the skills.sh index against the catalog ---
+print("==> Validating " + skills_index)
+try:
+    index_data = json.load(open(skills_index))
+    index_errors = validate_skills_index(index_data, [skill["id"] for skill in catalog["skills"]])
+    for message in index_errors:
+        error(message)
+    if not index_errors:
+        print("  OK: " + skills_index + " lists every catalog skill exactly once")
+except FileNotFoundError:
+    error("missing " + skills_index)
+except json.JSONDecodeError as e:
+    error("invalid JSON in " + skills_index + ": " + str(e))
 
 # --- 5b. Validate skill ownership and delegation semantics ---
 print("==> Validating skill ownership and delegation")
