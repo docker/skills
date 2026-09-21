@@ -19,6 +19,8 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,6 +33,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: release
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     permissions:
       contents: read # to fetch code (actions/checkout)
       id-token: write # for OIDC token exchange with Docker Hub
@@ -62,6 +66,7 @@ jobs:
             type=ref,event=tag
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
@@ -88,5 +93,18 @@ jobs:
       - name: GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        # skills.sh.json is attached so consumers can pin an immutable copy of the catalog index.
-        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --generate-notes --verify-tag skills.sh.json
+          IMAGE_DIGEST: ${{ needs.image.outputs.digest }}
+          IMAGE_REF: docker/skills-content:${{ github.ref_name }}
+        run: |
+          cat > release-notes.md <<EOF
+          ## Distribution snapshot
+
+          - Docker image: \`$IMAGE_REF\`
+          - Image digest: \`$IMAGE_DIGEST\`
+          EOF
+          gh release create "$GITHUB_REF_NAME" catalog.yaml skills.sh.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --generate-notes \
+            --notes-file release-notes.md \
+            --verify-tag

@@ -11,6 +11,7 @@ if [[ ! -S "$DOCKER_SOCKET" ]]; then
 fi
 
 docker run --rm \
+    -e RELEASE_TAG="${RELEASE_TAG:-}" \
     -v "$REPO_ROOT:/work" \
     -v "$DOCKER_SOCKET:/var/run/docker.sock" \
     -w /work \
@@ -24,6 +25,9 @@ docker run --rm \
         python3 -m unittest discover -s scripts -p "test_*.py"
         python3 scripts/render_catalog.py --check
         python3 scripts/validate.py
+        if [ -n "$RELEASE_TAG" ]; then
+            python3 scripts/check_release_tag.py "$RELEASE_TAG"
+        fi
         python3 scripts/eval_check.py
         python3 scripts/check_links.py
         bash tests/scripts/test_verify_scripts.sh

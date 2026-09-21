@@ -1,15 +1,17 @@
 """Load, validate, and render the skill catalog (catalog.yaml).
 
-`catalog.yaml` is the single source of truth for skill grouping. This module renders
-the derived artifacts from it: the product-grouped skill table in README.md, the
-runbook table in evals/README.md, and the `skills.sh.json` index read by the skills
-CLI. `render_catalog.py` writes them; `validate.py` fails when they drift.
+`catalog.yaml` is the single source of truth for skill grouping and the distribution
+version. This module renders the derived artifacts from it: the product-grouped skill
+table in README.md, the runbook table in evals/README.md, the `skills.sh.json` index
+read by the skills CLI, and format-preserved versions in plugin manifests.
+`render_catalog.py` writes them; `validate.py` fails when they drift.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any
 
 import yaml
@@ -23,6 +25,8 @@ START_HERE_DESCRIPTION = (
     "to the right skill below and holds no guidance of its own."
 )
 SKILLS_INDEX_SCHEMA = "https://skills.sh/schemas/skills.sh.schema.json"
+SEMVER_RE = re.compile(r"^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$")
+MANIFEST_VERSION_RE = re.compile(r'("version"\s*:\s*")([^"\\]*)(")')
 
 
 # --- Loading -----------------------------------------------------------------
@@ -66,6 +70,10 @@ def validate_catalog(catalog: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(catalog, dict):
         return ["catalog.yaml must be a mapping"]
+
+    version = catalog.get("version")
+    if not isinstance(version, str) or not SEMVER_RE.fullmatch(version):
+        errors.append("catalog.yaml 'version' must be a string in X.Y.Z format")
 
     products = catalog.get("products")
     if not isinstance(products, list) or not products:
@@ -160,6 +168,11 @@ def validate_catalog(catalog: Any) -> list[str]:
 # --- Views -------------------------------------------------------------------
 
 
+def release_tag(catalog: dict[str, Any]) -> str:
+    """Return the immutable release tag corresponding to the distribution version."""
+    return "v" + catalog["version"]
+
+
 def overview_skill(catalog: dict[str, Any]) -> dict[str, Any] | None:
     overview = catalog.get("overview")
     for skill in catalog.get("skills") or []:
@@ -248,6 +261,11 @@ def render_skills_index(catalog: dict[str, Any]) -> str:
     return json.dumps(index, indent=2, ensure_ascii=False) + "\n"
 
 
+def render_manifest_version(content: str, version: str) -> str:
+    """Replace manifest version string values without changing any other formatting."""
+    return MANIFEST_VERSION_RE.sub(lambda match: match.group(1) + version + match.group(3), content)
+
+
 def replace_section(content: str, body: str, start: str = CATALOG_START, end: str = CATALOG_END) -> str:
     """Replace the text between the start and end markers (exclusive) with body."""
     start_at = content.find(start)
@@ -264,6 +282,16 @@ def replace_section(content: str, body: str, start: str = CATALOG_START, end: st
 README = "README.md"
 EVALS_README = os.path.join("evals", "README.md")
 SKILLS_INDEX = "skills.sh.json"
+MANIFESTS = (
+    os.path.join(".claude-plugin", "plugin.json"),
+    os.path.join(".claude-plugin", "marketplace.json"),
+    os.path.join(".codex-plugin", "plugin.json"),
+    os.path.join(".cursor-plugin", "plugin.json"),
+    os.path.join(".cursor-plugin", "marketplace.json"),
+    os.path.join(".github", "plugin", "plugin.json"),
+    os.path.join(".github", "plugin", "marketplace.json"),
+    "gemini-extension.json",
+)
 
 
 def _read(path: str) -> str:
@@ -275,11 +303,16 @@ def generated_files(root: str = ".", catalog: dict[str, Any] | None = None) -> d
     """Return {relative path: expected content} for every file derived from the catalog."""
     catalog = catalog or load_catalog(os.path.join(root, "catalog.yaml"))
     descriptions = load_skill_descriptions(root, catalog)
-    return {
+    generated = {
         README: replace_section(_read(os.path.join(root, README)), render_readme_table(catalog, descriptions)),
         EVALS_README: replace_section(_read(os.path.join(root, EVALS_README)), render_evals_table(catalog)),
         SKILLS_INDEX: render_skills_index(catalog),
     }
+    for manifest in MANIFESTS:
+        generated[manifest] = render_manifest_version(
+            _read(os.path.join(root, manifest)), catalog["version"]
+        )
+    return generated
 
 
 def stale_files(root: str = ".", catalog: dict[str, Any] | None = None) -> list[str]:

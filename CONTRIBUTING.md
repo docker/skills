@@ -39,6 +39,29 @@ problem or suggestion has already been reported.
 5. Commit your changes with a `Signed-off-by` line (see *Sign your work* below).
 6. Open a pull request and fill out the template.
 
+## Maintainer releases
+
+The top-level `version` in `catalog.yaml` is the distribution version. It is
+separate from each skill's own `version`, which changes only when that skill's
+content or contract changes. Apply SemVer proportionally to the distribution:
+use a patch for compatible fixes and documentation corrections, a minor version
+for compatible added skills or capabilities, and a major version for breaking
+changes to installation, catalog, or distribution contracts.
+
+To prepare and publish a release:
+
+1. Bump the top-level catalog distribution version and run `task catalog` so all
+   plugin manifest versions and catalog-derived files are rendered from it.
+2. Run `task`, review the generated diff, and merge the release pull request.
+3. Create an annotated `vX.Y.Z` tag on the merged `main` commit, where `X.Y.Z`
+   exactly matches the catalog distribution version, then push that tag.
+4. Review the draft GitHub release, including the attached `catalog.yaml` and
+   `skills.sh.json`, tagged multi-architecture image reference, and digest, then
+   publish it.
+
+Release validation rejects a tag that does not match the catalog version. Never
+repoint or reuse a published release tag; prepare a new SemVer version instead.
+
 ## Sign your work
 
 The sign-off is a simple line at the end of the explanation for the patch. Your

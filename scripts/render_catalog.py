@@ -2,8 +2,8 @@
 """Render the files derived from catalog.yaml, or check that they are up to date.
 
 Usage:
-    python3 scripts/render_catalog.py          # rewrite README.md, evals/README.md, skills.sh.json
-    python3 scripts/render_catalog.py --check  # exit 1 if any of them differs from catalog.yaml
+    python3 scripts/render_catalog.py          # rewrite catalog tables, index, and manifest versions
+    python3 scripts/render_catalog.py --check  # exit 1 if any generated file differs from catalog.yaml
 """
 
 from __future__ import annotations
