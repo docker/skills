@@ -98,6 +98,17 @@ git clone https://github.com/docker/skills.git
 | Gemini CLI | `~/.gemini/skills/` | [docs](https://github.com/google-gemini/gemini-cli/blob/main/docs/extensions/index.md) |
 | OpenCode | `~/.config/opencode/skills/` | [docs](https://opencode.ai/docs/skills/) |
 
+## Releases
+
+`main` is the rolling development channel. Tags such as `v0.1.0` are immutable,
+pinned distribution snapshots whose version matches the top-level `version` in
+[`catalog.yaml`](catalog.yaml).
+
+Each tagged release publishes a multi-architecture `docker/skills-content:vX.Y.Z`
+image and a GitHub release containing `catalog.yaml` and `skills.sh.json`. Pin a
+consumer to the release tag, or pin the image by its published digest when byte-for-byte
+immutability is required.
+
 ## Local Development
 
 Prerequisites: [Task](https://taskfile.dev/) and Docker.
@@ -107,7 +118,7 @@ task             # Run the complete CI/release validation suite
 task validate    # Check skill structure, frontmatter, and manifests; run validator tests
 task eval        # Static asset and verification-snippet checks, not live agent evals
 task links       # Check local Markdown links and heading anchors
-task catalog     # Regenerate the README skill table, evals/README.md runbook table, and skills.sh.json from catalog.yaml
+task catalog     # Regenerate catalog tables, skills.sh.json, and plugin manifest versions from catalog.yaml
 ```
 
 ## Repository Structure
@@ -118,9 +129,9 @@ skills/               — Canonical skill directories (SKILL.md + supporting fil
 .claude/skills        — Symlink to skills/ (Claude Code)
 .gemini/skills        — Symlink to skills/ (Gemini CLI)
 .github/skills        — Symlink to skills/ (Copilot CLI)
-catalog.yaml          — Skill registry: product families, skill ids, versions, and stable/experimental status
+catalog.yaml          — Distribution version and skill registry: product families, skill ids, per-skill versions, and status
 skills.sh.json        — Product-grouped index read by the skills CLI (generated from catalog.yaml)
-scripts/render_catalog.py — Renders README, evals/README.md, and skills.sh.json from catalog.yaml
+scripts/render_catalog.py — Renders catalog tables, skills.sh.json, and plugin manifest versions from catalog.yaml
 evals/                — Evaluation runbooks
 .claude-plugin/       — Claude Code plugin + marketplace manifests
 .codex-plugin/        — Codex plugin manifest

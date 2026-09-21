@@ -9,7 +9,11 @@ import yaml
 from catalog import (
     CATALOG_END,
     CATALOG_START,
+    MANIFESTS,
+    generated_files,
+    release_tag,
     render_evals_table,
+    render_manifest_version,
     render_readme_table,
     render_skills_index,
     replace_section,
@@ -21,6 +25,7 @@ from catalog import (
 CATALOG = {
     "schema": "v1",
     "name": "test",
+    "version": "1.2.3",
     "overview": "docker",
     "products": [
         {"id": "build", "name": "Build", "description": "Images.", "docs": "https://example.com/build"},
@@ -44,6 +49,14 @@ def catalog(**overrides):
 class ValidateCatalogTests(unittest.TestCase):
     def test_valid(self):
         self.assertEqual(validate_catalog(CATALOG), [])
+
+    def test_catalog_version_must_be_strict_semver_string(self):
+        for bad in (None, 1.2, "v1.2.3", "1.2", "1.2.3-rc.1", "01.2.3", " 1.2.3"):
+            data = catalog(version=bad)
+            self.assertTrue(any("'version' must be a string in X.Y.Z format" in e for e in validate_catalog(data)))
+
+    def test_release_tag_prefixes_catalog_version(self):
+        self.assertEqual(release_tag(CATALOG), "v1.2.3")
 
     def test_status_defaults_to_stable_when_omitted(self):
         data = catalog()
@@ -142,6 +155,17 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(listed, ["docker", "build-a", "agent-a"])
         self.assertEqual(index["groupings"][1]["description"], "Images.")
 
+    def test_manifest_version_rendering_preserves_format_and_replaces_all_occurrences(self):
+        content = '{\n\t"version" : "0.0.1",\n  "metadata": {"version":"2.0.0"},\n  "plugins": [{"version": "3.0.0"}]\n}\n'
+        self.assertEqual(
+            render_manifest_version(content, "1.2.3"),
+            '{\n\t"version" : "1.2.3",\n  "metadata": {"version":"1.2.3"},\n  "plugins": [{"version": "1.2.3"}]\n}\n',
+        )
+
+    def test_versionless_manifest_is_unchanged(self):
+        content = '{\n  "name": "plugin"\n}\n'
+        self.assertEqual(render_manifest_version(content, "1.2.3"), content)
+
     def test_replace_section(self):
         content = "before\n" + CATALOG_START + "\nold\n" + CATALOG_END + "\nafter\n"
         self.assertEqual(
@@ -167,18 +191,33 @@ class GeneratedFilesTests(unittest.TestCase):
         for rel in ("README.md", os.path.join("evals", "README.md")):
             with open(os.path.join(root, rel), "w") as handle:
                 handle.write("# Title\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n")
+        for rel in MANIFESTS:
+            path = os.path.join(root, rel)
+            os.makedirs(os.path.dirname(path) or root, exist_ok=True)
+            with open(path, "w") as handle:
+                if "marketplace" in rel:
+                    handle.write('{\n  "metadata": {"version": "0.0.1"},\n  "plugins": [{"version": "0.0.1"}]\n}\n')
+                else:
+                    handle.write('{\n  "version": "0.0.1"\n}\n')
         return root
 
     def test_write_then_check_round_trip(self):
         root = self.make_repo()
-        self.assertEqual(sorted(stale_files(root)), ["README.md", "evals/README.md", "skills.sh.json"])
+        expected = sorted(["README.md", "evals/README.md", "skills.sh.json", *MANIFESTS])
+        self.assertEqual(sorted(stale_files(root)), expected)
         changed = write_generated(root)
-        self.assertEqual(sorted(changed), ["README.md", "evals/README.md", "skills.sh.json"])
+        self.assertEqual(sorted(changed), expected)
         self.assertEqual(stale_files(root), [])
         self.assertEqual(write_generated(root), [])
         readme = open(os.path.join(root, "README.md")).read()
         self.assertTrue(readme.startswith("# Title\n\n" + CATALOG_START + "\n| Product |"))
         self.assertIn("[`agent-a`](skills/agent-a) *(experimental)* — Agents.", readme)
+        generated = generated_files(root)
+        self.assertEqual(set(generated), {"README.md", "evals/README.md", "skills.sh.json", *MANIFESTS})
+        for rel in MANIFESTS:
+            manifest = open(os.path.join(root, rel)).read()
+            self.assertNotIn("0.0.1", manifest)
+            self.assertIn('"version": "1.2.3"', manifest)
 
     def test_hand_edit_is_detected(self):
         root = self.make_repo()

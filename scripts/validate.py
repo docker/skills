@@ -10,7 +10,7 @@ import yaml
 
 from catalog import overview_skill, stale_files, validate_catalog
 from frontmatter import validate_frontmatter
-from manifests import validate_codex_marketplace, validate_skills_index, validate_versions
+from manifests import collect_versions, validate_codex_marketplace, validate_skills_index, validate_versions
 
 errors = 0
 skill_defs = {}
@@ -291,10 +291,15 @@ except json.JSONDecodeError as e:
 # --- 5a. All plugin manifests must declare the same version ---
 print("==> Checking manifest version consistency")
 version_errors = validate_versions(loaded_manifests)
+for location, version in sorted(collect_versions(loaded_manifests).items()):
+    if version != catalog["version"]:
+        version_errors.append(
+            location + "=" + version + " does not match catalog distribution version " + catalog["version"]
+        )
 for message in version_errors:
     error(message)
 if not version_errors:
-    print("  OK: all manifests agree on version")
+    print("  OK: all manifests match catalog distribution version " + catalog["version"])
 
 # --- 5c. Validate the skills.sh index against the catalog ---
 print("==> Validating " + skills_index)

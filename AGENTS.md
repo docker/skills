@@ -8,10 +8,12 @@ manifests expose it to supported agents. Start with [README.md](README.md) for t
 catalog, installation, and layout. Follow [CONTRIBUTING.md](CONTRIBUTING.md) for
 the contribution flow and DCO text. Do not duplicate either document here.
 
-`catalog.yaml` is the source of truth for products, skill IDs, versions, and
-status. `scripts/render_catalog.py` generates the marked tables in `README.md`
-and `evals/README.md`, plus `skills.sh.json`. Edit the catalog and run the
-renderer; never hand-edit generated output.
+`catalog.yaml` is the source of truth for the distribution version, products,
+skill IDs, per-skill versions, and status. `scripts/render_catalog.py` generates
+the marked tables in `README.md` and `evals/README.md`, `skills.sh.json`, and the
+versions in plugin manifests without reformatting them. Edit the catalog and run
+the renderer; never hand-edit generated output. Maintainer release steps and the
+SemVer policy are in [CONTRIBUTING.md#maintainer-releases](CONTRIBUTING.md#maintainer-releases).
 
 ## Commands
 
@@ -45,7 +47,8 @@ Keep these repository-wide contracts intact:
 - Every skill includes the required sections enforced by `scripts/validate.py`.
 - Files under `references/`, `assets/`, `checks/`, and `scripts/` are referenced
   from that skill's `SKILL.md`; referenced files exist.
-- Plugin manifests share a version and continue to represent the catalog.
+- Plugin manifest versions match the catalog distribution version and continue
+  to represent the catalog.
 - Generated files match `catalog.yaml`, and all checked local links and anchors
   resolve.
 

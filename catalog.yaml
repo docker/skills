@@ -1,10 +1,14 @@
 # Skill registry: the single source of truth for which skills exist, which product
 # family each belongs to, and whether it is stable or experimental.
 #
-# `task catalog` renders the README skill table, the evals/README.md runbook table
-# and skills.sh.json from this file; `task validate` fails when they drift.
+# `task catalog` renders the README skill table, the evals/README.md runbook table,
+# skills.sh.json, and plugin manifest versions from this file; `task validate` fails
+# when they drift.
+# `version` is the distribution version: its v-prefixed release tag must match,
+# and `task catalog` renders it into every versioned plugin manifest.
 schema: v1
 name: docker-skills
+version: 0.1.0
 
 products:
   - id: docker-build
