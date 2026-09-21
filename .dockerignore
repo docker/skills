@@ -30,6 +30,8 @@
 **/*.sqlite3-*
 **/*.log
 **/logs
+**/node_modules
+**/.pnpm-store
 **/__pycache__
 **/*.py[cod]
 **/.pytest_cache

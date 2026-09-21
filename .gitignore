@@ -30,6 +30,10 @@ secrets/
 *.log
 logs/
 
+# Node dependencies and package manager stores
+node_modules/
+.pnpm-store/
+
 # Python environments and caches
 .venv/
 __pycache__/
