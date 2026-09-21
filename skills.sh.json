@@ -3,13 +3,6 @@
   "notGrouped": "bottom",
   "groupings": [
     {
-      "title": "Start here",
-      "description": "Not sure which skill applies? Load this one first: it routes any Docker task to the right skill below and holds no guidance of its own.",
-      "skills": [
-        "docker"
-      ]
-    },
-    {
       "title": "Dockerfile & Build",
       "description": "Containerize a project and write, optimize, and harden Dockerfiles and images.",
       "skills": [

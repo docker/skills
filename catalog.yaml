@@ -6,10 +6,6 @@
 schema: v1
 name: docker-skills
 
-# The router skill listed first in the README under "Start here". It belongs to no
-# product family and must reference every other skill in this catalog.
-overview: docker
-
 products:
   - id: docker-build
     name: Dockerfile & Build
@@ -33,10 +29,6 @@ products:
     repo: https://github.com/docker/docker-agent
 
 skills:
-  - id: docker
-    path: skills/docker
-    version: 0.1.0
-    status: stable
   - id: docker-project-foundations
     product: docker-build
     path: skills/docker-project-foundations
