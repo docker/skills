@@ -16,7 +16,10 @@ problem or suggestion has already been reported.
 3. Make your changes.
    - When adding a new skill, place it under `skills/<skill-id>/` with a
      `SKILL.md` and any supporting files. Follow the structure of existing
-     skills and update `catalog.yaml` accordingly.
+     skills and update `catalog.yaml` accordingly. Ensure both the skill and its
+     evaluation runbook are covered by specific family rules in
+     `.github/CODEOWNERS`, adding rules when needed; the repository-wide
+     fallback is not a substitute for a domain owner.
    - When updating an existing skill, keep the `SKILL.md` frontmatter and
      section structure consistent with the rest of the repo.
 4. Run the complete validation suite locally (requires
