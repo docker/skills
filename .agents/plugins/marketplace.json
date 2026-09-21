@@ -1,0 +1,20 @@
+{
+  "name": "docker",
+  "interface": {
+    "displayName": "Docker Skills"
+  },
+  "plugins": [
+    {
+      "name": "docker-skills",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/docker/skills.git"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
