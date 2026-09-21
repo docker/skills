@@ -17,45 +17,57 @@ Docker-authored knowledge skills that improve AI coding agent output for Docker-
 
 ## Installation
 
-### Clone and use directly
+### Quick start: the `skills` CLI
 
-Clone this repo into your project or home directory. Symlinks in `.claude/skills/`, `.agents/skills/`, `.gemini/skills/`, and `.github/skills/` ensure every major agent discovers the skills automatically:
+The [`skills` CLI](https://skills.sh) installs into every major coding agent (Claude Code, Codex, Cursor, GitHub Copilot, Gemini CLI, OpenCode, Windsurf, Cline, Kiro, and more). It reads the [`skills.sh.json`](skills.sh.json) index in this repo, so skills are listed grouped by product:
 
 ```bash
-git clone https://github.com/docker/skills.git
+npx skills add docker/skills
 ```
 
-### Install via agent plugin/extension
+The command prompts for which skills and which agents to install to. Non-interactive variants:
+
+```bash
+# Browse the catalog without installing anything
+npx skills add docker/skills --list
+
+# Install one skill, no prompts (project scope; add -g for user scope)
+npx skills add docker/skills --skill docker-compose-patterns --yes
+
+# Install every skill into one agent
+npx skills add docker/skills --skill '*' --agent codex --yes
+
+# Install every skill into every detected agent
+npx skills add docker/skills --all
+
+# Keep installed skills current
+npx skills update
+```
+
+### Install as a plugin
+
+Plugin installs are managed by each agent's marketplace, so updates arrive through the agent rather than through `npx skills update`.
 
 **Claude Code**
 ```bash
-# Add the Docker marketplace and install the plugin:
-/plugin marketplace add https://github.com/docker/skills.git
+/plugin marketplace add docker/skills
 /plugin install docker-skills@docker
-
-# Or install directly from the repo:
-/plugin install https://github.com/docker/skills.git
 ```
 See [Claude Code plugins docs](https://code.claude.com/docs/en/discover-plugins)
 
 **OpenAI Codex**
 ```bash
-# Use the built-in skill installer:
-$skill-installer https://github.com/docker/skills.git
-
-# Or copy skills manually:
-cp -r skills/docker-project-foundations ~/.agents/skills/
-cp -r skills/docker-compose-patterns ~/.agents/skills/
-cp -r skills/docker-build-strategies ~/.agents/skills/
-cp -r skills/docker-agent-config ~/.agents/skills/
-cp -r skills/docker-agent-run ~/.agents/skills/
-cp -r skills/docker-agent-deploy ~/.agents/skills/
-cp -r skills/docker-sandboxes-lifecycle ~/.agents/skills/
-cp -r skills/docker-sandboxes-network-credentials ~/.agents/skills/
-cp -r skills/docker-sandboxes-env ~/.agents/skills/
-cp -r skills/docker-sandboxes-kits ~/.agents/skills/
+codex plugin marketplace add docker/skills
+codex plugin add docker-skills@docker
 ```
-See [Codex skills docs](https://developers.openai.com/codex/skills)
+Start a new Codex session after installing. See [Codex skills docs](https://developers.openai.com/codex/skills)
+
+**GitHub Copilot CLI**
+```bash
+/plugin marketplace add docker/skills
+/plugin install docker-skills@docker
+```
+See [Copilot CLI plugins docs](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing)
 
 **Gemini CLI**
 ```bash
@@ -63,16 +75,26 @@ gemini extensions install https://github.com/docker/skills
 ```
 See [Gemini CLI extensions docs](https://github.com/google-gemini/gemini-cli/blob/main/docs/extensions/index.md)
 
-**GitHub Copilot CLI**
-```bash
-# Add the Docker marketplace and install the plugin:
-/plugin marketplace add https://github.com/docker/skills.git
-/plugin install docker-skills@docker
+**Cursor**
 
-# Or install directly from the repo:
-copilot plugin install https://github.com/docker/skills.git
+Add `docker/skills` as a marketplace from Cursor's plugin settings (**Customize** → **Plugins** → import from repository), or use the `skills` CLI above with `--agent cursor`. See [Cursor plugins docs](https://cursor.com/docs/plugins)
+
+### Clone or copy
+
+Clone the repo and point your agent at the `skills/` directory, or copy the skill folders you want into the agent's skill directory. The repo already contains symlinks for the common discovery paths, so cloning it into a project root is enough for the agents below to pick the skills up.
+
+```bash
+git clone https://github.com/docker/skills.git
 ```
-See [Copilot CLI plugins docs](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing)
+
+| Agent | Skill directory | Docs |
+|-------|-----------------|------|
+| Claude Code | `~/.claude/skills/` | [docs](https://code.claude.com/docs/en/skills) |
+| OpenAI Codex | `~/.codex/skills/` or `~/.agents/skills/` | [docs](https://developers.openai.com/codex/skills) |
+| Cursor | `~/.cursor/skills/` | [docs](https://cursor.com/docs/context/skills) |
+| GitHub Copilot | `.github/skills/` in the project | [docs](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-finding-installing) |
+| Gemini CLI | `~/.gemini/skills/` | [docs](https://github.com/google-gemini/gemini-cli/blob/main/docs/extensions/index.md) |
+| OpenCode | `~/.config/opencode/skills/` | [docs](https://opencode.ai/docs/skills/) |
 
 ## Local Development
 
@@ -94,8 +116,12 @@ skills/               — Canonical skill directories (SKILL.md + supporting fil
 .gemini/skills        — Symlink to skills/ (Gemini CLI)
 .github/skills        — Symlink to skills/ (Copilot CLI)
 catalog.yaml          — Skill registry
+skills.sh.json        — Product-grouped index read by the skills CLI (validated against catalog.yaml)
 evals/                — Evaluation runbooks
 .claude-plugin/       — Claude Code plugin + marketplace manifests
+.codex-plugin/        — Codex plugin manifest
+.agents/plugins/      — Codex marketplace manifest
+.cursor-plugin/       — Cursor plugin + marketplace manifests
 .github/plugin/       — Copilot CLI plugin + marketplace manifests
 gemini-extension.json — Gemini CLI extension manifest
 Taskfile.yml          — CI and validation tasks
