@@ -100,13 +100,17 @@ git clone https://github.com/docker/skills.git
 
 ## Releases
 
-`main` is the rolling development channel. Tags such as `v0.1.0` are immutable,
-pinned distribution snapshots whose version matches the top-level `version` in
+`main` is the rolling development channel and continuously publishes the mutable
+`docker/skills-content:edge` image. Tags such as `v0.1.0` are immutable, pinned
+distribution snapshots whose version matches the top-level `version` in
 [`catalog.yaml`](catalog.yaml).
 
-Each tagged release publishes a multi-architecture `docker/skills-content:vX.Y.Z`
-image and a GitHub release containing `catalog.yaml` and `skills.sh.json`. Pin a
-consumer to the release tag, or pin the image by its published digest when byte-for-byte
+Maintainers create versioned releases with the manually dispatched Release
+workflow after changes merge to `main`. The workflow builds the multi-architecture
+`docker/skills-content:vX.Y.Z` image and creates a draft GitHub release containing
+`catalog.yaml`, `skills.sh.json`, and the image digest. A maintainer inspects and
+publishes that draft; the workflow never publishes it automatically. Pin a consumer
+to the release tag, or pin the image by its published digest when byte-for-byte
 immutability is required.
 
 ## Local Development

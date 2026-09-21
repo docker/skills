@@ -53,14 +53,28 @@ To prepare and publish a release:
 1. Bump the top-level catalog distribution version and run `task catalog` so all
    plugin manifest versions and catalog-derived files are rendered from it.
 2. Run `task`, review the generated diff, and merge the release pull request.
-3. Create an annotated `vX.Y.Z` tag on the merged `main` commit, where `X.Y.Z`
-   exactly matches the catalog distribution version, then push that tag.
-4. Review the draft GitHub release, including the attached `catalog.yaml` and
-   `skills.sh.json`, tagged multi-architecture image reference, and digest, then
-   publish it.
+3. On the merged `main` commit, open **Actions → release → Run workflow**. Select
+   `main`, enter the exact `vX.Y.Z` matching the catalog distribution version,
+   leave `dry_run` enabled, and run the workflow. Review every job before
+   continuing; a dry run builds the image but creates no tag, registry image, or
+   GitHub release.
+4. Dispatch the same version from `main` again with `dry_run` disabled. The
+   workflow creates an annotated tag at that exact dispatch commit, publishes
+   the multi-architecture version image, and creates a draft GitHub release with
+   `catalog.yaml`, `skills.sh.json`, the image reference, and its digest.
+5. Inspect the draft's commit, assets, image reference, and digest, then publish
+   it manually. The workflow never publishes a release automatically.
 
-Release validation rejects a tag that does not match the catalog version. Never
-repoint or reuse a published release tag; prepare a new SemVer version instead.
+A failed publish run is safe to retry with the same version from the same `main`
+commit. It reuses a matching tag and image digest without overwriting either, and
+refreshes only an existing draft release. It fails instead of changing a tag that
+resolves to another commit, an image built from another commit, or an already
+published release.
+
+Release validation rejects a version that does not use strict `vX.Y.Z` syntax or
+does not match the catalog version. Never repoint or reuse a release tag or image.
+Correct a released artifact or version by preparing and releasing a new patch
+version; releases move forward only.
 
 ## Sign your work
 
