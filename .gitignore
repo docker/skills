@@ -1,12 +1,56 @@
+# Operating system, editors, and local agent state
 .DS_Store
-__pycache__/
-.env
-
-# Editors / IDEs
 .idea/
-
-# Python virtualenvs
-.venv/
-
-# Local Claude Code state
 .claude/settings.local.json
+.sbx/
+.data/
+
+# Environment, credentials, and key material
+.env
+.env.*
+!.env.example
+*.env
+*.key
+*.pem
+*.p12
+*.pfx
+*.secret
+*.secrets
+secrets/
+
+# Databases
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# Logs
+*.log
+logs/
+
+# Python environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+
+# Test, coverage, and scan artifacts
+.coverage
+.coverage.*
+coverage/
+coverage.xml
+htmlcov/
+*.sarif
+
+# Temporary files
+.tmp/
+tmp/
+temp/
+*.tmp
+*.swp
