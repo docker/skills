@@ -40,6 +40,53 @@ class YAMLAssertionTests(unittest.TestCase):
         self.assertEqual(self.check("yaml_value_equals", data, key="schemaVersion", value="2"), FAIL)
 
 
+class NpmCredentialCoverageTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        groups = yaml.safe_load(Path(CHECKS_FILE).read_text(encoding="utf-8"))
+        group = next(group for group in groups if group["eval"] == "docker-project-foundations"
+                     and "assets" in group)
+        cls.checks = {check["id"]: check for check in group["checks"]}
+        cls.dockerfile = Path(REPO_ROOT, group["assets"]["dockerfile"]).read_text(encoding="utf-8")
+        cls.dockerignore = Path(REPO_ROOT, group["assets"]["dockerignore"]).read_text(encoding="utf-8")
+
+    def status(self, check_id, content):
+        return run_check(self.checks[check_id], content, None, "fixture")["status"]
+
+    def test_starter_uses_secret_mounts_and_excludes_npmrc(self):
+        for check_id, content in (
+            ("fp-p1-secret-installs", self.dockerfile),
+            ("fp-p1-no-copy-npmrc", self.dockerfile),
+            ("fp-p1-ignore-npmrc", self.dockerignore),
+        ):
+            with self.subTest(check=check_id):
+                self.assertEqual(self.status(check_id, content), PASS)
+
+    def test_either_unmounted_install_fails(self):
+        mount = "--mount=type=secret,id=npmrc,target=/root/.npmrc,required=false"
+        self.assertEqual(self.dockerfile.count(mount), 2)
+        for position in (self.dockerfile.index(mount), self.dockerfile.rindex(mount)):
+            with self.subTest(position=position):
+                content = self.dockerfile[:position] + self.dockerfile[position:].replace(mount, "", 1)
+                self.assertEqual(self.status("fp-p1-secret-installs", content), FAIL)
+
+    def test_required_secret_breaks_public_package_builds(self):
+        content = self.dockerfile.replace("required=false", "required=true")
+        self.assertEqual(self.status("fp-p1-secret-installs", content), FAIL)
+
+    def test_copying_npmrc_fails(self):
+        for instruction in ("COPY .npmrc .", 'COPY [".npmrc", "/app/"]', "add .npmrc /app/"):
+            with self.subTest(instruction=instruction):
+                content = self.dockerfile + "\n" + instruction + "\n"
+                self.assertEqual(self.status("fp-p1-no-copy-npmrc", content), FAIL)
+
+    def test_missing_or_root_only_exclusion_fails(self):
+        for replacement in ("", ".npmrc", "# **/.npmrc"):
+            with self.subTest(replacement=replacement):
+                content = self.dockerignore.replace("**/.npmrc", replacement)
+                self.assertEqual(self.status("fp-p1-ignore-npmrc", content), FAIL)
+
+
 class SandboxPromptCoverageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

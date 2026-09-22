@@ -27,6 +27,7 @@ docker-compose*.yaml
 .dockerignore
 
 # Environment and secrets
+**/.npmrc
 .env
 .env.*
 *.pem
