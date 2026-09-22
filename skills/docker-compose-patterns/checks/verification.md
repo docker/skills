@@ -10,25 +10,21 @@ Run the bundled script from the project root:
 bash scripts/verify-compose.sh [--help]
 ```
 
-Exit status is `0` when the Compose configuration is valid or help is requested, the non-zero status from `docker compose config` when validation fails, and `2` for invalid arguments.
+Exit status is `0` when the Compose configuration is valid or help is requested, the non-zero status from `docker compose config --quiet` when validation fails, and `2` for invalid arguments.
 
 To run the underlying validation directly:
-
-```bash
-docker compose config
-```
-
-This parses and validates the Compose file, resolves variables, and prints the fully resolved configuration. If it exits non-zero, the file has syntax or schema errors. Fix all errors before proceeding.
-
-To validate without printing the full output:
 
 ```bash
 docker compose config --quiet
 ```
 
+This parses and validates the Compose file without printing the resolved configuration. It still resolves variables and reads service `env_file` files. If it exits non-zero, fix the reported errors before proceeding.
+
+Plain `docker compose config` renders interpolated and `env_file` credentials. Do not capture that output in CI logs or agent transcripts. If inspecting the rendered configuration is necessary, use a separate copy with dummy credentials and review it locally. `--quiet` suppresses the configuration dump, not warnings or errors; diagnostics may still contain sensitive details.
+
 ## 2. Health check presence
 
-Verify that every database, cache, or message broker service has a `healthcheck` defined. Check the output of `docker compose config` and confirm these services include `healthcheck.test`, `healthcheck.interval`, `healthcheck.timeout`, `healthcheck.retries`, and `healthcheck.start_period`.
+Verify that every database, cache, or message broker service has a `healthcheck` defined. Review the Compose source files, including overrides, and confirm these services include `healthcheck.test`, `healthcheck.interval`, `healthcheck.timeout`, `healthcheck.retries`, and `healthcheck.start_period`. For rendered inspection, follow the dummy-credential precaution above.
 
 Services that must have health checks:
 

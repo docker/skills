@@ -104,8 +104,38 @@ cp "$TMP_DIR/project-invalid/compose.yaml" "$TMP_DIR/compose-invalid/compose.yam
 
 # shellcheck disable=SC2016
 assert_status 0 "verify-compose accepts valid Compose configuration" bash -c 'cd "$1" && "$2"' _ "$TMP_DIR/compose-valid" "$COMPOSE_SCRIPT"
+
+mkdir -p "$TMP_DIR/compose-credentials"
+cat >"$TMP_DIR/compose-credentials/compose.yaml" <<'YAML'
+services:
+  app:
+    image: busybox:1.36
+    environment:
+      PASSWORD: ${VERIFY_COMPOSE_TEST_PASSWORD:?Set the test password}
+    env_file: runtime.env
+YAML
+printf '%s\n' 'VERIFY_COMPOSE_TEST_PASSWORD=synthetic-interpolation-canary' >"$TMP_DIR/compose-credentials/.env"
+printf '%s\n' 'API_TOKEN=synthetic-env-file-canary' >"$TMP_DIR/compose-credentials/runtime.env"
+
+# shellcheck disable=SC2016
+assert_status 0 "verify-compose validates interpolated and env_file credentials" env -u VERIFY_COMPOSE_TEST_PASSWORD bash -c 'cd "$1" && "$2"' _ "$TMP_DIR/compose-credentials" "$COMPOSE_SCRIPT"
+if [[ -s "$TMP_DIR/output" ]]; then
+    echo "FAIL: verify-compose printed output for a valid credential-bearing configuration" >&2
+    exit 1
+fi
+echo "PASS: verify-compose does not print resolved credentials"
+
+rm "$TMP_DIR/compose-credentials/runtime.env"
+# shellcheck disable=SC2016
+assert_status nonzero "verify-compose still rejects a missing env_file" env -u VERIFY_COMPOSE_TEST_PASSWORD bash -c 'cd "$1" && "$2"' _ "$TMP_DIR/compose-credentials" "$COMPOSE_SCRIPT"
+
 # shellcheck disable=SC2016
 assert_status nonzero "verify-compose propagates invalid Compose configuration" bash -c 'cd "$1" && "$2"' _ "$TMP_DIR/compose-invalid" "$COMPOSE_SCRIPT"
+if [[ ! -s "$TMP_DIR/output" ]]; then
+    echo "FAIL: verify-compose suppressed validation diagnostics" >&2
+    exit 1
+fi
+echo "PASS: verify-compose preserves validation diagnostics"
 assert_help "$COMPOSE_SCRIPT" "Usage: bash scripts/verify-compose.sh [--help]"
 assert_status 2 "verify-compose rejects invalid arguments" "$COMPOSE_SCRIPT" unexpected
 
