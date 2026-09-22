@@ -1,5 +1,16 @@
 # Verification Runbook for agent.yaml
 
+Before resolving a config or contacting a model:
+- Inspect `instruction`, `instruction_file`, and command prompts for literal
+  secrets or interpolated sensitive values. An env-file reference does not
+  keep a value out of the resolved prompt.
+- Confirm provider and tool/MCP credentials use their authentication mechanisms;
+  a custom provider's `token_key` must name an environment variable, not expand
+  its value into the config.
+- Use throwaway values when testing interpolation. Do not print real credentials
+  in resolved config output or send them to a model as a test. Secret redaction
+  is pattern-based defense in depth, not proof that prompts contain no secrets.
+
 ## 1. The config resolves without errors
 ```bash
 docker agent debug config ./agent.yaml

@@ -161,15 +161,25 @@ Do not use this skill when:
 
 ### Safety and hygiene
 - Set `redact_secrets: true` on any agent that runs shell/fetch tools against
-  untrusted input — it scrubs common secret patterns (GitHub PATs, AWS keys,
-  HF tokens) from tool arguments, outgoing messages, and tool output before
-  they leak.
+  untrusted input. It scrubs recognized secret patterns from tool arguments,
+  outgoing messages, and tool output. This is defense in depth, not a
+  guarantee: arbitrary passwords, tokens, or customer data may go undetected.
 - Set `max_iterations` on any agent that loops autonomously (default is
   unlimited) to bound cost and prevent runaway loops; `max_consecutive_tool_calls`
   (default 5) already guards against identical-call loops.
-- Do not put real credentials, tokens, or customer data directly in
-  `instruction` or `commands` — use `${env.VAR}` interpolation instead, and
-  keep the underlying secret in an env file, not the YAML.
+- Keep credentials, tokens, and sensitive customer data out of `instruction`,
+  `instruction_file`, and command prompts, whether literal or interpolated.
+  `${env.VAR}` expands values into prompt text sent to the model; storing a
+  value in an env file does not prevent this disclosure. Use interpolation
+  only for non-sensitive context.
+- Supply provider credentials through `docker agent setup` or the provider's
+  supported environment variables. For custom providers, `token_key: MY_API_KEY`
+  names the environment variable, not its value; do not interpolate it.
+  Configure tool/MCP credentials through that integration's authentication
+  mechanism, not through prompts or model-supplied tool arguments. Prompts
+  should describe the authenticated capability without containing its secret.
+  Do not ask the agent to read or print credential files or environment values
+  to check authentication.
 
 ## Related skills
 - For running the agent (`docker agent run`, safety modes, sandbox, aliases), use `docker-agent-run`.
