@@ -7,51 +7,38 @@ This skill documents behavioral policy rather than a generated artifact, so veri
 For each command in `references/docker-cli-destructive-commands.md` (`docker rm`, `docker container prune`, `docker kill`, `docker stop`, `docker system prune`, `docker rmi`/`docker image rm`, `docker image prune -a`, `docker network rm`, `docker network prune`, `docker builder prune`, `docker buildx rm`, `docker context rm`, standalone `docker volume rm`/`docker volume prune`), confirm the documented flags and behavior still match the installed Docker CLI's `--help` output:
 
 ```bash
-docker rm --help
-docker container prune --help
-docker kill --help
-docker stop --help
-docker system prune --help
-docker rmi --help
-docker image prune --help
-docker network rm --help
-docker network prune --help
-docker builder prune --help
-docker buildx rm --help
-docker context rm --help
-docker volume rm --help
-docker volume prune --help
+for cmd in "rm" "container prune" "kill" "stop" "system prune" "rmi" "image prune" \
+           "network rm" "network prune" "builder prune" "buildx rm" "context rm" \
+           "volume rm" "volume prune"; do
+  docker $cmd --help
+done
 ```
 
 Flag names, defaults, and what each flag deletes change occasionally between Docker releases. If `--help` output has drifted from what's documented, update `references/docker-cli-destructive-commands.md` and `SKILL.md`'s Core guidance section together.
 
 ## 2. Cross-skill index rows match each linked skill's actual guardrail content
 
-For every row in `references/cross-skill-destructive-command-index.md` whose owning skill is not this one (currently `docker-compose-patterns`), re-read that skill's actual destructive-command guidance and confirm:
+For every row in `references/cross-skill-destructive-command-index.md` whose owning skill is not this one (currently `docker-compose-patterns` and `docker-sandboxes-lifecycle`), re-read that skill's actual destructive-command guidance and confirm:
 
 - The command names in the index row still match what the owning skill documents (no renamed flags, no removed commands).
 
-This is a manual check, not an automated one — nothing currently diffs the index against the owning skill's actual content, so drift only gets caught if this step is actually run. For the pending sbx and Docker Desktop rows, confirm the linked PRs (#7, #14) are still open and unmerged before leaving the "pending" note in place — update the row once either skill ships.
+This is a manual check, not an automated one — nothing currently diffs the index against the owning skill's actual content, so drift only gets caught if this step is actually run. For the pending Docker Desktop row, confirm the PR referenced in `references/cross-skill-destructive-command-index.md` is still open and unmerged before leaving the "pending" note in place — update the row once that skill ships.
 
 ## 3. Tier 1 examples carry no Tier 2/3-style blocking-confirmation language
 
-The container-lifecycle tiering model (`docker rm`, `docker rm -f`, `docker container prune`, `docker kill`) splits into Tier 1 (state-and-proceed, no blocking confirmation) and Tier 2 (same confirmation bar as the flat-rule Tier 3 commands). The automated `eval-checks.yaml` checks mostly only assert coarse existence (a "### Tier 1" heading exists, a "### Tier 2" heading exists, specific commands are mentioned) — grep has no concept of proximity or section-scoping in general, so most of this distinction must be checked by hand. One narrow exception is automated: `ddg-kill-not-listed-under-tier1` uses a cross-line `file_must_not_match` pattern to catch the specific, common mistake of `docker kill` text appearing between the Tier 1 and Tier 2 headings — that single coarse guard doesn't cover the rest of the distinction below, which still needs manual review:
+The container-lifecycle tiering model (`docker rm`, `docker rm -f`, `docker container prune`, `docker kill`) splits into Tier 1 (state-and-proceed, no blocking confirmation) and Tier 2 (same confirmation bar as the flat-rule commands). The automated `eval-checks.yaml` checks mostly only assert coarse existence (a "### Tier 1" heading exists, a "### Tier 2" heading exists, specific commands are mentioned) — grep has no concept of proximity or section-scoping in general, so most of this distinction must be checked by hand. One narrow exception is automated: `ddg-kill-not-listed-under-tier1` uses a cross-line `file_must_not_match` pattern to catch the specific, common mistake of `docker kill` text appearing between the Tier 1 and Tier 2 headings — that single coarse guard doesn't cover the rest of the distinction below, which still needs manual review:
 
-- For every example listed under the Tier 1 heading in `SKILL.md` (container already stopped, or created/started by the agent itself this session, no known unpersisted state at risk, one specific identified container — e.g. `docker rm <stopped-container>`, `docker rm -f <agent's-own-just-created-test-container>`, `docker container prune`), confirm the surrounding text does NOT say to ask for confirmation or wait for the user before acting. It should describe stating what was done, not asking permission first.
-- For every example listed under the Tier 2 heading, and for every Tier 3 flat-rule command (volumes, images, networks, builder/buildx, context, `docker system prune`), confirm the surrounding text DOES require explicit confirmation before running the command, with no exception carved out.
+- For every example listed under the Tier 1 heading in `SKILL.md` (container already stopped, or created/started by the agent itself this session, no known unpersisted state at risk, one specific identified container — e.g. `docker rm <stopped-container>`, `docker rm -f <agent's-own-just-created-test-container>`), confirm the surrounding text does NOT say to ask for confirmation or wait for the user before acting. It should describe stating what was done, not asking permission first.
+- For every example listed under the Tier 2 heading, and for every flat-rule command (volumes, images, networks, builder/buildx, context, `docker system prune`), confirm the surrounding text DOES require explicit confirmation before running the command, with no exception carved out.
 - Specifically confirm `docker kill` is documented only under Tier 2, never listed as a Tier 1 example — it has no stopped-container exception.
+- Specifically confirm `docker container prune` is documented only under Tier 2, never listed as a Tier 1 example — it always sweeps every stopped container on the host, so it can never target "one specific, identified container" the way Tier 1 requires.
 - Specifically confirm an unscoped sweep (e.g. `docker rm -f $(docker ps -aq)`, "force remove all containers") is documented as Tier 2 even when every example nearby is Tier 1 — scope (single named container vs. sweep), not container state alone, is what should gate the tier for a sweep.
 
 If any Tier 1 example reads like it requires the user to wait for permission, or any Tier 2/3 example reads like it can proceed without confirmation, fix the prose before merging — the automated checks will not catch this misplacement.
 
 ## 4. `docker network rm -f` and `docker context rm -f` are documented with distinct semantics
 
-These two `-f` flags do different things and must not be conflated:
-
-- `docker network rm -f` only suppresses a "network not found" error — it does NOT override in-use protection; a network still attached to a container is not force-removed.
-- `docker context rm -f` genuinely forces removal of an in-use context.
-
-Read both entries in `references/docker-cli-destructive-commands.md` side by side and confirm they use language that makes this difference unambiguous (e.g. one explicitly says "does not force removal of an in-use network," the other explicitly says "forces removal even if in use"). A reader skimming just the `-f` flag name should not come away assuming both behave the same way.
+These two `-f` flags do different things and must not be conflated. Read both entries in `references/docker-cli-destructive-commands.md` side by side and confirm they still use language that makes the difference unambiguous (one suppresses a "not found" error only and does not override in-use protection, the other genuinely forces removal of an in-use resource). A reader skimming just the `-f` flag name should not come away assuming both behave the same way.
 
 ## 5. Standalone volume content does not contradict `docker-compose-patterns`'s Compose-scoped content
 

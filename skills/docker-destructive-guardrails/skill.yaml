@@ -4,7 +4,7 @@ version: 0.1.0
 title: Docker Destructive Command Guardrails
 description: Cross-product policy for confirming irreversible or destructive Docker operations before running them.
 owns:
-  - docker-cli-cleanup-commands
+  - docker-cli-destructive-commands
 use_when:
   - The user asks to clean up, reset, wipe, or start fresh with Docker resources without naming a specific command.
   - The agent is considering docker rm, docker rm -f, docker container prune, docker kill, docker stop, docker system prune, docker rmi, docker image rm, docker image prune -a, docker network rm, docker network prune, docker builder prune, docker buildx rm, docker context rm, or standalone (non-Compose) docker volume rm or docker volume prune as a fix for an unrelated problem.

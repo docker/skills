@@ -64,12 +64,13 @@ task eval
 
 - [ ] Agent surfaces the generic Docker CLI destructive commands owned by this skill, including the container-lifecycle set with its tiering model (`docker rm`, `docker rm -f`, `docker container prune`, `docker kill`) and the flat-rule non-container set (`docker system prune`, `docker rmi`/`docker image rm`, `docker image prune -a`, `docker network rm`, `docker network prune`, `docker builder prune`, `docker buildx rm`, `docker context rm`, and standalone `docker volume rm`/`docker volume prune`)
 - [ ] Agent mentions Compose's destructive commands (`docker compose down -v`, `docker compose rm -v`, Compose-context `docker volume rm`/`docker volume prune`) and points to `docker-compose-patterns` as the owning skill for the Compose case
-- [ ] Agent notes that sandbox (sbx) and Docker Desktop destructive-command guardrails are pending and not yet documented (open PRs, not yet merged)
+- [ ] Agent mentions sandbox destructive commands (`sbx rm`, `sbx prune`) and points to `docker-sandboxes-lifecycle` as the owning skill
+- [ ] Agent notes that Docker Desktop destructive-command guardrails are pending and not yet documented (open PR, not yet merged)
 
 ### Must not
 
-- [ ] Must NOT invent guardrail content for sbx or Docker Desktop that doesn't exist yet
-- [ ] Must NOT present the list as exhaustive without noting the pending items
+- [ ] Must NOT invent guardrail content for Docker Desktop that doesn't exist yet
+- [ ] Must NOT present the list as exhaustive without noting the pending Docker Desktop item
 
 ### Verification commands
 

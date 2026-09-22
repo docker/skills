@@ -1,6 +1,6 @@
 # Cross-Skill Destructive Command Index
 
-A single-page index of destructive or irreversible Docker commands documented across all Docker skills, so agents and reviewers can see the full picture without hunting through every skill. Each row's detail lives in the owning skill — this table only tracks what exists and where. Every command below requires explicit user confirmation before running, except the narrow Tier 1 `docker rm` case in `docker-destructive-guardrails` (see that skill's Core guidance).
+A single-page index of destructive or irreversible Docker commands documented across all Docker skills, so agents and reviewers can see the full picture without hunting through every skill. Each row's detail lives in the owning skill — this table only tracks what exists and where. Every command below requires explicit user confirmation before running, except the narrow Tier 1 exception in `docker-destructive-guardrails` — see that skill's Core guidance for exactly which cases qualify.
 
 | Command | What's lost | Owning skill |
 |---|---|---|
@@ -9,7 +9,7 @@ A single-page index of destructive or irreversible Docker commands documented ac
 | `docker container prune` | All stopped containers on the host at once | `docker-destructive-guardrails` |
 | `docker kill` | Container killed via SIGKILL with no grace period; always Tier 2 | `docker-destructive-guardrails` |
 | `docker system prune` (esp. `-a`/`--volumes`) | Stopped containers, unused networks, dangling/all unused images, build cache, and (with `--volumes`) unused *anonymous* volume data | `docker-destructive-guardrails` |
-| `docker rmi` / `docker image rm` | A specific image; with `-f`, commonly understood to override tag/reference protection (not confirmed by `--help` text) | `docker-destructive-guardrails` |
+| `docker rmi` / `docker image rm` | A specific image | `docker-destructive-guardrails` |
 | `docker image prune -a` | All images not used by an existing container, including tagged ones | `docker-destructive-guardrails` |
 | `docker network rm` | A specifically named network's configuration | `docker-destructive-guardrails` |
 | `docker network prune` | All unused user-defined networks and their configuration | `docker-destructive-guardrails` |
@@ -20,7 +20,7 @@ A single-page index of destructive or irreversible Docker commands documented ac
 | `docker compose down -v` / `docker compose down --volumes` | Named volumes and their data (e.g. database state) | `docker-compose-patterns` |
 | `docker volume rm` / `docker volume prune` (a Compose project's volumes) | Volume data, directly | `docker-compose-patterns` |
 | `docker compose rm -v` | Anonymous volumes attached to removed containers | `docker-compose-patterns` |
-| sbx (sandbox) destructive commands | Pending — see PR #7, not yet merged. Do not assume content until that skill ships. | *pending* |
+| `sbx rm` / `sbx prune` | Sandbox containers, Git worktrees, state, and sandbox-scoped secrets; for a clone-mode sandbox, any unfetched commits too | `docker-sandboxes-lifecycle` |
 | Docker Desktop destructive commands | Pending — see PR #14, not yet merged. Do not assume content until that skill ships. | *pending* |
 
 ## Notes

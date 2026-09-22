@@ -130,7 +130,7 @@ docker builder prune -a        # + internal helper/frontend images and cache sha
 
 - Without `-a`/`--all`, this is relatively low-risk — it only removes cache that no current image depends on.
 - `-a`/`--all` also removes build cache beyond what's dangling — including BuildKit's internal helper/frontend images and cache shared with other build outputs. Treat a full `-a` wipe as forcing a cold rebuild for any consumer of that cache (local, CI, teammates using a shared cache backend).
-- `docker builder prune` is a true alias of `docker buildx prune` (`docker builder prune --help` prints `Usage: docker buildx prune`) — the same cache is affected either way.
+- `docker builder prune` is a true alias of `docker buildx prune` (see the top note) — the same cache is affected either way.
 
 **Safer alternative**: run without `-a` unless the user has confirmed a full cache wipe is worth the next full rebuild.
 
