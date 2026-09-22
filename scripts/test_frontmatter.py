@@ -53,6 +53,19 @@ class FrontmatterTests(unittest.TestCase):
             validate_frontmatter(self.document(compatibility="é" * 500), "test-skill"), []
         )
 
+    def test_rejects_unknown_top_level_fields(self):
+        errors = validate_frontmatter(
+            self.document(title="Test", tools=["shell"]),
+            "test-skill",
+        )
+        self.assertEqual(
+            errors,
+            [
+                "unsupported top-level frontmatter field: 'title'",
+                "unsupported top-level frontmatter field: 'tools'",
+            ],
+        )
+
     def test_optional_field_types(self):
         self.assertEqual(
             validate_frontmatter(

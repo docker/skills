@@ -38,9 +38,9 @@ are required; validation runs in pinned container images.
 - `task catalog:check`: verify generated catalog files are current without
   changing them.
 - `VERSION_CHECK_BASE_SHA=$(git merge-base HEAD origin/main) task`: run the
-  version-policy comparison locally against the pull request base. Without a
-  base SHA the comparison is skipped so offline validation still works; CI
-  always supplies the pull request base and full Git history.
+  version-policy and DCO commit comparison locally against the pull request
+  base. Without a base SHA both PR-only checks are skipped so offline validation
+  still works; CI always supplies the pull request base and full Git history.
 
 Prefer the narrow command while editing, then run `task` before declaring the
 change complete. `scripts/ci.sh` is the shared CI/release entrypoint; keep it and
@@ -56,7 +56,13 @@ Keep these repository-wide contracts intact:
   versions agree with the catalog and required metadata is present.
 - Every catalogued skill has `evals/<skill-id>.md` and specific skill plus eval
   ownership rules in `.github/CODEOWNERS`.
-- Every skill includes the required sections enforced by `scripts/validate.py`.
+- Every skill includes the required sections enforced by `scripts/validate.py`,
+  uses only supported top-level frontmatter fields, and keeps `SKILL.md` at or
+  below 500 lines.
+- Skill content passes deterministic encoding, control-character, hidden-text,
+  secret, unsafe-command, insecure-URL, symlink, file-mode, and file-size checks.
+- Discovery symlinks resolve to `skills/`, and `CLAUDE.md` resolves to
+  `AGENTS.md`.
 - Files under `references/`, `assets/`, `checks/`, and `scripts/` are referenced
   from that skill's `SKILL.md`; referenced files exist.
 - Compose YAML assets under `skills/*/assets/` parse cleanly and avoid literal
@@ -70,7 +76,8 @@ Keep these repository-wide contracts intact:
   a distribution release PR may change only the catalog, changelog, and rendered
   outputs.
 - Pull request CI compares the branch to its base and enforces synchronized,
-  increasing per-skill versions or an isolated distribution release bump.
+  increasing per-skill versions plus a valid DCO `Signed-off-by: Name <email>`
+  trailer on every non-merge commit, or an isolated distribution release bump.
 
 ## Adding or changing a skill
 

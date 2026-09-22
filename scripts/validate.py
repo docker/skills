@@ -10,8 +10,10 @@ import yaml
 
 from catalog import overview_skill, stale_files, validate_catalog
 from compose_assets import validate_compose_assets
+from content_risk import validate_content_risk
 from frontmatter import validate_frontmatter
 from manifests import collect_versions, validate_codex_marketplace, validate_skills_index, validate_versions
+from repository_hygiene import validate_codeowners, validate_discovery_links, validate_skill_line_limits
 
 errors = 0
 skill_defs = {}
@@ -425,6 +427,26 @@ for message in compose_errors:
     error(message)
 if not compose_errors:
     print("  OK: Compose assets use interpolated credentials, scoped datastore ports, tagged images, and no Docker socket mounts")
+
+# --- 10. Check repository discovery, ownership, and skill-size invariants ---
+print("==> Checking repository hygiene")
+hygiene_errors = [
+    *validate_discovery_links("."),
+    *validate_codeowners(".", catalog),
+    *validate_skill_line_limits(".", catalog),
+]
+for message in hygiene_errors:
+    error(message)
+if not hygiene_errors:
+    print("  OK: discovery links, specific CODEOWNERS rules, and SKILL.md line limits are valid")
+
+# --- 11. Check all canonical skill content for deterministic risks ---
+print("==> Checking skill content risks")
+content_risk_errors = validate_content_risk(".")
+for message in content_risk_errors:
+    error(message)
+if not content_risk_errors:
+    print("  OK: skill files pass encoding, secret, command, URL, symlink, mode, and size checks")
 
 # --- Summary ---
 if errors:
