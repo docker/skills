@@ -12,6 +12,7 @@ fi
 
 docker run --rm \
     -e RELEASE_TAG="${RELEASE_TAG:-}" \
+    -e VALIDATION_HEAD_SHA="${VALIDATION_HEAD_SHA:-HEAD}" \
     -e VERSION_CHECK_BASE_SHA="${VERSION_CHECK_BASE_SHA:-}" \
     -v "$REPO_ROOT:/work" \
     -v "$REPO_ROOT/.git:/work/.git:ro" \
@@ -24,11 +25,12 @@ docker run --rm \
             docker-cli=26.1.5+dfsg1-9+deb13u1 \
             docker-compose=2.26.1-4 \
             git=1:2.47.3-0+deb13u1 >/dev/null
-        pip install -q pyyaml
+        pip install -q --require-hashes -r scripts/requirements.txt
         python3 -m unittest discover -s scripts -p "test_*.py"
         python3 scripts/render_catalog.py --check
         python3 scripts/validate.py
-        python3 scripts/check_version_bumps.py
+        python3 scripts/check_version_bumps.py "${VERSION_CHECK_BASE_SHA:-}" --head "${VALIDATION_HEAD_SHA:-HEAD}"
+        python3 scripts/check_dco.py "${VERSION_CHECK_BASE_SHA:-}" --head "${VALIDATION_HEAD_SHA:-HEAD}"
         if [ -n "$RELEASE_TAG" ]; then
             python3 scripts/check_release_tag.py "$RELEASE_TAG"
         fi

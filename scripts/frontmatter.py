@@ -18,6 +18,9 @@ def validate_frontmatter(content: str, directory_name: str) -> list[str]:
         return ["frontmatter must be a mapping"]
 
     errors = []
+    allowed_fields = {"name", "description", "license", "compatibility", "metadata", "allowed-tools"}
+    for field in sorted(set(data) - allowed_fields):
+        errors.append(f"unsupported top-level frontmatter field: '{field}'")
     for field, limit in (("name", 64), ("description", 1024), ("compatibility", 500)):
         if field == "compatibility" and field not in data:
             continue

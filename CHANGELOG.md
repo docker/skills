@@ -13,6 +13,8 @@ for distribution releases.
 - OpenSSF Scorecard result publication and README badge.
 - Release-tag badge and standards compatibility documentation.
 - Release notes for distribution changes.
+- Deterministic skill-content risk checks and repository hygiene validation.
+- Pull request DCO enforcement for every non-merge commit.
 
 ### Changed
 
@@ -20,6 +22,7 @@ for distribution releases.
 - Distribution release pull requests may update this changelog alongside the
   catalog and generated distribution outputs.
 - Repository link validation now checks this changelog.
+- CI installs fully hash-pinned PyYAML dependencies.
 
 ## [0.1.0] - 2026-09-22
 
