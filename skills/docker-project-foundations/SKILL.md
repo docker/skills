@@ -93,6 +93,7 @@ When a project needs a database (Postgres, MySQL, MongoDB), cache (Redis, Memcac
 
 - For Dockerfile optimization, cache strategy, non-root execution, and image hardening, use `docker-build-strategies`.
 - For service dependencies, health checks, overrides, volumes, networks, and Compose debugging, use `docker-compose-patterns`.
+- For destructive Docker CLI commands (`docker system prune`, `docker rm -f`, image/network/builder pruning) and a cross-product index of destructive-command guardrails, use `docker-destructive-guardrails`.
 
 ## References
 

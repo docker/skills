@@ -35,6 +35,13 @@
         "docker-agent-run",
         "docker-agent-deploy"
       ]
+    },
+    {
+      "title": "Cross-Product",
+      "description": "Guardrails and policies that apply across every Docker skill product.",
+      "skills": [
+        "docker-destructive-guardrails"
+      ]
     }
   ]
 }

@@ -23,3 +23,7 @@
 # Docker Sandboxes skills and evaluations
 /skills/docker-sandboxes-*/ @docker/coding-agent-sandboxes @docker/gordon
 /evals/docker-sandboxes-*.md @docker/coding-agent-sandboxes @docker/gordon
+
+# Docker destructive command guardrails
+/skills/docker-destructive-guardrails/ @docker/compose-maintainers @docker/gordon
+/evals/docker-destructive-guardrails.md @docker/compose-maintainers @docker/gordon

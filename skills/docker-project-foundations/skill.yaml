@@ -18,3 +18,4 @@ do_not_use_when:
 delegates_to:
   - docker-build-strategies
   - docker-compose-patterns
+  - docker-destructive-guardrails

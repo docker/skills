@@ -31,6 +31,9 @@ products:
     description: Author, run, and ship AI agents with Docker Agent, from agent.yaml to serving and distribution.
     docs: https://docs.docker.com/ai/docker-agent/
     repo: https://github.com/docker/docker-agent
+  - id: all
+    name: Cross-Product
+    description: Guardrails and policies that apply across every Docker skill product.
 
 skills:
   - id: docker-project-foundations
@@ -81,5 +84,10 @@ skills:
   - id: docker-agent-deploy
     product: docker-agent
     path: skills/docker-agent-deploy
+    version: 0.1.0
+    status: stable
+  - id: docker-destructive-guardrails
+    product: all
+    path: skills/docker-destructive-guardrails
     version: 0.1.0
     status: stable
