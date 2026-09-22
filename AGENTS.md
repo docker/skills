@@ -5,8 +5,10 @@
 This repository publishes Docker-authored knowledge skills for AI coding agents.
 Canonical skill content lives under `skills/`; discovery symlinks and plugin
 manifests expose it to supported agents. Start with [README.md](README.md) for the
-catalog, installation, and layout. Follow [CONTRIBUTING.md](CONTRIBUTING.md) for
-the contribution flow and DCO text. Do not duplicate either document here.
+catalog and repository entry points; installation guidance lives in
+[docs/install/index.md](docs/install/index.md), and the repository layout is
+visible in the top-level tree. Follow [CONTRIBUTING.md](CONTRIBUTING.md) for
+the contribution flow and DCO text. Do not duplicate those documents here.
 
 `catalog.yaml` is the source of truth for the distribution version, products,
 skill IDs, per-skill versions, and status. Any change under `skills/<id>/` must
