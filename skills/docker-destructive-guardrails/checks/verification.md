@@ -4,12 +4,13 @@ This skill documents behavioral policy rather than a generated artifact, so veri
 
 ## 1. Generic command list matches current Docker CLI behavior
 
-For each command in `references/docker-cli-destructive-commands.md` (`docker rm`, `docker container prune`, `docker kill`, `docker system prune`, `docker rmi`/`docker image rm`, `docker image prune -a`, `docker network rm`, `docker network prune`, `docker builder prune`, `docker buildx rm`, `docker context rm`, standalone `docker volume rm`/`docker volume prune`), confirm the documented flags and behavior still match the installed Docker CLI's `--help` output:
+For each command in `references/docker-cli-destructive-commands.md` (`docker rm`, `docker container prune`, `docker kill`, `docker stop`, `docker system prune`, `docker rmi`/`docker image rm`, `docker image prune -a`, `docker network rm`, `docker network prune`, `docker builder prune`, `docker buildx rm`, `docker context rm`, standalone `docker volume rm`/`docker volume prune`), confirm the documented flags and behavior still match the installed Docker CLI's `--help` output:
 
 ```bash
 docker rm --help
 docker container prune --help
 docker kill --help
+docker stop --help
 docker system prune --help
 docker rmi --help
 docker image prune --help
@@ -90,7 +91,7 @@ This is wrong even though it "worked": the agent deleted every unused image and 
 >
 > - `docker container prune` — removes stopped containers only. Low risk.
 > - `docker image prune` — removes dangling (untagged) images only. Low risk.
-> - `docker image prune -a` — removes *all* images not used by a running container, including tagged ones you might want to reuse. You'd need to re-pull or rebuild them later.
+> - `docker image prune -a` — removes *all* images not referenced by any container, running or stopped, including tagged ones you might want to reuse. You'd need to re-pull or rebuild them later.
 > - `docker system prune -a --volumes` — the most aggressive option. This also deletes every unused *anonymous* volume (named volumes, like database data, aren't touched — those need a separate `docker volume rm`).
 >
 > Want me to start with the low-risk options (containers + dangling images), or do you want the more aggressive cleanup?

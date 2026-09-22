@@ -1,6 +1,6 @@
 # Cross-Skill Destructive Command Index
 
-A single-page index of destructive or irreversible Docker commands documented across all Docker skills, so agents and reviewers can see the full picture without hunting through every skill. Each row's detail lives in the owning skill — this table only tracks what exists and where. Every command below requires explicit user confirmation before running.
+A single-page index of destructive or irreversible Docker commands documented across all Docker skills, so agents and reviewers can see the full picture without hunting through every skill. Each row's detail lives in the owning skill — this table only tracks what exists and where. Every command below requires explicit user confirmation before running, except the narrow Tier 1 `docker rm` case in `docker-destructive-guardrails` (see that skill's Core guidance).
 
 | Command | What's lost | Owning skill |
 |---|---|---|

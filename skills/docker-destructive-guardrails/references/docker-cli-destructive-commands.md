@@ -30,17 +30,30 @@ docker rm -f <name>       # only if it's genuinely stuck and won't respond to do
 
 If several containers appear stuck, list them (`docker ps -a`) and confirm with the user which ones are safe to remove before force-removing more than one.
 
+## `docker stop`
+
+```
+docker stop <container>                # SIGTERM, then SIGKILL after the timeout
+docker stop -t <seconds> <container>   # custom grace period before SIGKILL
+docker stop -s <signal> <container>    # custom initial signal instead of SIGTERM
+```
+
+- Does not remove the container — it can be restarted afterward with `docker start`. This is why it sits outside the Tier 1/Tier 2 removal model in `SKILL.md`'s Core guidance, even though Docker Agent's runtime safety classifier still flags it as low-risk destructive.
+- Sends `SIGTERM` (or a custom signal via `-s`/`--signal`) and waits `-t`/`--timeout` seconds (default 10) before force-killing with `SIGKILL`. Any unpersisted in-container state (e.g. an in-memory cache, an unflushed write) is lost at that point, the same as with `docker kill`.
+
+**Safer alternative**: this is already the lower-risk alternative to `docker kill` for a graceful shutdown — prefer it over `docker kill` unless the container is unresponsive to `SIGTERM`.
+
 ## `docker system prune`
 
 ```
 docker system prune           # stopped containers, unused networks, dangling images, build cache
-docker system prune -a        # + all images not used by a running container
+docker system prune -a        # + all images not referenced by any container, running or stopped
 docker system prune --volumes # + unused anonymous volumes and their data
 docker system prune -a --volumes  # everything above, combined
 ```
 
 - Without flags, this already deletes stopped containers permanently — any container-local state not committed to an image or volume is gone.
-- `-a`/`--all` widens image deletion from "dangling only" to "any image not referenced by a running container," including tagged images that were deliberately pulled or built.
+- `-a`/`--all` widens image deletion from "dangling only" to "any image not referenced by any container, running or stopped," including tagged images that were deliberately pulled or built.
 - `--volumes` prunes unused *anonymous* volumes only — named volumes (e.g. database data mounted via a `volumes:` entry) are never touched by `system prune`. Deleting a named volume requires a separate, explicit `docker volume rm` and its own confirmation.
 - `docker system prune -a --volumes` is still the widest-blast-radius form of this command and must never be run without first listing what `docker system df` reports would be reclaimed, and getting explicit confirmation.
 
@@ -76,7 +89,7 @@ docker image prune       # dangling (untagged) images only
 docker image prune -a    # any image not used by an existing container
 ```
 
-- `-a`/`--all` removes tagged images too, not just dangling ones. An image that was pulled for later use, or built as a base for future work, is deleted if nothing is currently running from it.
+- `-a`/`--all` removes tagged images too, not just dangling ones. An image that was pulled for later use, or built as a base for future work, is deleted if no container — running or stopped — still references it.
 - Removed images must be re-pulled or rebuilt, which can be slow for large images or on a metered connection.
 
 **Safer alternative**: run without `-a` first, and add a filter for age or label if more aggressive cleanup is genuinely needed.

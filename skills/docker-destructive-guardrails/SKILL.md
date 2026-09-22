@@ -16,7 +16,7 @@ This skill provides the cross-product policy for handling destructive or irrever
 Activate this skill when:
 
 - The user asks to "clean up", "clear the cache", "start fresh", "wipe everything", "nuke it", "reset", "force remove", or "tear down" Docker resources without naming a specific command
-- The agent is considering `docker rm`, `docker rm -f`, `docker container prune`, `docker kill`, `docker system prune`, `docker rmi`, `docker image rm`, `docker image prune -a`, `docker network rm`, `docker network prune`, `docker builder prune`, `docker buildx rm`, `docker context rm`, or standalone (non-Compose) `docker volume rm`/`docker volume prune` as a fix for an unrelated problem (disk space, a stuck container, a stale network, a broken build cache, an old builder or volume)
+- The agent is considering `docker rm`, `docker rm -f`, `docker container prune`, `docker kill`, `docker stop`, `docker system prune`, `docker rmi`, `docker image rm`, `docker image prune -a`, `docker network rm`, `docker network prune`, `docker builder prune`, `docker buildx rm`, `docker context rm`, or standalone (non-Compose) `docker volume rm`/`docker volume prune` as a fix for an unrelated problem (disk space, a stuck container, a stale network, a broken build cache, an old builder or volume)
 - The user wants a cross-product overview of destructive commands across Docker skills
 
 ## Do not use this skill when
@@ -41,9 +41,13 @@ Applies only to `docker rm <name>` on an already-stopped container, `docker rm -
 
 `docker kill` is always Tier 2 (see the reference for why no stopped-container exception exists for it). Also Tier 2: `docker rm -f` on a *running* container, any unscoped sweep regardless of container state (e.g. `docker rm -f $(docker ps -aq)`, "remove/kill all containers"), a container the agent didn't create and has no context on, and any action taken on the agent's own initiative rather than an explicit user ask. These carry the same confirmation bar as every flat-rule command in this skill: state exactly what will be lost and get explicit confirmation before running anything — no exception carved out.
 
+### `docker stop` — reversible, outside the tier model
+
+`docker stop` doesn't remove anything — the container still exists and can be restarted with `docker start` — so it sits outside the Tier 1/Tier 2 removal model above. It's still in scope for this skill because it interrupts a running process (SIGTERM, then SIGKILL after the timeout) and discards any unpersisted in-container state. On the agent's own test/debug container from this session, treat it like Tier 1: stop it and state what happened, no blocking confirmation required. On any other container, state that it will stop running and any unsaved in-memory state will be lost, then get confirmation first.
+
 - **`docker system prune`** — deletes stopped containers, unused networks, dangling images, and build cache; `-a` also deletes unused tagged images, and `--volumes` also deletes unused *anonymous* volumes (named volumes are untouched — deleting those needs a separate `docker volume rm`).
 - **`docker rmi` / `docker image rm`** — deletes a specific image; see the reference for `-f`'s exact (partly unverified) override behavior on multi-tag/referenced images.
-- **`docker image prune -a`** — deletes every image not referenced by a running container, not just dangling ones.
+- **`docker image prune -a`** — deletes every image not referenced by any container, running or stopped, not just dangling ones.
 - **`docker network rm`** — deletes the specifically named network(s) passed as arguments; see the reference for how its `-f` flag differs from `docker context rm -f` below.
 - **`docker network prune`** — deletes every custom network not attached to a container.
 - **`docker builder prune`** — clears the BuildKit cache; `-a`/`--all` also removes internal helper/frontend images and cache shared with other build outputs, forcing a cold rebuild for anyone using that cache.
