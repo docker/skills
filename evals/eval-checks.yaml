@@ -315,6 +315,12 @@
       asset_key: dockerignore
       pattern: "\\.env"
 
+    - id: fp-p1-ignore-npmrc
+      description: .dockerignore excludes npm credentials at every depth
+      type: file_match
+      asset_key: dockerignore
+      pattern: '^\*\*/\.npmrc$'
+
     - id: fp-p1-ignore-ide
       description: .dockerignore excludes IDE config directories
       type: file_match
@@ -340,6 +346,19 @@
       type: file_match
       asset_key: dockerfile
       pattern: "COPY.*package.*\\.json"
+
+    - id: fp-p1-secret-installs
+      description: Both npm ci steps use optional npmrc secret mounts
+      type: count_match
+      asset_key: dockerfile
+      pattern: '^RUN --mount=type=secret,id=npmrc,target=/root/\.npmrc,required=false \\\n[ \t]+npm ci(?: --omit=dev)?$'
+      min_count: 2
+
+    - id: fp-p1-no-copy-npmrc
+      description: No stage copies npm credentials into an image layer
+      type: file_must_not_match
+      asset_key: dockerfile
+      pattern: '(?i)^[ \t]*(?:COPY|ADD)[ \t]+[^\n]*\.npmrc'
 
     - id: fp-p1-nonroot
       description: Sets non-root USER before CMD/ENTRYPOINT

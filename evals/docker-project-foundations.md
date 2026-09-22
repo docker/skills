@@ -14,6 +14,9 @@ Skill under test: `skills/docker-project-foundations/`
 
 - [ ] Agent creates a `.dockerignore` file
 - [ ] `.dockerignore` excludes `node_modules/`, `.git/`, `.env`, and IDE config directories
+- [ ] `.dockerignore` excludes root and nested `.npmrc` files with `**/.npmrc`
+- [ ] Both npm installation steps mount registry configuration as an optional BuildKit secret
+- [ ] Public-package builds work without an `.npmrc` file; private-registry builds use `--secret id=npmrc,src=<config-path>`
 - [ ] Agent creates a `Dockerfile` with a multi-stage build
 - [ ] Dockerfile pins the base image to a specific version (e.g., `node:22-slim`), not `latest`
 - [ ] Dockerfile copies `package.json` and `package-lock.json` before copying source code (layer caching)
@@ -33,6 +36,8 @@ Skill under test: `skills/docker-project-foundations/`
 - [ ] Must NOT use the legacy filename `docker-compose.yml`
 - [ ] Must NOT run the application as root in the final image
 - [ ] Must NOT hardcode database passwords directly in `compose.yaml`
+- [ ] Must NOT copy `.npmrc` into any image stage, including through a broad source copy
+- [ ] Must NOT pass registry credentials through `ARG`, `ENV`, or build logs
 
 ### Verification commands
 

@@ -39,6 +39,27 @@ When Dockerizing a project, always produce all three:
 2. **`Dockerfile`** — Create a working starter image definition that the project can build and run with. See `assets/Dockerfile.simple`.
 3. **`compose.yaml`** — Create a local development stack that includes the application service and any required dependencies. See `assets/compose-dev.yaml`.
 
+### npm registry credentials
+
+- Exclude `.npmrc` at every depth with `**/.npmrc` in `.dockerignore`; otherwise a broad source copy can persist credentials in image layers.
+- The Node.js starter mounts `npmrc` as a BuildKit secret for both `npm ci` steps. Public-package builds need no secret. For private registries, pass the config explicitly:
+  ```bash
+  DOCKER_BUILDKIT=1 docker build --secret id=npmrc,src="$HOME/.npmrc" .
+  ```
+  Use the actual config path if the project keeps it elsewhere. Never copy the credential file or pass its values through `ARG` or `ENV`. Dependency scripts run during installation can access the mounted secret; use trusted dependencies and a least-privilege registry token.
+- For private-registry builds through Compose, add this optional override as `compose.npm.yaml` alongside the starter's `compose.yaml`:
+  ```yaml
+  services:
+    app:
+      build:
+        secrets:
+          - npmrc
+  secrets:
+    npmrc:
+      file: ${NPMRC_PATH:?Set NPMRC_PATH to your npm config file}
+  ```
+  Build with `NPMRC_PATH="$HOME/.npmrc" docker compose -f compose.yaml -f compose.npm.yaml build`. This grants build-time access only, not a runtime secret. Public-package builds should omit the override so no credential file is required.
+
 ### Prefer Dockerized dependencies over host installs
 
 When a project needs a database (Postgres, MySQL, MongoDB), cache (Redis, Memcached), queue (RabbitMQ, Kafka), or any other infrastructure service:
