@@ -14,6 +14,25 @@ from check_links import extract_links
 CANONICAL_BASE = "https://docs.docker.com/ai/skills/"
 DOC_PAGE_GLOB = "**/*.md"
 EXCLUDED_DOCS = {"STYLE.md"}
+SKILL_REFERENCE_RE = re.compile(r"`(docker-[a-z0-9-]+)`")
+NAVIGATION_SLICE_RE = re.compile(r'\{\{\s*range\s+slice\s+([^}]+)\}\}')
+QUOTED_VALUE_RE = re.compile(r'"([^"]+)"')
+NON_SKILL_REFERENCES = {"docker-skills-docs"}
+INSTALL_MODEL_PAGES = {
+    "native-marketplaces.md",
+    "extensions.md",
+    "skills-cli.md",
+    "docker-products.md",
+    "sources.md",
+}
+INSTALL_MODEL_SECTIONS = (
+    "Basic install",
+    "Advanced install",
+    "Update, pin, and scope",
+    "Verification",
+    "Troubleshooting",
+    "Related links",
+)
 
 
 def documentation_pages(root: Path) -> list[Path]:
@@ -27,15 +46,20 @@ def documentation_pages(root: Path) -> list[Path]:
     )
 
 
-def expected_canonical(path: Path, docs: Path) -> str:
+def content_route(path: Path, docs: Path) -> str:
+    """Return the slash-terminated site route for a documentation source."""
     relative = path.relative_to(docs).as_posix()
     if relative == "index.md":
-        suffix = ""
-    elif relative.endswith("/index.md"):
-        suffix = relative[: -len("index.md")]
-    else:
-        suffix = relative[: -len(".md")] + "/"
-    return CANONICAL_BASE + suffix
+        return ""
+    if relative.endswith("/_index.md"):
+        return relative[: -len("_index.md")]
+    if relative.endswith("/index.md"):
+        return relative[: -len("index.md")]
+    return relative[: -len(".md")] + "/"
+
+
+def expected_canonical(path: Path, docs: Path) -> str:
+    return CANONICAL_BASE + content_route(path, docs)
 
 
 def _front_matter(path: Path) -> dict:
@@ -62,6 +86,86 @@ def validate_canonicals(root: Path) -> list[str]:
     return errors
 
 
+def validate_navigation(root: Path) -> list[str]:
+    """Require every hand-authored documentation page in Hugo module mounts."""
+    docs = root / "docs"
+    config_path = docs / "hugo.yaml"
+    try:
+        config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        return [f"docs/hugo.yaml: cannot read navigation mounts: {exc}"]
+    mounts = config.get("module", {}).get("mounts", [])
+    mounted = {
+        mount.get("source")
+        for mount in mounts
+        if isinstance(mount, dict) and isinstance(mount.get("source"), str)
+    }
+    errors: list[str] = []
+    page_sources: set[str] = set()
+    for page in documentation_pages(root):
+        relative = page.relative_to(docs)
+        if relative.as_posix() == "index.md":
+            source = "index.md"
+        else:
+            source = relative.parts[0]
+        page_sources.add(source)
+        if source not in mounted:
+            errors.append(f"{page.relative_to(root).as_posix()}: missing docs/hugo.yaml module mount for {source!r}")
+
+    layout_path = docs / "layouts" / "_default" / "baseof.html"
+    try:
+        layout = layout_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        errors.append(f"docs/layouts/_default/baseof.html: cannot read navigation: {exc}")
+        return errors
+    entries = [
+        entry
+        for match in NAVIGATION_SLICE_RE.finditer(layout)
+        for entry in QUOTED_VALUE_RE.findall(match.group(1))
+    ]
+    for source in sorted(page_sources - {"index.md"}):
+        if source not in entries:
+            errors.append(f"docs/layouts/_default/baseof.html: documentation page {source!r} is missing from navigation")
+    for entry in entries:
+        if entry not in page_sources:
+            errors.append(f"docs/layouts/_default/baseof.html: navigation entry {entry!r} has no documentation page")
+    return errors
+
+
+def validate_skill_references(
+    root: Path, catalog_ids: set[str], non_skill_references: set[str] | None = None
+) -> list[str]:
+    """Reject stale backticked docker-* skill ids in hand-authored documentation."""
+    allowed_non_skills = NON_SKILL_REFERENCES | (non_skill_references or set())
+    errors: list[str] = []
+    for path in documentation_pages(root):
+        content = path.read_text(encoding="utf-8")
+        for line_number, line in enumerate(content.splitlines(), 1):
+            for reference in SKILL_REFERENCE_RE.findall(line):
+                if reference not in catalog_ids and reference not in allowed_non_skills:
+                    relative = path.relative_to(root).as_posix()
+                    errors.append(f"{relative}:{line_number}: unknown catalog skill reference `{reference}`")
+    return errors
+
+
+def validate_install_model_sections(root: Path) -> list[str]:
+    """Require every installation model page to carry the operational contract."""
+    install = root / "docs" / "install"
+    errors: list[str] = []
+    actual = {path.name for path in install.glob("*.md") if path.name != "_index.md"}
+    for name in sorted(INSTALL_MODEL_PAGES - actual):
+        errors.append(f"docs/install/{name}: required installation model page is missing")
+    for name in sorted(actual - INSTALL_MODEL_PAGES):
+        errors.append(f"docs/install/{name}: unexpected installation model page")
+    for name in sorted(INSTALL_MODEL_PAGES & actual):
+        content = (install / name).read_text(encoding="utf-8")
+        headings = re.findall(r"^## (.+?)\s*$", content, re.MULTILINE)
+        for section in INSTALL_MODEL_SECTIONS:
+            if headings.count(section) != 1:
+                errors.append(f"docs/install/{name}: expected exactly one '## {section}' section")
+    return errors
+
+
 def validate_portable_links(root: Path) -> list[str]:
     errors: list[str] = []
     for path in documentation_pages(root):
@@ -79,12 +183,8 @@ def validate_portable_links(root: Path) -> list[str]:
 
 
 def output_path(path: Path, docs: Path) -> Path:
-    relative = path.relative_to(docs).as_posix()
-    if relative == "index.md":
-        return Path("index.html")
-    if relative.endswith("/index.md"):
-        return Path(relative[: -len("index.md")] + "index.html")
-    return Path(relative[: -len(".md")]) / "index.html"
+    route = content_route(path, docs)
+    return Path(route) / "index.html" if route else Path("index.html")
 
 
 def validate_built_site(root: Path, output: Path) -> list[str]:
@@ -109,16 +209,15 @@ def validate_built_site(root: Path, output: Path) -> list[str]:
     llms = llms_path.read_text(encoding="utf-8")
     if not llms.startswith("# Docker Skills\n\n> Docker-authored knowledge skills for AI coding agents.\n"):
         errors.append(f"{llms_path}: missing the expected title and summary")
+    home_link = "- [Docker Skills](https://docker.github.io/skills/)"
+    if any(line.startswith(home_link) for line in llms.splitlines()):
+        errors.append(f"{llms_path}: must not list the home page as a documentation entry")
     for source in pages:
         if source == docs / "index.md":
             continue
         data = _front_matter(source)
         title = data.get("title")
-        relative = source.relative_to(docs).as_posix()
-        if relative.endswith("/index.md"):
-            page_path = relative[: -len("index.md")]
-        else:
-            page_path = relative[: -len(".md")] + "/"
+        page_path = content_route(source, docs)
         link = f"- [{title}](https://docker.github.io/skills/{page_path})"
         if llms.count(link) != 1:
             errors.append(f"{llms_path}: expected exactly one entry beginning {link!r}")
@@ -132,7 +231,28 @@ def main() -> int:
     args = parser.parse_args()
 
     root = args.root.resolve()
-    errors = validate_canonicals(root) + validate_portable_links(root)
+    try:
+        catalog = yaml.safe_load((root / "catalog.yaml").read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        errors = [f"catalog.yaml: cannot load skill ids: {exc}"]
+    else:
+        catalog_ids = {
+            skill.get("id")
+            for skill in catalog.get("skills", [])
+            if isinstance(skill, dict) and isinstance(skill.get("id"), str)
+        }
+        non_skill_references = {
+            value
+            for value in [catalog.get("name"), *(product.get("id") for product in catalog.get("products", []) if isinstance(product, dict))]
+            if isinstance(value, str)
+        }
+        errors = (
+            validate_canonicals(root)
+            + validate_navigation(root)
+            + validate_portable_links(root)
+            + validate_install_model_sections(root)
+            + validate_skill_references(root, catalog_ids, non_skill_references)
+        )
     if args.built_output:
         errors.extend(validate_built_site(root, args.built_output.resolve()))
     if errors:

@@ -3,6 +3,8 @@
 > {{ .Site.Params.description }}
 
 ## Documentation
-{{ range .Site.RegularPages.ByLinkTitle }}
+{{- range .Site.Pages.ByLinkTitle }}
+{{- if not .IsHome }}
 - [{{ .LinkTitle }}]({{ .Permalink }}): {{ .Summary | plainify | htmlUnescape | strings.TrimSpace }}
-{{ end }}
+{{- end }}
+{{- end }}

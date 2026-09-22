@@ -4,6 +4,7 @@ import unittest
 
 import yaml
 
+from catalog import test_distributions
 from check_release_tag import check_release_tag, main
 
 
@@ -14,6 +15,8 @@ class CheckReleaseTagTests(unittest.TestCase):
             "schema": "v1",
             "name": "test",
             "version": version,
+            "description": "Docker skills for tests.",
+            "distributions": test_distributions(),
             "products": [{"id": "build", "name": "Build", "description": "Images."}],
             "skills": [
                 {

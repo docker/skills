@@ -31,8 +31,6 @@ module:
       target: content/install
     - source: getting-started
       target: content/getting-started
-    - source: advanced-install
-      target: content/advanced-install
     - source: catalog
       target: content/catalog
     - source: layouts

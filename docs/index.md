@@ -9,18 +9,16 @@ Docker Skills give AI coding agents Docker-authored guidance for building
 images, running multi-container applications, and working with Docker's AI
 products.
 
-[Install Docker Skills](install/index.md) · [Get started](getting-started/index.md) ·
+[Install Docker Skills](install/_index.md) · [Get started](getting-started/index.md) ·
 [Browse the catalog](catalog/index.md)
 
-Install interactively with the supported `skills` CLI:
+Choose a [native marketplace](install/native-marketplaces.md), an
+[extension](install/extensions.md), or the cross-client
+[skills CLI](install/skills-cli.md). These distribution models have equal
+standing; use the one managed by your client or organization.
 
-```console
-npx skills add docker/skills
-```
-
-The installation guide covers skill selection, project and user scope, updates,
-removal, native plugins, release pinning, Docker Agent, Docker Sandboxes, and
-manual methods.
+The installation hub also covers selection, scope, updates, pinning, Docker
+product behavior, verification, troubleshooting, and source-level fallbacks.
 
 > **Note:** This edge site publishes documentation from the latest `main`
 > branch. For stable documentation, use

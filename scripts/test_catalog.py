@@ -9,11 +9,16 @@ import yaml
 from catalog import (
     CATALOG_END,
     CATALOG_START,
+    DISTRIBUTION_END,
+    DISTRIBUTION_START,
     MANIFESTS,
+    PUBLISHED_DISTRIBUTION_MANIFESTS,
     generated_files,
     release_tag,
     render_docs_catalog,
+    render_distribution_inventory,
     render_evals_table,
+    render_manifest,
     render_manifest_version,
     render_readme_table,
     render_skills_index,
@@ -27,6 +32,18 @@ CATALOG = {
     "schema": "v1",
     "name": "test",
     "version": "1.2.3",
+    "description": "Docker skills for tests.",
+    "distributions": [
+        {
+            "id": "test-cli",
+            "category": "skills-cli",
+            "name": "Test CLI",
+            "description": "Installs test skills.",
+            "page": "docs/install/skills-cli.md",
+            "role": "installer",
+            "manifests": list(PUBLISHED_DISTRIBUTION_MANIFESTS),
+        }
+    ],
     "overview": "docker",
     "products": [
         {"id": "build", "name": "Build", "description": "Images.", "docs": "https://example.com/build"},
@@ -55,6 +72,11 @@ class ValidateCatalogTests(unittest.TestCase):
         for bad in (None, 1.2, "v1.2.3", "1.2", "1.2.3-rc.1", "01.2.3", " 1.2.3"):
             data = catalog(version=bad)
             self.assertTrue(any("'version' must be a string in X.Y.Z format" in e for e in validate_catalog(data)))
+
+    def test_catalog_description_is_required_bounded_and_manifest_safe(self):
+        for bad in (None, "", "   ", 1, "x" * 501, 'has "quotes"', "has\\slash", "has\nnewline"):
+            data = catalog(description=bad)
+            self.assertTrue(any("'description' must" in e for e in validate_catalog(data)))
 
     def test_skill_version_must_be_strict_semver_string(self):
         for bad in (None, 1.2, "v1.2.3", "1.2", "1.2.3-rc.1", "01.2.3", " 1.2.3"):
@@ -114,6 +136,25 @@ class ValidateCatalogTests(unittest.TestCase):
         self.assertTrue(any("overview skill 'missing' is not listed" in e for e in errors))
         self.assertTrue(any("skill 'docker' missing 'product'" in e for e in errors))
 
+    def test_distribution_manifest_mapping_must_be_exactly_once(self):
+        data = catalog()
+        self.assertEqual(validate_catalog(data), [])
+        data["distributions"][0]["manifests"].pop()
+        self.assertTrue(any("is not mapped" in error for error in validate_catalog(data)))
+        data = catalog()
+        data["distributions"].append(
+            {
+                "id": "duplicate",
+                "category": "skills-cli",
+                "name": "Duplicate",
+                "description": "Duplicate.",
+                "page": "docs/install/skills-cli.md",
+                "role": "installer",
+                "manifests": [PUBLISHED_DISTRIBUTION_MANIFESTS[0]],
+            }
+        )
+        self.assertTrue(any("is mapped by both" in error for error in validate_catalog(data)))
+
     def test_bad_status_urls_and_unknown_fields(self):
         data = catalog()
         data["skills"][1]["status"] = "beta"
@@ -153,12 +194,18 @@ class RenderTests(unittest.TestCase):
     def test_docs_catalog_groups_skills_and_links_to_source(self):
         content = render_docs_catalog(CATALOG, DESCRIPTIONS)
         self.assertIn("## [Build](https://example.com/build)", content)
-        self.assertIn(
-            "[`build-a`](https://github.com/docker/skills/tree/main/skills/build-a) Builds.",
-            content,
-        )
-        self.assertIn("[`agent-a`](https://github.com/docker/skills/tree/main/skills/agent-a) **Experimental.** Agents.", content)
+        self.assertIn("Latest distribution release: [`v1.2.3`]", content)
+        self.assertIn("[`build-a`](https://github.com/docker/skills/tree/main/skills/build-a) **v0.1.0.** Builds.", content)
+        self.assertIn("[`agent-a`](https://github.com/docker/skills/tree/main/skills/agent-a) **v0.1.0.** **Experimental.** Agents.", content)
         self.assertLess(content.index("## [Build]"), content.index("## Agent"))
+
+    def test_distribution_inventory_groups_models_and_links_pages(self):
+        rendered = render_distribution_inventory(CATALOG)
+        self.assertIn("### skills CLI", rendered)
+        self.assertIn("[Test CLI](docs/install/skills-cli.md#test-cli)", rendered)
+        docs = render_distribution_inventory(CATALOG, docs=True)
+        self.assertIn("**Test CLI.** Installs test skills.", docs)
+        self.assertNotIn("docs/install", docs)
 
     def test_evals_table_lists_every_skill_overview_first(self):
         table = render_evals_table(CATALOG)
@@ -176,6 +223,14 @@ class RenderTests(unittest.TestCase):
         listed = [s for g in index["groupings"] for s in g["skills"]]
         self.assertEqual(listed, ["docker", "build-a", "agent-a"])
         self.assertEqual(index["groupings"][1]["description"], "Images.")
+
+    def test_manifest_rendering_replaces_versions_and_descriptions(self):
+        content = '{\n  "version": "0.0.1",\n  "description": "Old",\n  "plugins": [{"version": "0.0.1", "description": "Stale"}]\n}\n'
+        rendered = render_manifest(content, "1.2.3", "Docker skills for tests.")
+        self.assertNotIn("0.0.1", rendered)
+        self.assertNotIn("Old", rendered)
+        self.assertNotIn("Stale", rendered)
+        self.assertEqual(rendered.count("Docker skills for tests."), 2)
 
     def test_manifest_version_rendering_preserves_format_and_replaces_all_occurrences(self):
         content = '{\n\t"version" : "0.0.1",\n  "metadata": {"version":"2.0.0"},\n  "plugins": [{"version": "3.0.0"}]\n}\n'
@@ -211,22 +266,25 @@ class GeneratedFilesTests(unittest.TestCase):
                 yaml.safe_dump({"description": DESCRIPTIONS[skill["id"]]}, handle)
         os.makedirs(os.path.join(root, "evals"))
         os.makedirs(os.path.join(root, "docs", "catalog"))
+        os.makedirs(os.path.join(root, "docs", "install"))
         for rel in ("README.md", os.path.join("evals", "README.md"), os.path.join("docs", "catalog", "index.md")):
             with open(os.path.join(root, rel), "w") as handle:
-                handle.write("# Title\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n")
+                handle.write("# Title\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n" + DISTRIBUTION_START + "\n" + DISTRIBUTION_END + "\n")
+        with open(os.path.join(root, "docs", "install", "_index.md"), "w") as handle:
+            handle.write("# Install\n\n" + DISTRIBUTION_START + "\n" + DISTRIBUTION_END + "\n")
         for rel in MANIFESTS:
             path = os.path.join(root, rel)
             os.makedirs(os.path.dirname(path) or root, exist_ok=True)
             with open(path, "w") as handle:
                 if "marketplace" in rel:
-                    handle.write('{\n  "metadata": {"version": "0.0.1"},\n  "plugins": [{"version": "0.0.1"}]\n}\n')
+                    handle.write('{\n  "metadata": {"version": "0.0.1"},\n  "plugins": [{"version": "0.0.1", "description": "Stale"}]\n}\n')
                 else:
-                    handle.write('{\n  "version": "0.0.1"\n}\n')
+                    handle.write('{\n  "version": "0.0.1",\n  "description": "Stale"\n}\n')
         return root
 
     def test_write_then_check_round_trip(self):
         root = self.make_repo()
-        expected = sorted(["README.md", "docs/catalog/index.md", "evals/README.md", "skills.sh.json", *MANIFESTS])
+        expected = sorted(["README.md", "docs/catalog/index.md", "docs/install/_index.md", "evals/README.md", "skills.sh.json", *MANIFESTS])
         self.assertEqual(sorted(stale_files(root)), expected)
         changed = write_generated(root)
         self.assertEqual(sorted(changed), expected)
@@ -236,11 +294,14 @@ class GeneratedFilesTests(unittest.TestCase):
         self.assertTrue(readme.startswith("# Title\n\n" + CATALOG_START + "\n| Product |"))
         self.assertIn("[`agent-a`](skills/agent-a) *(experimental)* — Agents.", readme)
         generated = generated_files(root)
-        self.assertEqual(set(generated), {"README.md", "docs/catalog/index.md", "evals/README.md", "skills.sh.json", *MANIFESTS})
+        self.assertEqual(set(generated), {"README.md", "docs/catalog/index.md", "docs/install/_index.md", "evals/README.md", "skills.sh.json", *MANIFESTS})
         for rel in MANIFESTS:
             manifest = open(os.path.join(root, rel)).read()
             self.assertNotIn("0.0.1", manifest)
             self.assertIn('"version": "1.2.3"', manifest)
+            self.assertNotIn("Stale", manifest)
+            if '"description"' in manifest:
+                self.assertIn("Docker skills for tests.", manifest)
 
     def test_hand_edit_is_detected(self):
         root = self.make_repo()
