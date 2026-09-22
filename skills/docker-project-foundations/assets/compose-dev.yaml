@@ -10,7 +10,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=postgres://appuser:apppass@db:5432/appdb  # Demo only — use env_file: in real projects
+      - DATABASE_URL=postgres://appuser:${POSTGRES_PASSWORD:-apppass}@db:5432/appdb
       - REDIS_URL=redis://cache:6379
       - NODE_ENV=development
     volumes:
@@ -26,10 +26,10 @@ services:
     image: postgres:17
     environment:
       - POSTGRES_USER=appuser
-      - POSTGRES_PASSWORD=apppass  # Demo only — use env_file: in real projects
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-apppass}
       - POSTGRES_DB=appdb
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"  # Keep the development database local
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -42,7 +42,7 @@ services:
   cache:
     image: redis:7
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"  # Keep the development cache local
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

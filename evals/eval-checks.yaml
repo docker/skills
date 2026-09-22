@@ -199,6 +199,12 @@
       type: file_match
       pattern: "restart:"
 
+    - id: cp-p1-no-plaintext-password
+      description: Compose does not hardcode the database password
+      type: file_must_not_match
+      asset_key: compose
+      pattern: "(^\\s*POSTGRES_PASSWORD:(?![ \\t]*\\$)[^\\n]+|postgres://[^:@\\n]+:(?!\\$)[^@\\n]+@)"
+
     - id: cp-p1-no-latest
       description: Must NOT use latest or omit tags for official images
       type: file_must_not_match
@@ -378,6 +384,12 @@
       type: file_match
       asset_key: compose
       pattern: "condition: service_healthy"
+
+    - id: fp-p1-no-plaintext-password
+      description: Compose does not hardcode the database password
+      type: file_must_not_match
+      asset_key: compose
+      pattern: "(^\\s*-\\s*POSTGRES_PASSWORD=(?!\\$)[^\\n]+|postgres://[^:@\\n]+:(?!\\$)[^@\\n]+@)"
 
     - id: fp-p1-bind-mount
       description: Bind mount or Compose Watch for live code reload

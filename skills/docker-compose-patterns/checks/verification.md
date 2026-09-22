@@ -58,12 +58,17 @@ For every service with `depends_on`:
 - Sensitive values use `env_file:` or Docker secrets.
 - If `.env` is referenced, confirm `.env` is in `.gitignore`.
 
-## 6. Image tags
+## 6. Published ports and host mounts
+
+- Published datastore ports bind to loopback unless remote host access is explicitly required.
+- Services do not mount the Docker socket from `/var/run/docker.sock` or `/run/docker.sock`.
+
+## 7. Image tags
 
 - No service uses the `latest` tag or omits the tag entirely.
 - All image references include an explicit version.
 
-## 7. Runtime verification
+## 8. Runtime verification
 
 After `docker compose up -d`:
 
@@ -81,7 +86,7 @@ docker compose logs --tail=50
 docker compose exec web ping -c 1 db
 ```
 
-## 8. File naming
+## 9. File naming
 
 - The file is named `compose.yaml`, not `docker-compose.yml` or `docker-compose.yaml`.
 - Development overrides are in `compose.override.yaml`.

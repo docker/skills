@@ -10,7 +10,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DATABASE_URL: postgres://app:secret@db:5432/myapp  # Demo only — use env_file: in real projects
+      DATABASE_URL: postgres://app:${POSTGRES_PASSWORD:-secret}@db:5432/myapp
       REDIS_URL: redis://cache:6379/0
     depends_on:
       db:
@@ -23,7 +23,7 @@ services:
     image: postgres:17
     environment:
       POSTGRES_USER: app
-      POSTGRES_PASSWORD: secret  # Demo only — use env_file: in real projects
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
       POSTGRES_DB: myapp
     volumes:
       - db-data:/var/lib/postgresql/data

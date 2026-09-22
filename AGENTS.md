@@ -47,6 +47,9 @@ Keep these repository-wide contracts intact:
 - Every skill includes the required sections enforced by `scripts/validate.py`.
 - Files under `references/`, `assets/`, `checks/`, and `scripts/` are referenced
   from that skill's `SKILL.md`; referenced files exist.
+- Compose YAML assets under `skills/*/assets/` parse cleanly and avoid literal
+  credentials or URL passwords, unscoped datastore ports, untagged or `latest`
+  images, and Docker socket mounts.
 - Plugin manifest versions match the catalog distribution version and continue
   to represent the catalog.
 - Generated files match `catalog.yaml`, and all checked local links and anchors

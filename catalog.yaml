@@ -36,7 +36,7 @@ skills:
   - id: docker-project-foundations
     product: docker-build
     path: skills/docker-project-foundations
-    version: 0.1.0
+    version: 0.1.1
     status: stable
   - id: docker-build-strategies
     product: docker-build
@@ -46,7 +46,7 @@ skills:
   - id: docker-compose-patterns
     product: docker-compose
     path: skills/docker-compose-patterns
-    version: 0.1.0
+    version: 0.1.1
     status: stable
   - id: docker-sandboxes-lifecycle
     product: docker-sandboxes
