@@ -87,6 +87,48 @@ class NpmCredentialCoverageTests(unittest.TestCase):
                 self.assertEqual(self.status("fp-p1-ignore-npmrc", content), FAIL)
 
 
+class AgentCredentialGuidanceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        groups = yaml.safe_load(Path(CHECKS_FILE).read_text(encoding="utf-8"))
+        group = next(group for group in groups if group["eval"] == "docker-agent-config"
+                     and group["prompt"].startswith("Prompt 4:"))
+        cls.checks = {check["id"]: check for check in group["checks"]}
+        cls.content = Path(REPO_ROOT, group["asset"]).read_text(encoding="utf-8")
+
+    def status(self, check_id, content):
+        return run_check(self.checks[check_id], content, None, "SKILL.md")["status"]
+
+    def test_checked_in_guidance_passes(self):
+        for check_id in self.checks:
+            with self.subTest(check=check_id):
+                self.assertEqual(self.status(check_id, self.content), PASS)
+
+    def test_original_interpolation_advice_is_rejected(self):
+        original = (
+            "Do not put real credentials, tokens, or customer data directly in\n"
+            "`instruction` or `commands` — use `${env.VAR}` interpolation instead, and\n"
+            "keep the underlying secret in an env file, not the YAML."
+        )
+        self.assertEqual(self.status("ac-p4-no-unsafe-advice", original), FAIL)
+        self.assertEqual(self.status("ac-p4-no-unsafe-advice", self.content + original), FAIL)
+
+    def test_missing_safeguards_fail(self):
+        for check_id, text in (
+            ("ac-p4-prompt-disclosure", "expands values into prompt text sent to the model"),
+            ("ac-p4-nonsensitive-context", "only for non-sensitive context"),
+            ("ac-p4-authentication", "names the environment variable, not its value"),
+            ("ac-p4-redaction-limits", "defense in depth, not a"),
+        ):
+            with self.subTest(check=check_id):
+                self.assertIn(text, self.content)
+                self.assertEqual(self.status(check_id, self.content.replace(text, "")), FAIL)
+
+    def test_harmless_interpolation_is_not_prohibited(self):
+        content = "Use `${env.PROJECT_NAME}` for non-sensitive project context."
+        self.assertEqual(self.status("ac-p4-no-unsafe-advice", content), PASS)
+
+
 class SandboxPromptCoverageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

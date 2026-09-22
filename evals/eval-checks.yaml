@@ -414,6 +414,38 @@
   skip: true
   skip_reason: Partial coverage only — Go Dockerfile is in build-strategies skill, not foundations
 
+# ─── docker-agent-config ────────────────────────────────────────────────────
+
+# These check skill wording, not live model behavior or redaction completeness.
+- eval: docker-agent-config
+  prompt: "Prompt 4: Keep authentication secrets out of prompts"
+  asset: skills/docker-agent-config/SKILL.md
+  checks:
+    - id: ac-p4-prompt-disclosure
+      description: Explains that environment values become model-visible prompt text
+      type: file_match
+      pattern: '\$\{env\.VAR\}` expands values into prompt text sent to the model'
+
+    - id: ac-p4-nonsensitive-context
+      description: Limits prompt interpolation to non-sensitive context
+      type: file_match
+      pattern: 'Use interpolation\s+only for non-sensitive context'
+
+    - id: ac-p4-authentication
+      description: Custom provider authentication uses a variable name rather than its value
+      type: file_match
+      pattern: '`token_key: MY_API_KEY`\s+names the environment variable, not its value; do not interpolate it'
+
+    - id: ac-p4-redaction-limits
+      description: Redaction is not a guarantee for arbitrary sensitive values
+      type: file_match
+      pattern: 'defense in depth, not a\s+guarantee: arbitrary passwords, tokens, or customer data may go undetected'
+
+    - id: ac-p4-no-unsafe-advice
+      description: Does not recommend environment interpolation as a secret-protection workaround
+      type: file_must_not_match
+      pattern: '(?i)use\s+`\$\{env\.VAR\}`\s+interpolation\s+instead'
+
 # ─── docker-sandboxes-env ───────────────────────────────────────────────────
 
 - eval: docker-sandboxes-env
