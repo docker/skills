@@ -8,6 +8,13 @@ for distribution releases.
 
 ## [Unreleased]
 
+### Changed
+
+- Tightened `docker-project-foundations` development Compose defaults: application
+  and optional Postgres host access use loopback, while unauthenticated Redis stays
+  on the Compose network; the development-only password fallback and `.env`
+  override are now explicit.
+
 ## [0.2.0] - 2026-09-22
 
 ### Added

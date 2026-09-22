@@ -1,5 +1,7 @@
 # Development-oriented compose.yaml
 # Demonstrates Dockerized dependencies, health checks, bind mounts, and named volumes.
+# The Postgres password fallback is for development-only one-command startup.
+# Set POSTGRES_PASSWORD in .env to override it for local development.
 
 services:
   app:
@@ -8,7 +10,7 @@ services:
       dockerfile: Dockerfile
       target: dev  # Use the dev stage of a multi-stage Dockerfile
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"  # Use 0.0.0.0 only when other devices need access
     environment:
       - DATABASE_URL=postgres://appuser:${POSTGRES_PASSWORD:-apppass}@db:5432/appdb
       - REDIS_URL=redis://cache:6379
@@ -41,8 +43,6 @@ services:
 
   cache:
     image: redis:7
-    ports:
-      - "127.0.0.1:6379:6379"  # Keep the development cache local
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

@@ -27,6 +27,10 @@ Skill under test: `skills/docker-project-foundations/`
 - [ ] Compose file uses a named volume for Postgres data
 - [ ] Compose file includes a health check for the Postgres service (using `pg_isready`)
 - [ ] Compose file uses `depends_on` with `condition: service_healthy` for the app service
+- [ ] Compose publishes the application port on loopback by default
+- [ ] Compose does not publish unauthenticated Redis to the host
+- [ ] Compose publishes Postgres on loopback only for local development tools
+- [ ] Compose documents its development-only password fallback and `.env` override
 - [ ] Compose file uses bind mounts or Compose Watch for live source code reloading in development
 
 ### Must not
@@ -35,6 +39,7 @@ Skill under test: `skills/docker-project-foundations/`
 - [ ] Must NOT use `latest` as an image tag anywhere
 - [ ] Must NOT use the legacy filename `docker-compose.yml`
 - [ ] Must NOT run the application as root in the final image
+- [ ] Must NOT publish unauthenticated Redis or other datastores to non-loopback host interfaces
 - [ ] Must NOT hardcode database passwords directly in `compose.yaml`
 - [ ] Must NOT copy `.npmrc` into any image stage, including through a broad source copy
 - [ ] Must NOT pass registry credentials through `ARG`, `ENV`, or build logs

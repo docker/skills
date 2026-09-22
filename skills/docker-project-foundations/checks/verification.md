@@ -38,7 +38,10 @@ Use this checklist to verify that generated Docker project setup follows the ski
 - [ ] Persistent data uses named volumes, not bind mounts.
 - [ ] Application source code uses bind mounts for development live-reload.
 - [ ] Application and datastore credentials use Compose interpolation rather than literal values, including passwords embedded in connection URLs.
-- [ ] Published datastore ports bind to loopback unless remote host access is explicitly required.
+- [ ] Application ports bind to loopback by default; widening to other interfaces is an explicit development choice.
+- [ ] Unauthenticated datastores are not published to the host and remain reachable only on the Compose network.
+- [ ] Datastore ports needed by local host tools bind to loopback only.
+- [ ] Development-only credential fallbacks are clearly labeled, use Compose interpolation, and document a `.env` override.
 - [ ] No host-level install instructions (`brew install`, `apt install`) for services that should be containerized.
 
 ## Development vs production
