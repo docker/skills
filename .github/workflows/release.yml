@@ -402,27 +402,21 @@ jobs:
           fi
 
           if [[ "$release_exists" == true ]]; then
-            gh release edit "$RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "Docker Skills $RELEASE_TAG" \
-              --notes-file release-notes.md
+            release_id="$(jq -r '.id' <<<"$release_json")"
+            refreshed_release="$(gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+              -f name="Docker Skills $RELEASE_TAG" \
+              -f body="$(cat release-notes.md)")"
           else
-            gh release create "$RELEASE_TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --draft \
-              --title "Docker Skills $RELEASE_TAG" \
-              --notes-file release-notes.md \
-              --verify-tag
+            gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null
+            refreshed_release="$(gh api --method POST \
+              "repos/$GITHUB_REPOSITORY/releases" \
+              -f tag_name="$RELEASE_TAG" \
+              -f name="Docker Skills $RELEASE_TAG" \
+              -f body="$(cat release-notes.md)" \
+              -F draft=true)"
           fi
 
-          refreshed_release="$(
-            gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-              --slurp \
-              | jq -cer --arg tag "$RELEASE_TAG" '
-                  map(.[]) | map(select(.tag_name == $tag))
-                  | if length == 1 then .[0] else error("expected exactly one release for tag") end
-                '
-          )"
           if [[ "$(jq -r '.draft' <<<"$refreshed_release")" != true ]]; then
             echo "Release $RELEASE_TAG is no longer a draft; refusing to upload assets" >&2
             exit 1
