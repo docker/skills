@@ -12,6 +12,7 @@ from catalog import (
     MANIFESTS,
     generated_files,
     release_tag,
+    render_docs_catalog,
     render_evals_table,
     render_manifest_version,
     render_readme_table,
@@ -149,6 +150,16 @@ class RenderTests(unittest.TestCase):
         self.assertNotIn("Start here", table)
         self.assertEqual(len(table.strip().splitlines()), 4)
 
+    def test_docs_catalog_groups_skills_and_links_to_source(self):
+        content = render_docs_catalog(CATALOG, DESCRIPTIONS)
+        self.assertIn("## [Build](https://example.com/build)", content)
+        self.assertIn(
+            "[`build-a`](https://github.com/docker/skills/tree/main/skills/build-a) Builds.",
+            content,
+        )
+        self.assertIn("[`agent-a`](https://github.com/docker/skills/tree/main/skills/agent-a) **Experimental.** Agents.", content)
+        self.assertLess(content.index("## [Build]"), content.index("## Agent"))
+
     def test_evals_table_lists_every_skill_overview_first(self):
         table = render_evals_table(CATALOG)
         lines = table.strip().splitlines()
@@ -199,7 +210,8 @@ class GeneratedFilesTests(unittest.TestCase):
             with open(os.path.join(root, skill["path"], "skill.yaml"), "w") as handle:
                 yaml.safe_dump({"description": DESCRIPTIONS[skill["id"]]}, handle)
         os.makedirs(os.path.join(root, "evals"))
-        for rel in ("README.md", os.path.join("evals", "README.md")):
+        os.makedirs(os.path.join(root, "docs", "catalog"))
+        for rel in ("README.md", os.path.join("evals", "README.md"), os.path.join("docs", "catalog", "index.md")):
             with open(os.path.join(root, rel), "w") as handle:
                 handle.write("# Title\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n")
         for rel in MANIFESTS:
@@ -214,7 +226,7 @@ class GeneratedFilesTests(unittest.TestCase):
 
     def test_write_then_check_round_trip(self):
         root = self.make_repo()
-        expected = sorted(["README.md", "evals/README.md", "skills.sh.json", *MANIFESTS])
+        expected = sorted(["README.md", "docs/catalog/index.md", "evals/README.md", "skills.sh.json", *MANIFESTS])
         self.assertEqual(sorted(stale_files(root)), expected)
         changed = write_generated(root)
         self.assertEqual(sorted(changed), expected)
@@ -224,7 +236,7 @@ class GeneratedFilesTests(unittest.TestCase):
         self.assertTrue(readme.startswith("# Title\n\n" + CATALOG_START + "\n| Product |"))
         self.assertIn("[`agent-a`](skills/agent-a) *(experimental)* — Agents.", readme)
         generated = generated_files(root)
-        self.assertEqual(set(generated), {"README.md", "evals/README.md", "skills.sh.json", *MANIFESTS})
+        self.assertEqual(set(generated), {"README.md", "docs/catalog/index.md", "evals/README.md", "skills.sh.json", *MANIFESTS})
         for rel in MANIFESTS:
             manifest = open(os.path.join(root, rel)).read()
             self.assertNotIn("0.0.1", manifest)

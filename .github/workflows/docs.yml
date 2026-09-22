@@ -1,0 +1,65 @@
+name: docs
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/docs.yml"
+      - ".github/actions/setup-hugo/**"
+      - "docs/**"
+      - "scripts/catalog.py"
+      - "scripts/docs*"
+      - "scripts/render_catalog.py"
+      - "scripts/requirements.txt"
+      - "skills/*/skill.yaml"
+      - "catalog.yaml"
+      - "Taskfile.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/docs.yml"
+      - ".github/actions/setup-hugo/**"
+      - "docs/**"
+      - "scripts/catalog.py"
+      - "scripts/docs*"
+      - "scripts/render_catalog.py"
+      - "scripts/requirements.txt"
+      - "skills/*/skill.yaml"
+      - "catalog.yaml"
+      - "Taskfile.yml"
+
+jobs:
+  validate:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check generated catalog
+        run: |
+          python3 -m pip install --require-hashes -r scripts/requirements.txt
+          python3 scripts/render_catalog.py --check
+
+      - name: Lint Markdown
+        working-directory: docs
+        run: npx --yes markdownlint-cli2@0.22.1
+
+      - uses: ./.github/actions/setup-hugo
+
+      - name: Check source canonicals and links
+        run: python3 scripts/docs_check.py
+
+      - name: Build site
+        working-directory: docs
+        run: hugo --gc --panicOnWarning
+
+      - name: Check built canonicals and llms.txt
+        run: python3 scripts/docs_check.py --built-output docs/public

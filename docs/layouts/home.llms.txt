@@ -1,0 +1,8 @@
+# Docker Skills
+
+> {{ .Site.Params.description }}
+
+## Documentation
+{{ range .Site.RegularPages.ByLinkTitle }}
+- [{{ .LinkTitle }}]({{ .Permalink }}): {{ .Summary | plainify | htmlUnescape | strings.TrimSpace }}
+{{ end }}

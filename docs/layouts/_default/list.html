@@ -1,0 +1,10 @@
+{{ define "main" }}
+<article>
+  {{ .Content }}
+  {{ if and (not .IsHome) .Pages }}
+  <ul class="page-list">
+    {{ range .Pages.ByWeight }}<li><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>{{ end }}
+  </ul>
+  {{ end }}
+</article>
+{{ end }}

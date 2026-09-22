@@ -7,7 +7,7 @@ from unittest import mock
 
 import yaml
 
-from catalog import CATALOG_END, CATALOG_START, MANIFESTS, stale_files, write_generated
+from catalog import CATALOG_END, CATALOG_START, DOCS_CATALOG, MANIFESTS, stale_files, write_generated
 from prepare_release import ReleasePreparationError, main, prepare_release
 
 
@@ -86,6 +86,7 @@ class PrepareReleaseTests(unittest.TestCase):
         self._write("skills/build-a/skill.yaml", "description: Builds images.\n")
         self._write("README.md", "# Title\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n")
         self._write("evals/README.md", "# Evals\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n")
+        self._write(DOCS_CATALOG, "# Catalog\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n")
         for rel_path in MANIFESTS:
             self._write(rel_path, '{\n  "version": "0.0.1"\n}\n')
         write_generated(self.root, CATALOG)

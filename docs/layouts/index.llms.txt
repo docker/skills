@@ -1,0 +1,10 @@
+{{- $pages := where .Site.RegularPages "File.Path" "ne" "STYLE.md" -}}
+{{- range $index, $page := $pages.ByLinkTitle -}}
+{{- if $index }}
+
+---
+{{ end -}}
+# {{ $page.Title }}
+
+{{ $page.RawContent | strings.TrimSpace }}
+{{ end -}}

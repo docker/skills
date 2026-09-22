@@ -29,12 +29,18 @@ change. Maintainer release steps and the SemVer policy are in
 Run commands from the repository root. [Task](https://taskfile.dev/) and Docker
 are required; validation runs in pinned container images.
 
-- `task` or `task ci`: run the same complete suite as CI and release workflows.
+- `task` or `task ci`: run the complete skill-validation, evaluation, link, and
+  verification-script suite used by CI and release workflows. Run `task docs:check`
+  separately when documentation files change.
 - `task validate`: run unit tests for repository validators, then validate skill
   structure, frontmatter, catalog membership, manifests, ownership, and files.
 - `task eval`: run deterministic checks against checked-in skill assets. This is
   not a live model evaluation.
 - `task links`: check local Markdown destinations and heading anchors.
+- `task docs:check`: lint and build the standalone docs site, then validate
+  canonical URLs, portable links, and generated `llms.txt`.
+- `task docs:serve`: preview the edge documentation at
+  `http://localhost:1313/skills/`.
 - `task catalog`: regenerate all files derived from `catalog.yaml`.
 - `task catalog:check`: verify generated catalog files are current without
   changing them.
@@ -76,6 +82,11 @@ Keep these repository-wide contracts intact:
   to represent the catalog.
 - Generated files match `catalog.yaml`, and all checked local links and anchors
   resolve, including links in `CHANGELOG.md`.
+- Files under `docs/` are human-facing documentation. Keep links between docs
+  pages relative with `.md` suffixes, set each page's `canonical` front matter
+  under `https://docs.docker.com/ai/skills/`, and preserve generated catalog
+  markers. Follow `docs/STYLE.md`; do not copy agent-facing `SKILL.md` payloads
+  into the site wholesale.
 - User-visible changes are recorded under `CHANGELOG.md`'s `Unreleased` section;
   a distribution release PR may change only the catalog, changelog, and rendered
   outputs.

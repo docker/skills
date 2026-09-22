@@ -2,9 +2,9 @@
 
 `catalog.yaml` is the single source of truth for skill grouping and the distribution
 version. This module renders the derived artifacts from it: the product-grouped skill
-table in README.md, the runbook table in evals/README.md, the `skills.sh.json` index
-read by the skills CLI, and format-preserved versions in plugin manifests.
-`render_catalog.py` writes them; `validate.py` fails when they drift.
+tables in README.md and docs/catalog/index.md, the runbook table in evals/README.md,
+the `skills.sh.json` index read by the skills CLI, and format-preserved versions in
+plugin manifests. `render_catalog.py` writes them; `validate.py` fails when they drift.
 """
 
 from __future__ import annotations
@@ -233,6 +233,39 @@ def render_readme_table(catalog: dict[str, Any], descriptions: dict[str, str]) -
     return "\n".join(rows) + "\n"
 
 
+def render_docs_catalog(catalog: dict[str, Any], descriptions: dict[str, str]) -> str:
+    """Human-facing catalog grouped by product for docs/catalog/index.md."""
+    sections: list[str] = []
+    overview = overview_skill(catalog)
+    if overview:
+        sections.extend(
+            [
+                "## " + START_HERE_TITLE,
+                "",
+                START_HERE_DESCRIPTION,
+                "",
+                "- [`" + overview["id"] + "`](https://github.com/docker/skills/tree/main/"
+                + overview["path"] + ") — " + descriptions.get(overview["id"], ""),
+                "",
+            ]
+        )
+    for product, skills in skills_by_product(catalog):
+        heading = "## " + product["name"]
+        if product.get("docs"):
+            heading = "## [" + product["name"] + "](" + product["docs"] + ")"
+        sections.extend([heading, "", product["description"], ""])
+        for skill in skills:
+            line = "- [`" + skill["id"] + "`](https://github.com/docker/skills/tree/main/" + skill["path"] + ")"
+            if skill.get("status", "stable") == "experimental":
+                line += " **Experimental.**"
+            description = descriptions.get(skill["id"], "")
+            if description:
+                line += " " + description
+            sections.append(line)
+        sections.append("")
+    return "\n".join(sections)
+
+
 def render_evals_table(catalog: dict[str, Any]) -> str:
     """Runbook table for evals/README.md, one row per catalogued skill."""
     rows = ["| Skill | Runbook |", "|-------|---------|"]
@@ -281,6 +314,7 @@ def replace_section(content: str, body: str, start: str = CATALOG_START, end: st
 # --- Generated files ---------------------------------------------------------
 
 README = "README.md"
+DOCS_CATALOG = os.path.join("docs", "catalog", "index.md")
 EVALS_README = os.path.join("evals", "README.md")
 SKILLS_INDEX = "skills.sh.json"
 MANIFESTS = (
@@ -306,6 +340,9 @@ def generated_files(root: str = ".", catalog: dict[str, Any] | None = None) -> d
     descriptions = load_skill_descriptions(root, catalog)
     generated = {
         README: replace_section(_read(os.path.join(root, README)), render_readme_table(catalog, descriptions)),
+        DOCS_CATALOG: replace_section(
+            _read(os.path.join(root, DOCS_CATALOG)), render_docs_catalog(catalog, descriptions)
+        ),
         EVALS_README: replace_section(_read(os.path.join(root, EVALS_README)), render_evals_table(catalog)),
         SKILLS_INDEX: render_skills_index(catalog),
     }
