@@ -16,7 +16,8 @@ problem or suggestion has already been reported.
 3. Make your changes.
    - When adding a new skill, place it under `skills/<skill-id>/` with a
      `SKILL.md` and any supporting files. Follow the structure of existing
-     skills. Then:
+     skills. Give it a valid initial `X.Y.Z` version in both `catalog.yaml`
+     and `skills/<skill-id>/skill.yaml`; the values must match. Then:
      - Add an entry to `catalog.yaml` with the skill's `product` (one of the
        declared product families) and `status` (`stable` or `experimental`).
        Validation fails when a skill directory has no catalog entry or vice
@@ -29,24 +30,36 @@ problem or suggestion has already been reported.
        specific family rules in `.github/CODEOWNERS`, adding rules when
        needed; the repository-wide fallback is not a substitute for a domain
        owner.
-   - When updating an existing skill, keep the `SKILL.md` frontmatter and
-     section structure consistent with the rest of the repo.
+   - Any change under `skills/<skill-id>/` must increase that skill's version
+     in both `catalog.yaml` and `skills/<skill-id>/skill.yaml` in the same pull
+     request. Versions never decrease. Use a patch for corrective prose,
+     assets, or checks; a minor version for new guidance, assets, or a status
+     change; and a major version for a material routing-contract change. Keep
+     the `SKILL.md` frontmatter and section structure consistent with the rest
+     of the repo.
 4. Run the complete validation suite locally (requires
-   [Task](https://taskfile.dev/) and Docker):
+   [Task](https://taskfile.dev/) and Docker), comparing version changes with the
+   pull request base:
    ```bash
-   task
+   VERSION_CHECK_BASE_SHA=$(git merge-base HEAD origin/main) task
    ```
+   Pull request CI supplies this base automatically. If `origin/main` is
+   unavailable while working offline, plain `task` remains usable and skips
+   only the version comparison.
 5. Commit your changes with a `Signed-off-by` line (see *Sign your work* below).
 6. Open a pull request and fill out the template.
 
 ## Maintainer releases
 
 The top-level `version` in `catalog.yaml` is the distribution version. It is
-separate from each skill's own `version`, which changes only when that skill's
-content or contract changes. Apply SemVer proportionally to the distribution:
-use a patch for compatible fixes and documentation corrections, a minor version
-for compatible added skills or capabilities, and a major version for breaking
-changes to installation, catalog, or distribution contracts.
+separate from each skill's own `version` and changes only in a release pull
+request. A distribution version pull request must increase the version, must
+not include skill content or per-skill version changes, and may change only
+`catalog.yaml` plus files rendered by `task catalog`. Do not hand-edit those
+outputs. Apply SemVer proportionally to the distribution: use a patch for
+compatible fixes and documentation corrections, a minor version for compatible
+added skills or capabilities, and a major version for breaking changes to
+installation, catalog, or distribution contracts.
 
 To prepare and publish a release:
 

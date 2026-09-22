@@ -9,11 +9,17 @@ catalog, installation, and layout. Follow [CONTRIBUTING.md](CONTRIBUTING.md) for
 the contribution flow and DCO text. Do not duplicate either document here.
 
 `catalog.yaml` is the source of truth for the distribution version, products,
-skill IDs, per-skill versions, and status. `scripts/render_catalog.py` generates
-the marked tables in `README.md` and `evals/README.md`, `skills.sh.json`, and the
+skill IDs, per-skill versions, and status. Any change under `skills/<id>/` must
+increase that skill's version in both the catalog and its `skill.yaml`: patch
+for corrections, minor for new guidance, assets, or status, and major for a
+material routing-contract change. Versions never decrease, and new skills need
+a valid matching initial version. `scripts/render_catalog.py` generates the
+marked tables in `README.md` and `evals/README.md`, `skills.sh.json`, and the
 versions in plugin manifests without reformatting them. Edit the catalog and run
-the renderer; never hand-edit generated output. Maintainer release steps and the
-SemVer policy are in [CONTRIBUTING.md#maintainer-releases](CONTRIBUTING.md#maintainer-releases).
+the renderer; never hand-edit generated output. The top-level distribution
+version changes only in a release PR containing no skill changes and only the
+catalog plus rendered outputs. Maintainer release steps and the SemVer policy
+are in [CONTRIBUTING.md#maintainer-releases](CONTRIBUTING.md#maintainer-releases).
 
 ## Commands
 
@@ -29,6 +35,10 @@ are required; validation runs in pinned container images.
 - `task catalog`: regenerate all files derived from `catalog.yaml`.
 - `task catalog:check`: verify generated catalog files are current without
   changing them.
+- `VERSION_CHECK_BASE_SHA=$(git merge-base HEAD origin/main) task`: run the
+  version-policy comparison locally against the pull request base. Without a
+  base SHA the comparison is skipped so offline validation still works; CI
+  always supplies the pull request base and full Git history.
 
 Prefer the narrow command while editing, then run `task` before declaring the
 change complete. `scripts/ci.sh` is the shared CI/release entrypoint; keep it and
@@ -54,6 +64,8 @@ Keep these repository-wide contracts intact:
   to represent the catalog.
 - Generated files match `catalog.yaml`, and all checked local links and anchors
   resolve.
+- Pull request CI compares the branch to its base and enforces synchronized,
+  increasing per-skill versions or an isolated distribution release bump.
 
 ## Adding or changing a skill
 
@@ -68,8 +80,8 @@ For a new skill:
 7. Run `task catalog`, review every generated change, then run `task`.
 
 For an existing skill, preserve its metadata and section structure, update its
-runbook and checks when behavior changes, and bump synchronized versions only
-when the release policy requires it.
+runbook and checks when behavior changes, and increase the synchronized catalog
+and `skill.yaml` versions for every change under its directory.
 
 ## Script contract
 

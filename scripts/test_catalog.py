@@ -55,6 +55,17 @@ class ValidateCatalogTests(unittest.TestCase):
             data = catalog(version=bad)
             self.assertTrue(any("'version' must be a string in X.Y.Z format" in e for e in validate_catalog(data)))
 
+    def test_skill_version_must_be_strict_semver_string(self):
+        for bad in (None, 1.2, "v1.2.3", "1.2", "1.2.3-rc.1", "01.2.3", " 1.2.3"):
+            data = catalog()
+            data["skills"][1]["version"] = bad
+            self.assertTrue(
+                any(
+                    "skill 'build-a' 'version' must be a string in X.Y.Z format" in error
+                    for error in validate_catalog(data)
+                )
+            )
+
     def test_release_tag_prefixes_catalog_version(self):
         self.assertEqual(release_tag(CATALOG), "v1.2.3")
 

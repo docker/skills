@@ -1,5 +1,10 @@
 # Docker Skills for AI Coding Agents
 
+[![CI](https://github.com/docker/skills/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/docker/skills/actions/workflows/ci.yml)
+[![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Specification-blue)](https://agentskills.io/specification)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![skills.sh](https://skills.sh/b/docker/skills)](https://skills.sh/docker/skills)
+
 Docker-authored knowledge skills that improve AI coding agent output for Docker-related tasks. Skills are authored once as portable `SKILL.md` directories and discovered automatically by any compliant agent through standard skill paths.
 
 ## Skills
@@ -49,7 +54,7 @@ npx skills update
 
 ### Install as a plugin
 
-Plugin installs are managed by each agent's marketplace, so updates arrive through the agent rather than through `npx skills update`.
+Plugin installs are managed by each agent's marketplace, so updates arrive through the agent rather than through `npx skills update`. For Claude Code and Codex, the rendered plugin manifest version is the update gate and advances with a versioned distribution release.
 
 **Claude Code**
 ```bash
@@ -102,17 +107,21 @@ git clone https://github.com/docker/skills.git
 ## Releases
 
 `main` is the rolling development channel and continuously publishes the mutable
-`docker/skills-content:edge` image. Tags such as `v0.1.0` are immutable, pinned
-distribution snapshots whose version matches the top-level `version` in
-[`catalog.yaml`](catalog.yaml).
+`docker/skills-content:edge` image. Consumers that use the `skills` CLI, clone
+or copy from `main`, or follow `edge` receive skill updates as they merge. Tags
+such as `v0.1.0` are immutable, pinned distribution snapshots whose version
+matches the top-level `version` in [`catalog.yaml`](catalog.yaml). Claude Code
+and Codex plugin updates are gated by the distribution version rendered into
+their manifests, so those marketplaces advance with a versioned release.
 
-Maintainers create versioned releases with the manually dispatched Release
+Maintainers create versioned releases as needed with the manually dispatched Release
 workflow after changes merge to `main`. The workflow builds the multi-architecture
 `docker/skills-content:vX.Y.Z` image and creates a draft GitHub release containing
 `catalog.yaml`, `skills.sh.json`, and the image digest. A maintainer inspects and
-publishes that draft; the workflow never publishes it automatically. Pin a consumer
-to the release tag, or pin the image by its published digest when byte-for-byte
-immutability is required.
+publishes that draft; the workflow never publishes it automatically. Follow a
+rolling channel for frequent updates. For controlled, reproducible updates, pin
+the release tag—or the image digest when byte-for-byte immutability is
+required—and periodically review and advance that pin on your own cadence.
 
 ## Local Development
 

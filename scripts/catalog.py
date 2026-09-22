@@ -139,8 +139,9 @@ def validate_catalog(catalog: Any) -> list[str]:
             seen_paths.add(path)
             if os.path.basename(path.rstrip("/")) != skill_id:
                 errors.append(prefix + " path '" + path + "' must end with the skill id")
-        if "version" not in skill:
-            errors.append(prefix + " missing 'version'")
+        version = skill.get("version")
+        if not isinstance(version, str) or not SEMVER_RE.fullmatch(version):
+            errors.append(prefix + " 'version' must be a string in X.Y.Z format")
         status = skill.get("status", "stable")
         if status not in STATUSES:
             errors.append(prefix + " status '" + str(status) + "' must be one of: " + ", ".join(STATUSES))
