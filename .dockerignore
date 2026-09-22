@@ -1,6 +1,7 @@
 .git
 .gitignore
 .github
+docs
 AGENTS.md
 CLAUDE.md
 .npmrc

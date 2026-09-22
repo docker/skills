@@ -10,6 +10,7 @@ import yaml
 from catalog import (
     CATALOG_END,
     CATALOG_START,
+    DOCS_CATALOG,
     EVALS_README,
     MANIFESTS,
     README,
@@ -71,6 +72,7 @@ class CheckVersionBumpsTests(unittest.TestCase):
     def write_rendered_files(self, version):
         self.write(README, f"before\n{CATALOG_START}\nold\n{CATALOG_END}\nafter\n")
         self.write(EVALS_README, f"before\n{CATALOG_START}\nold\n{CATALOG_END}\nafter\n")
+        self.write(DOCS_CATALOG, f"before\n{CATALOG_START}\nold\n{CATALOG_END}\nafter\n")
         self.write(SKILLS_INDEX, "{}\n")
         for path in MANIFESTS:
             self.write(path, '{\n  "version": "' + version + '"\n}\n')

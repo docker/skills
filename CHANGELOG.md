@@ -14,6 +14,14 @@ for distribution releases.
   and optional Postgres host access use loopback, while unauthenticated Redis stays
   on the Compose network; the development-only password fallback and `.env`
   override are now explicit.
+- Added human-facing Hugo documentation for getting started, the skill catalog,
+  and community contributions, with local validation and an edge GitHub Pages
+  site.
+- Added path-filtered documentation CI for Markdown style, canonical URLs,
+  portable links, Hugo builds, and generated `llms.txt` content.
+- Catalog generation now keeps the human-facing documentation catalog in sync
+  with `catalog.yaml` and skill descriptions.
+- The skills-content image build context excludes the human-facing docs site.
 
 ## [0.2.0] - 2026-09-22
 

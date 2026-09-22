@@ -145,11 +145,14 @@ task validate    # Check skill structure, frontmatter, and manifests; run valida
 task eval        # Static asset and verification-snippet checks, not live agent evals
 task links       # Check local Markdown links and heading anchors
 task catalog     # Regenerate catalog tables, skills.sh.json, and plugin manifest versions from catalog.yaml
+task docs:check  # Lint/build docs and validate canonicals, relative links, and llms.txt
+task docs:serve  # Preview the edge docs at http://localhost:1313/skills/
 ```
 
 ## Repository Structure
 
 ```
+docs/                 — Human-facing Hugo documentation for the edge GitHub Pages site
 skills/               — Canonical skill directories (SKILL.md + supporting files)
 .agents/skills        — Symlink to skills/ (Codex, cross-agent convention)
 .claude/skills        — Symlink to skills/ (Claude Code)
