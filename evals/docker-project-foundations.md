@@ -43,7 +43,7 @@ Skill under test: `skills/docker-project-foundations/`
 
 ```bash
 # Validate Compose file syntax
-docker compose config
+docker compose config --quiet
 
 # Start all services
 docker compose up -d
@@ -91,7 +91,7 @@ docker compose down
 
 ```bash
 # Validate Compose file syntax
-docker compose config
+docker compose config --quiet
 
 # Build and start
 docker compose up -d --build
@@ -139,7 +139,7 @@ docker compose down
 
 ```bash
 # Validate Compose file syntax
-docker compose config
+docker compose config --quiet
 
 # Build the image and check size (should be small for Go)
 docker compose build

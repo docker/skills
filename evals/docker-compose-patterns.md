@@ -2,6 +2,10 @@
 
 Skill under test: `skills/docker-compose-patterns/`
 
+For every prompt, validate with `docker compose config --quiet` or the bundled
+verification script. Do not dump resolved credentials into logs or agent
+transcripts; warnings and errors still need review before sharing.
+
 ---
 
 ## Prompt 1: Multi-service web application
@@ -36,7 +40,7 @@ Skill under test: `skills/docker-compose-patterns/`
 
 ```bash
 # Validate Compose file syntax and interpolation
-docker compose config
+docker compose config --quiet
 
 # Start all services
 docker compose up -d
@@ -101,7 +105,7 @@ docker compose down -v
 
 ```bash
 # Validate the updated Compose file
-docker compose config
+docker compose config --quiet
 
 # Start services and confirm health checks work
 docker compose up -d
@@ -170,9 +174,9 @@ docker compose down -v
 
 ```bash
 # Verify the merged configuration is valid
-docker compose config
+docker compose config --quiet
 
-# Confirm the override is being applied (should show build context, not image)
+# List configured services without dumping their environment values
 docker compose config --services
 
 # Start in development mode

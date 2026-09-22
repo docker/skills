@@ -5,7 +5,7 @@ set -euo pipefail
 
 usage() {
     echo "Usage: bash scripts/verify-compose.sh [--help]"
-    echo "Validates compose.yaml with docker compose config."
+    echo "Validates compose.yaml with docker compose config --quiet (no rendered configuration)."
 }
 
 if [[ "${1:-}" == "--help" && $# == 1 ]]; then
@@ -18,4 +18,4 @@ if (( $# != 0 )); then
     exit 2
 fi
 
-docker compose config
+docker compose config --quiet
