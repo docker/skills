@@ -13,6 +13,8 @@ for distribution releases.
 - OpenSSF Scorecard result publication and README badge.
 - Release-tag badge and standards compatibility documentation.
 - Release notes for distribution changes.
+- Repository-native release preparation for distribution versions, changelog
+  rotation, and generated catalog files.
 - Deterministic skill-content risk checks and repository hygiene validation.
 - Pull request DCO enforcement for every non-merge commit.
 

@@ -67,8 +67,13 @@ for breaking changes to installation, catalog, or distribution contracts.
 
 To prepare and publish a release:
 
-1. Bump the top-level catalog distribution version and run `task catalog` so all
-   plugin manifest versions and catalog-derived files are rendered from it.
+1. From a clean release branch, run `task release:prepare VERSION=X.Y.Z` with a
+   strict version greater than the current catalog distribution version. The
+   command preserves `catalog.yaml` formatting while updating its top-level
+   version, moves the nonempty `Unreleased` notes into a dated version section,
+   rotates the changelog comparison links, and renders all catalog-derived
+   files. It fails without writing when the version or changelog structure is
+   invalid. Review the complete diff; do not edit rendered outputs by hand.
 2. Run `task`, review the generated diff, and merge the release pull request.
 3. On the merged `main` commit, open **Actions → release → Run workflow**. Select
    `main`, enter the exact `vX.Y.Z` matching the catalog distribution version,
