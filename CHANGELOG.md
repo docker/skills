@@ -10,13 +10,19 @@ for distribution releases.
 
 ### Changed
 
+- Made the edge documentation the authoritative installation guide, covering
+  selection, scope, native integrations, release pinning, updates, removal,
+  verification, troubleshooting, Docker Agent, experimental Docker Sandboxes,
+  OCI content, and manual installation. The former community page was removed
+  so installation and contribution guidance have one maintained source; use
+  `CONTRIBUTING.md` for repository contributions. The README now provides a
+  concise quick start and links to the installation guide.
 - Tightened `docker-project-foundations` development Compose defaults: application
   and optional Postgres host access use loopback, while unauthenticated Redis stays
   on the Compose network; the development-only password fallback and `.env`
   override are now explicit.
-- Added human-facing Hugo documentation for getting started, the skill catalog,
-  and community contributions, with local validation and an edge GitHub Pages
-  site.
+- Added human-facing Hugo documentation for installation, getting started, and
+  the skill catalog, with local validation and an edge GitHub Pages site.
 - Added path-filtered documentation CI for Markdown style, canonical URLs,
   portable links, Hugo builds, and generated `llms.txt` content.
 - Catalog generation now keeps the human-facing documentation catalog in sync

@@ -27,12 +27,14 @@ module:
   mounts:
     - source: index.md
       target: content/_index.md
+    - source: install
+      target: content/install
     - source: getting-started
       target: content/getting-started
+    - source: advanced-install
+      target: content/advanced-install
     - source: catalog
       target: content/catalog
-    - source: community
-      target: content/community
     - source: layouts
       target: layouts
     - source: assets

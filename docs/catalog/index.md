@@ -53,5 +53,5 @@ You do not need to load an entry-point skill. Each skill's description tells a
 compatible agent when to use it. When a task crosses product boundaries, the
 agent can load several skills and apply them in dependency order.
 
-Get started with the [installation and usage guide](../getting-started/index.md),
-or learn how to [contribute a skill](../community/index.md).
+Get started with the [installation guide](../install/index.md), or learn how
+agents [select and combine skills](../getting-started/index.md).

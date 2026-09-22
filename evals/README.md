@@ -37,7 +37,7 @@ One runbook per catalogued skill. The table is generated from [`catalog.yaml`](.
 
 ## How to run an evaluation
 
-1. Load the skill into the target agent (see [install instructions](../README.md#installation)).
+1. Load the skill into the target agent (see the [installation guide](../docs/install/index.md)).
 2. Open a fresh session with no prior conversation context.
 3. Feed each prompt from the runbook to the agent.
 4. Walk through every checkbox in the **Expected behaviors** and **Must not** sections.
