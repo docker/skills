@@ -10,12 +10,16 @@ import yaml
 from catalog import (
     CATALOG_END,
     CATALOG_START,
+    DISTRIBUTION_END,
+    DISTRIBUTION_START,
     DOCS_CATALOG,
+    DOCS_INSTALL,
     EVALS_README,
     MANIFESTS,
     README,
     SKILLS_INDEX,
     generated_files,
+    test_distributions,
     write_generated,
 )
 from check_version_bumps import check_version_bumps, main
@@ -25,6 +29,8 @@ BASE_CATALOG = {
     "schema": "v1",
     "name": "test",
     "version": "1.0.0",
+    "description": "Docker skills for tests.",
+    "distributions": test_distributions(),
     "products": [{"id": "build", "name": "Build", "description": "Images."}],
     "skills": [
         {
@@ -70,7 +76,8 @@ class CheckVersionBumpsTests(unittest.TestCase):
         self.write(f"skills/{skill_id}/SKILL.md", guidance)
 
     def write_rendered_files(self, version):
-        self.write(README, f"before\n{CATALOG_START}\nold\n{CATALOG_END}\nafter\n")
+        self.write(README, f"before\n{CATALOG_START}\nold\n{CATALOG_END}\n{DISTRIBUTION_START}\nold\n{DISTRIBUTION_END}\nafter\n")
+        self.write(DOCS_INSTALL, f"before\n{DISTRIBUTION_START}\nold\n{DISTRIBUTION_END}\nafter\n")
         self.write(EVALS_README, f"before\n{CATALOG_START}\nold\n{CATALOG_END}\nafter\n")
         self.write(DOCS_CATALOG, f"before\n{CATALOG_START}\nold\n{CATALOG_END}\nafter\n")
         self.write(SKILLS_INDEX, "{}\n")

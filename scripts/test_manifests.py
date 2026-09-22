@@ -1,6 +1,13 @@
 import unittest
 
-from manifests import collect_versions, validate_codex_marketplace, validate_skills_index, validate_versions
+from manifests import (
+    collect_descriptions,
+    collect_versions,
+    validate_codex_marketplace,
+    validate_descriptions,
+    validate_skills_index,
+    validate_versions,
+)
 
 
 class SkillsIndexTests(unittest.TestCase):
@@ -57,6 +64,23 @@ class CodexMarketplaceTests(unittest.TestCase):
         self.assertTrue(validate_codex_marketplace(self.manifest(source={"source": "local"}), "m.json"))
         self.assertTrue(validate_codex_marketplace(self.manifest(source={"source": "url"}), "m.json"))
         self.assertTrue(validate_codex_marketplace(self.manifest(policy={}), "m.json"))
+
+
+class DescriptionTests(unittest.TestCase):
+    def test_collects_top_level_and_plugin_descriptions(self):
+        manifests = {
+            "plugin.json": {"description": "Canonical"},
+            "marketplace.json": {"plugins": [{"description": "Canonical"}]},
+        }
+        self.assertEqual(len(collect_descriptions(manifests)), 2)
+        self.assertEqual(validate_descriptions(manifests, "Canonical"), [])
+
+    def test_reports_stale_descriptions(self):
+        errors = validate_descriptions(
+            {"plugin.json": {"description": "Stale"}, "other.json": {}},
+            "Canonical",
+        )
+        self.assertEqual(errors, ["plugin.json does not match catalog description"])
 
 
 class VersionTests(unittest.TestCase):

@@ -11,17 +11,51 @@ Docker-authored knowledge skills for Dockerfiles, Compose, Docker Agent, Docker
 Sandboxes, and safe Docker workflows. Compatible AI coding agents load the
 relevant guidance when a request matches a skill's description.
 
-## Quick start
+## Install
 
-Install interactively with the supported [`skills` CLI](https://skills.sh):
+Choose the distribution model that fits your client or organization:
 
-```console
-npx skills add docker/skills
-```
+- a [native marketplace](docs/install/native-marketplaces.md),
+- an [extension](docs/install/extensions.md), or
+- the cross-client [skills CLI](docs/install/skills-cli.md).
 
-The authoritative [installation guide](https://docker.github.io/skills/install/)
-covers skill selection, project and user scope, supported native plugins,
-release pinning, updates, removal, verification, and troubleshooting.
+These options have equal standing. Docker Agent consumes installed skills;
+experimental Docker Sandboxes installation and source-level fallbacks are
+covered in the [installation hub](https://docker.github.io/skills/install/).
+
+## Published surfaces
+
+This inventory is generated from [`catalog.yaml`](catalog.yaml).
+
+<!-- distributions-start -->
+### Native marketplaces
+
+- **[Claude Code marketplace](docs/install/native-marketplaces.md#claude-code-marketplace).** Client-managed plugin installation from Docker's marketplace.
+- **[GitHub Copilot CLI marketplace](docs/install/native-marketplaces.md#github-copilot-cli-marketplace).** Client-managed plugin installation from Docker's marketplace.
+- **[Cursor marketplace](docs/install/native-marketplaces.md#cursor-marketplace).** Client-managed installation through Cursor's documented plugin interface.
+- **[Codex marketplace](docs/install/native-marketplaces.md#codex-marketplace).** Client-managed installation where the Codex marketplace is available.
+
+### Extensions
+
+- **[Gemini CLI extension](docs/install/extensions.md#gemini-cli-extension).** Repository-backed extension installation managed by Gemini CLI.
+
+### skills CLI
+
+- **[skills CLI](docs/install/skills-cli.md#skills-cli).** Cross-client project or user installation with explicit skill selection.
+
+### Docker products
+
+- **[Docker Sandboxes *(experimental)*](docs/install/docker-products.md#docker-sandboxes).** Product-native installation into the shared sandbox skill store.
+- **[Docker Agent](docs/install/docker-products.md#docker-agent).** Consumer of skills installed in supported project or user paths.
+
+### Sources and fallback
+
+- **[OCI content image](docs/install/sources.md#oci-content-image).** Published content artifact for consumers that can extract OCI files.
+- **[Git clone or manual copy](docs/install/sources.md#git-clone-or-manual-copy).** Auditable fallback when no managed installer fits the client.
+<!-- distributions-end -->
+
+The installation hub covers skill selection, project and user scope, updates,
+pinning, removal, verification, and troubleshooting for each model.
 
 ## Catalog
 

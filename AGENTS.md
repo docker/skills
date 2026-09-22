@@ -6,24 +6,27 @@ This repository publishes Docker-authored knowledge skills for AI coding agents.
 Canonical skill content lives under `skills/`; discovery symlinks and plugin
 manifests expose it to supported agents. Start with [README.md](README.md) for the
 catalog and repository entry points; installation guidance lives in
-[docs/install/index.md](docs/install/index.md), and the repository layout is
+[docs/install/_index.md](docs/install/_index.md), and the repository layout is
 visible in the top-level tree. Follow [CONTRIBUTING.md](CONTRIBUTING.md) for
 the contribution flow and DCO text. Do not duplicate those documents here.
 
-`catalog.yaml` is the source of truth for the distribution version, products,
-skill IDs, per-skill versions, and status. Any change under `skills/<id>/` must
-increase that skill's version in both the catalog and its `skill.yaml`: patch
-for corrections, minor for new guidance, assets, or status, and major for a
-material routing-contract change. Versions never decrease, and new skills need
-a valid matching initial version. `scripts/render_catalog.py` generates the
-marked tables in `README.md` and `evals/README.md`, `skills.sh.json`, and the
-versions in plugin manifests without reformatting them. Edit the catalog and run
-the renderer; never hand-edit generated output. The top-level distribution
-version changes only in a release PR containing no skill changes and only the
-catalog, `CHANGELOG.md`, and rendered outputs. Prepare those files with
-`task release:prepare VERSION=X.Y.Z`; do not bump or rotate them by hand.
-User-visible changes update the changelog's `Unreleased` section in the same
-change. Maintainer release steps and the SemVer policy are in
+`catalog.yaml` is the source of truth for the distribution version, canonical
+manifest description, documented distribution surfaces and their manifest
+mapping, products, skill IDs, per-skill versions, and status. Any
+change under `skills/<id>/` must increase that skill's version in both the
+catalog and its `skill.yaml`: patch for corrections, minor for new guidance,
+assets, or status, and major for a material routing-contract change. Versions
+never decrease, and new skills need a valid matching initial version.
+`scripts/render_catalog.py` generates the marked tables and inventories in
+`README.md`, `docs/install/_index.md`, `evals/README.md`, and
+`docs/catalog/index.md`, `skills.sh.json`, plus the
+versions and descriptions in plugin manifests without reformatting them. Edit
+the catalog and run the renderer; never hand-edit generated output. The
+top-level distribution version changes only in a release PR containing no skill
+changes and only the catalog, `CHANGELOG.md`, and rendered outputs. Prepare those
+files with `task release:prepare VERSION=X.Y.Z`; do not bump or rotate them by
+hand. User-visible changes update the changelog's `Unreleased` section in the
+same change. Maintainer release steps and the SemVer policy are in
 [CONTRIBUTING.md#maintainer-releases](CONTRIBUTING.md#maintainer-releases).
 
 ## Commands
@@ -89,6 +92,14 @@ Keep these repository-wide contracts intact:
   under `https://docs.docker.com/ai/skills/`, and preserve generated catalog
   markers. Follow `docs/STYLE.md`; do not copy agent-facing `SKILL.md` payloads
   into the site wholesale.
+- Documentation under `docs/install/` uses a branch-bundle structure: `_index.md`
+  is the install hub and each distribution-model leaf covers basic and advanced
+  install, update/pin/scope, verification, troubleshooting, and related links.
+  Native marketplaces, extensions, and the skills CLI are peers. Docker Agent
+  is a consumer, Docker Sandboxes installation is experimental, and OCI/Git/
+  manual copy are sources or fallback mechanisms.
+- The catalog distribution inventory maps every published plugin manifest
+  exactly once and renders into `README.md` and the install hub.
 - User-visible changes are recorded under `CHANGELOG.md`'s `Unreleased` section;
   a distribution release PR may change only the catalog, changelog, and rendered
   outputs.
