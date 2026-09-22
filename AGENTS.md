@@ -18,9 +18,10 @@ marked tables in `README.md` and `evals/README.md`, `skills.sh.json`, and the
 versions in plugin manifests without reformatting them. Edit the catalog and run
 the renderer; never hand-edit generated output. The top-level distribution
 version changes only in a release PR containing no skill changes and only the
-catalog, `CHANGELOG.md`, and rendered outputs. User-visible changes update the
-changelog's `Unreleased` section in the same change. Maintainer release steps
-and the SemVer policy are in
+catalog, `CHANGELOG.md`, and rendered outputs. Prepare those files with
+`task release:prepare VERSION=X.Y.Z`; do not bump or rotate them by hand.
+User-visible changes update the changelog's `Unreleased` section in the same
+change. Maintainer release steps and the SemVer policy are in
 [CONTRIBUTING.md#maintainer-releases](CONTRIBUTING.md#maintainer-releases).
 
 ## Commands
@@ -37,6 +38,9 @@ are required; validation runs in pinned container images.
 - `task catalog`: regenerate all files derived from `catalog.yaml`.
 - `task catalog:check`: verify generated catalog files are current without
   changing them.
+- `task release:prepare VERSION=X.Y.Z`: validate a strictly increasing
+  distribution version, rotate `CHANGELOG.md`, and regenerate catalog-derived
+  files for a release pull request.
 - `VERSION_CHECK_BASE_SHA=$(git merge-base HEAD origin/main) task`: run the
   version-policy and DCO commit comparison locally against the pull request
   base. Without a base SHA both PR-only checks are skipped so offline validation
