@@ -87,6 +87,112 @@ class NpmCredentialCoverageTests(unittest.TestCase):
                 self.assertEqual(self.status("fp-p1-ignore-npmrc", content), FAIL)
 
 
+class ComposeDevelopmentDefaultCoverageTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        groups = yaml.safe_load(Path(CHECKS_FILE).read_text(encoding="utf-8"))
+        group = next(
+            group
+            for group in groups
+            if group["eval"] == "docker-project-foundations"
+            and "assets" in group
+        )
+        cls.checks = {check["id"]: check for check in group["checks"]}
+        cls.compose = Path(REPO_ROOT, group["assets"]["compose"]).read_text(
+            encoding="utf-8"
+        )
+        cls.runbook = Path(REPO_ROOT, group["assets"]["runbook"]).read_text(
+            encoding="utf-8"
+        )
+
+    def status(self, check_id, content, *, parse_yaml=False):
+        data = yaml.safe_load(content) if parse_yaml else None
+        return run_check(self.checks[check_id], content, data, "fixture")["status"]
+
+    def test_checked_in_compose_and_runbook_pass(self):
+        for check_id in (
+            "fp-p1-app-loopback",
+            "fp-p1-no-public-datastore",
+            "fp-p1-postgres-loopback",
+            "fp-p1-cache-port-absent",
+            "fp-p1-password-fallback-note",
+        ):
+            with self.subTest(check=check_id):
+                self.assertEqual(
+                    self.status(check_id, self.compose, parse_yaml=True), PASS
+                )
+        for check_id in (
+            "fp-p1-runbook-loopback",
+            "fp-p1-runbook-no-redis-port",
+            "fp-p1-runbook-postgres-loopback",
+        ):
+            with self.subTest(check=check_id):
+                self.assertEqual(self.status(check_id, self.runbook), PASS)
+
+    def test_app_wildcard_fixture_fails_loopback_check(self):
+        fixture = self.compose.replace(
+            "127.0.0.1:3000:3000", "0.0.0.0:3000:3000"
+        )
+        self.assertEqual(
+            self.status("fp-p1-app-loopback", fixture, parse_yaml=True), FAIL
+        )
+
+    def test_public_datastore_fixture_fails(self):
+        fixture = self.compose.replace(
+            '"127.0.0.1:5432:5432"', '"5432:5432"'
+        )
+        self.assertEqual(
+            self.status("fp-p1-no-public-datastore", fixture, parse_yaml=True), FAIL
+        )
+
+    def test_postgres_wildcard_fixture_fails_loopback_check(self):
+        fixture = self.compose.replace(
+            "127.0.0.1:5432:5432", "0.0.0.0:5432:5432"
+        )
+        self.assertEqual(
+            self.status("fp-p1-postgres-loopback", fixture, parse_yaml=True), FAIL
+        )
+
+    def test_redis_port_fixture_fails_absence_check(self):
+        fixture = self.compose.replace(
+            "  cache:\n    image: redis:7\n",
+            "  cache:\n    image: redis:7\n    ports:\n      - \"127.0.0.1:6379:6379\"\n",
+        )
+        self.assertEqual(
+            self.status("fp-p1-cache-port-absent", fixture, parse_yaml=True), FAIL
+        )
+
+    def test_missing_password_override_note_fixture_fails(self):
+        fixture = self.compose.replace(
+            "# Set POSTGRES_PASSWORD in .env to override it for local development.\n",
+            "",
+        )
+        self.assertEqual(
+            self.status("fp-p1-password-fallback-note", fixture), FAIL
+        )
+
+    def test_missing_runbook_requirements_fail(self):
+        for check_id, phrase in (
+            (
+                "fp-p1-runbook-loopback",
+                "publishes the application port on loopback by default",
+            ),
+            (
+                "fp-p1-runbook-no-redis-port",
+                "does not publish unauthenticated Redis to the host",
+            ),
+            (
+                "fp-p1-runbook-postgres-loopback",
+                "publishes Postgres on loopback only for local development tools",
+            ),
+        ):
+            with self.subTest(check=check_id):
+                self.assertIn(phrase, self.runbook)
+                self.assertEqual(
+                    self.status(check_id, self.runbook.replace(phrase, "")), FAIL
+                )
+
+
 class AgentCredentialGuidanceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

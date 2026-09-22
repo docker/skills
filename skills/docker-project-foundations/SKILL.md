@@ -74,12 +74,15 @@ When a project needs a database (Postgres, MySQL, MongoDB), cache (Redis, Memcac
 - Name the file `compose.yaml` rather than legacy Compose filenames.
 - Put all three files at the project root unless there is a clear multi-service layout that justifies a `docker/` subdirectory.
 - Ensure the initial setup can build and start locally with one command path.
+- Bind published application ports to loopback by default. Widen the host address only when another device must reach the development service.
+- Keep unauthenticated datastores on the Compose network instead of publishing their ports. If local host tools require database access, publish only to loopback.
+- If a development-only credential fallback enables one-command startup, label it clearly and document a `.env` override.
 - Use Compose services for local databases, caches, and queues instead of host installs.
 - Keep the first scaffold simple; defer detailed image optimization and advanced Compose tuning to the owning skills.
 
 ### Development vs production
 
-- Development: Use bind mounts for live reload, expose debug ports, enable verbose logging.
+- Development: Use bind mounts for live reload, publish application ports on loopback by default, and enable verbose logging. Keep unauthenticated datastores on the Compose network; publish a datastore port only on loopback when local host tools require it.
 - Production: Use multi-stage builds, copy only built artifacts, do not mount source code, minimize image layers, set appropriate resource limits.
 - Keep a single `Dockerfile` that supports both via build stages and build arguments when possible.
 

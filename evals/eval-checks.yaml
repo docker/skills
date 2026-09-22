@@ -355,6 +355,7 @@
     dockerfile: skills/docker-project-foundations/assets/Dockerfile.simple
     compose: skills/docker-project-foundations/assets/compose-dev.yaml
     dockerignore: skills/docker-project-foundations/assets/dockerignore-example
+    runbook: evals/docker-project-foundations.md
   checks:
     # .dockerignore checks
     - id: fp-p1-ignore-nodemodules
@@ -463,6 +464,58 @@
       type: file_must_not_match
       asset_key: compose
       pattern: "(^\\s*-\\s*POSTGRES_PASSWORD=(?!\\$)[^\\n]+|postgres://[^:@\\n]+:(?!\\$)[^@\\n]+@)"
+
+    - id: fp-p1-app-loopback
+      description: Application port binds to loopback by default
+      type: yaml_value_equals
+      asset_key: compose
+      key: services.app.ports
+      value:
+        - "127.0.0.1:3000:3000"
+
+    - id: fp-p1-no-public-datastore
+      description: No datastore port is published on a public host interface
+      type: file_must_not_match
+      asset_key: compose
+      pattern: '(?m)^\s*-\s*["'']?(?:(?:0\.0\.0\.0|\[?::\]?):)?(?:5432|6379):(?:5432|6379)(?:/(?:tcp|udp))?["'']?\s*(?:#.*)?$'
+
+    - id: fp-p1-postgres-loopback
+      description: Postgres is available to local tools on loopback only
+      type: yaml_value_equals
+      asset_key: compose
+      key: services.db.ports
+      value:
+        - "127.0.0.1:5432:5432"
+
+    - id: fp-p1-cache-port-absent
+      description: Unauthenticated Redis remains on the Compose network
+      type: yaml_key_absent
+      asset_key: compose
+      key: services.cache.ports
+
+    - id: fp-p1-password-fallback-note
+      description: Compose labels the development-only fallback and .env override
+      type: file_match
+      asset_key: compose
+      pattern: '(?s)development-only one-command startup.*Set POSTGRES_PASSWORD in \.env to override'
+
+    - id: fp-p1-runbook-loopback
+      description: Runbook requires loopback-only application publication
+      type: file_match
+      asset_key: runbook
+      pattern: 'publishes the application port on loopback by default'
+
+    - id: fp-p1-runbook-no-redis-port
+      description: Runbook prohibits publishing unauthenticated Redis
+      type: file_match
+      asset_key: runbook
+      pattern: 'does not publish unauthenticated Redis to the host'
+
+    - id: fp-p1-runbook-postgres-loopback
+      description: Runbook records deliberate Postgres loopback access
+      type: file_match
+      asset_key: runbook
+      pattern: 'publishes Postgres on loopback only for local development tools'
 
     - id: fp-p1-bind-mount
       description: Bind mount or Compose Watch for live code reload
