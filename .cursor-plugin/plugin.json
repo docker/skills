@@ -1,6 +1,6 @@
 {
   "name": "docker-skills",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Docker-authored knowledge skills for AI coding agents — Dockerfile and Compose patterns, Docker Agent, and Docker Sandboxes.",
   "author": {
     "name": "Docker, Inc.",
