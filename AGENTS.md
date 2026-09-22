@@ -18,8 +18,10 @@ marked tables in `README.md` and `evals/README.md`, `skills.sh.json`, and the
 versions in plugin manifests without reformatting them. Edit the catalog and run
 the renderer; never hand-edit generated output. The top-level distribution
 version changes only in a release PR containing no skill changes and only the
-catalog plus rendered outputs. Maintainer release steps and the SemVer policy
-are in [CONTRIBUTING.md#maintainer-releases](CONTRIBUTING.md#maintainer-releases).
+catalog, `CHANGELOG.md`, and rendered outputs. User-visible changes update the
+changelog's `Unreleased` section in the same change. Maintainer release steps
+and the SemVer policy are in
+[CONTRIBUTING.md#maintainer-releases](CONTRIBUTING.md#maintainer-releases).
 
 ## Commands
 
@@ -63,7 +65,10 @@ Keep these repository-wide contracts intact:
 - Plugin manifest versions match the catalog distribution version and continue
   to represent the catalog.
 - Generated files match `catalog.yaml`, and all checked local links and anchors
-  resolve.
+  resolve, including links in `CHANGELOG.md`.
+- User-visible changes are recorded under `CHANGELOG.md`'s `Unreleased` section;
+  a distribution release PR may change only the catalog, changelog, and rendered
+  outputs.
 - Pull request CI compares the branch to its base and enforces synchronized,
   increasing per-skill versions or an isolated distribution release bump.
 

@@ -145,10 +145,11 @@ class CheckVersionBumpsTests(unittest.TestCase):
         errors = check_version_bumps(self.base, self.root)
         self.assertTrue(any("valid initial X.Y.Z version" in error for error in errors))
 
-    def test_distribution_version_increase_allows_only_rendered_outputs(self):
+    def test_distribution_version_increase_allows_changelog_and_rendered_outputs(self):
         self.catalog["version"] = "1.1.0"
         self.write_catalog()
         self.write_rendered_files("1.1.0")
+        self.write("CHANGELOG.md", "# Changelog\n\n## 1.1.0\n")
         self.commit()
         self.assertEqual(check_version_bumps(self.base, self.root), [])
 
