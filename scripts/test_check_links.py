@@ -13,6 +13,7 @@ class CheckLinksTest(unittest.TestCase):
         (self.root / "CONTRIBUTING.md").write_text("# Contributing\n", encoding="utf-8")
         (self.root / "SECURITY.md").write_text("# Security\n", encoding="utf-8")
         (self.root / "AGENTS.md").write_text("# Repository guidance\n", encoding="utf-8")
+        (self.root / "CHANGELOG.md").write_text("# Changelog\n", encoding="utf-8")
         (self.root / "evals").mkdir()
 
     def tearDown(self):
@@ -38,6 +39,14 @@ class CheckLinksTest(unittest.TestCase):
 
         self.assertEqual(
             ["AGENTS.md:1: target not found: missing.md"],
+            check_documentation(self.root),
+        )
+
+    def test_root_changelog_is_checked(self):
+        (self.root / "CHANGELOG.md").write_text("[Missing](missing.md)\n", encoding="utf-8")
+
+        self.assertEqual(
+            ["CHANGELOG.md:1: target not found: missing.md"],
             check_documentation(self.root),
         )
 

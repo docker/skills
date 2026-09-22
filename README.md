@@ -4,6 +4,8 @@
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Specification-blue)](https://agentskills.io/specification)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![skills.sh](https://skills.sh/b/docker/skills)](https://skills.sh/docker/skills)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/docker/skills/badge)](https://scorecard.dev/viewer/?uri=github.com/docker/skills)
+[![Release](https://img.shields.io/github/v/tag/docker/skills?sort=semver&label=release)](https://github.com/docker/skills/releases)
 
 Docker-authored knowledge skills that improve AI coding agent output for Docker-related tasks. Skills are authored once as portable `SKILL.md` directories and discovered automatically by any compliant agent through standard skill paths.
 
@@ -122,6 +124,16 @@ publishes that draft; the workflow never publishes it automatically. Follow a
 rolling channel for frequent updates. For controlled, reproducible updates, pin
 the release tag—or the image digest when byte-for-byte immutability is
 required—and periodically review and advance that pin on your own cadence.
+
+## Standards & Compatibility
+
+Every catalogued skill follows the [Agent Skills specification](https://agentskills.io/specification)
+and passes the upstream [`skills-ref` validator](https://github.com/agentskills/agentskills/tree/main/skills-ref).
+Repository-specific files such as `skill.yaml`, `agents/openai.yaml`, assets, checks,
+and evaluation runbooks add distribution and quality conventions beyond the core
+specification. Discovery and installation support varies by agent; consult the
+[Agent Skills client directory](https://agentskills.io/clients) for current client
+capabilities.
 
 ## Local Development
 

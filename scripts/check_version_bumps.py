@@ -119,11 +119,11 @@ def _check_release_rendered_files(
         rendered_files = generated_files(root)
     except (OSError, ValueError, yaml.YAMLError) as exc:
         return [f"cannot render catalog-derived files: {exc}; restore generated file structure and run `task catalog`"]
-    allowed = {"catalog.yaml", *rendered_files}
+    allowed = {"catalog.yaml", "CHANGELOG.md", *rendered_files}
     unexpected = sorted(changed_paths - allowed)
     if unexpected:
         errors.append(
-            "distribution version PR may change only catalog.yaml and catalog-rendered outputs; "
+            "distribution version PR may change only catalog.yaml, CHANGELOG.md, and catalog-rendered outputs; "
             "unexpected paths: " + ", ".join(unexpected)
         )
 

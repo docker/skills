@@ -37,6 +37,9 @@ problem or suggestion has already been reported.
      change; and a major version for a material routing-contract change. Keep
      the `SKILL.md` frontmatter and section structure consistent with the rest
      of the repo.
+   - Add user-visible changes to the `Unreleased` section of
+     [`CHANGELOG.md`](CHANGELOG.md). Keep entries concise and move them into a
+     versioned section when preparing a distribution release.
 4. Run the complete validation suite locally (requires
    [Task](https://taskfile.dev/) and Docker), comparing version changes with the
    pull request base:
@@ -55,11 +58,12 @@ The top-level `version` in `catalog.yaml` is the distribution version. It is
 separate from each skill's own `version` and changes only in a release pull
 request. A distribution version pull request must increase the version, must
 not include skill content or per-skill version changes, and may change only
-`catalog.yaml` plus files rendered by `task catalog`. Do not hand-edit those
-outputs. Apply SemVer proportionally to the distribution: use a patch for
-compatible fixes and documentation corrections, a minor version for compatible
-added skills or capabilities, and a major version for breaking changes to
-installation, catalog, or distribution contracts.
+`catalog.yaml`, `CHANGELOG.md`, and files rendered by `task catalog`. Finalize
+the release notes by moving relevant `Unreleased` entries into the new versioned
+section; do not hand-edit rendered outputs. Apply SemVer proportionally to the
+distribution: use a patch for compatible fixes and documentation corrections, a
+minor version for compatible added skills or capabilities, and a major version
+for breaking changes to installation, catalog, or distribution contracts.
 
 To prepare and publish a release:
 
