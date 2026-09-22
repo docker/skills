@@ -9,6 +9,7 @@ import sys
 import yaml
 
 from catalog import overview_skill, stale_files, validate_catalog
+from compose_assets import validate_compose_assets
 from frontmatter import validate_frontmatter
 from manifests import collect_versions, validate_codex_marketplace, validate_skills_index, validate_versions
 
@@ -416,6 +417,14 @@ for skill in catalog["skills"]:
                 )
             else:
                 print("  OK: " + os.path.join(path, rel_path))
+
+# --- 9. Check Compose YAML assets for unsafe defaults ---
+print("==> Checking Compose asset hygiene")
+compose_errors = validate_compose_assets(".")
+for message in compose_errors:
+    error(message)
+if not compose_errors:
+    print("  OK: Compose assets use interpolated credentials, scoped datastore ports, tagged images, and no Docker socket mounts")
 
 # --- Summary ---
 if errors:

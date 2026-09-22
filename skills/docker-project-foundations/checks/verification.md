@@ -37,6 +37,8 @@ Use this checklist to verify that generated Docker project setup follows the ski
 - [ ] Infrastructure services have `healthcheck` definitions.
 - [ ] Persistent data uses named volumes, not bind mounts.
 - [ ] Application source code uses bind mounts for development live-reload.
+- [ ] Application and datastore credentials use Compose interpolation rather than literal values, including passwords embedded in connection URLs.
+- [ ] Published datastore ports bind to loopback unless remote host access is explicitly required.
 - [ ] No host-level install instructions (`brew install`, `apt install`) for services that should be containerized.
 
 ## Development vs production
