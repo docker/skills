@@ -12,7 +12,9 @@ fi
 
 docker run --rm \
     -e RELEASE_TAG="${RELEASE_TAG:-}" \
+    -e VERSION_CHECK_BASE_SHA="${VERSION_CHECK_BASE_SHA:-}" \
     -v "$REPO_ROOT:/work" \
+    -v "$REPO_ROOT/.git:/work/.git:ro" \
     -v "$DOCKER_SOCKET:/var/run/docker.sock" \
     -w /work \
     "$PYTHON_IMAGE" \
@@ -20,11 +22,13 @@ docker run --rm \
         apt-get update -qq
         DEBIAN_FRONTEND=noninteractive apt-get install -qq --no-install-recommends \
             docker-cli=26.1.5+dfsg1-9+deb13u1 \
-            docker-compose=2.26.1-4 >/dev/null
+            docker-compose=2.26.1-4 \
+            git=1:2.47.3-0+deb13u1 >/dev/null
         pip install -q pyyaml
         python3 -m unittest discover -s scripts -p "test_*.py"
         python3 scripts/render_catalog.py --check
         python3 scripts/validate.py
+        python3 scripts/check_version_bumps.py
         if [ -n "$RELEASE_TAG" ]; then
             python3 scripts/check_release_tag.py "$RELEASE_TAG"
         fi

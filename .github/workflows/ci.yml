@@ -17,6 +17,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Run CI checks
+        env:
+          VERSION_CHECK_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: bash scripts/ci.sh
