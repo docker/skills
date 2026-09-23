@@ -12,8 +12,6 @@ from catalog import (
     CATALOG_START,
     DISTRIBUTION_END,
     DISTRIBUTION_START,
-    DOCS_CATALOG,
-    DOCS_INSTALL,
     MANIFESTS,
     PUBLISHED_DISTRIBUTION_MANIFESTS,
     stale_files,
@@ -92,7 +90,7 @@ class PrepareReleaseTests(unittest.TestCase):
             "    category: skills-cli\r\n"
             "    name: Test CLI\r\n"
             "    description: Installs test skills.\r\n"
-            "    page: docs/install/skills-cli.md\r\n"
+            "    docs: https://docs.docker.com/ai/skills/install/#skills-cli\r\n"
             "    role: installer\r\n"
             "    manifests:\r\n"
             + manifest_lines +
@@ -110,9 +108,7 @@ class PrepareReleaseTests(unittest.TestCase):
         self._write("CHANGELOG.md", CHANGELOG)
         self._write("skills/build-a/skill.yaml", "description: Builds images.\n")
         self._write("README.md", "# Title\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n" + DISTRIBUTION_START + "\n" + DISTRIBUTION_END + "\n")
-        self._write(DOCS_INSTALL, "# Install\n\n" + DISTRIBUTION_START + "\n" + DISTRIBUTION_END + "\n")
         self._write("evals/README.md", "# Evals\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n")
-        self._write(DOCS_CATALOG, "# Catalog\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n")
         for rel_path in MANIFESTS:
             self._write(rel_path, '{\n  "version": "0.0.1"\n}\n')
         write_generated(self.root, CATALOG)

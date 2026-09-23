@@ -22,10 +22,9 @@ problem or suggestion has already been reported.
        declared product families) and `status` (`stable` or `experimental`).
        Validation fails when a skill directory has no catalog entry or vice
        versa.
-     - Run `task catalog` to regenerate the README skill table, the human-facing
-       catalog at `docs/catalog/index.md`, the `evals/README.md` runbook table,
-       and `skills.sh.json`. Do not edit those sections by hand; CI fails when
-       they drift from the catalog.
+     - Run `task catalog` to regenerate the README skill table and installation
+       inventory, the `evals/README.md` runbook table, and `skills.sh.json`.
+       Do not edit those sections by hand; CI fails when they drift from the catalog.
      - Add an evaluation runbook at `evals/<skill-id>.md`.
      - Ensure both the skill and its evaluation runbook are covered by
        specific family rules in `.github/CODEOWNERS`, adding rules when
@@ -38,11 +37,10 @@ problem or suggestion has already been reported.
      change; and a major version for a material routing-contract change. Keep
      the `SKILL.md` frontmatter and section structure consistent with the rest
      of the repo.
-   - Human-facing documentation belongs under `docs/`. Follow
-     [`docs/STYLE.md`](docs/STYLE.md), use relative `.md` links between docs
-     pages, and set canonical front matter under
-     `https://docs.docker.com/ai/skills/`. Run `task docs:check` after changing
-     docs content, layouts, assets, or validation.
+   - Installation documentation lives in [Docker Docs](https://docs.docker.com/ai/skills/install/)
+     (source: `docker/docs/content/manuals/ai/skills/`). Update the Docker Docs
+     source when changing installation instructions; keep this repository's
+     catalog inventory links aligned with its anchors.
    - Add user-visible changes to the `Unreleased` section of
      [`CHANGELOG.md`](CHANGELOG.md). Keep entries concise and move them into a
      versioned section when preparing a distribution release.

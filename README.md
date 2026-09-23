@@ -15,13 +15,16 @@ relevant guidance when a request matches a skill's description.
 
 Choose the distribution model that fits your client or organization:
 
-- a [native marketplace](docs/install/native-marketplaces.md),
-- an [extension](docs/install/extensions.md), or
-- the cross-client [skills CLI](docs/install/skills-cli.md).
+- a [native marketplace](https://docs.docker.com/ai/skills/install/#claude-code)
+  (see also Copilot CLI, Cursor, and Codex in the published surfaces below),
+- an [extension](https://docs.docker.com/ai/skills/install/#gemini-cli), or
+- the cross-client [skills CLI](https://docs.docker.com/ai/skills/install/#skills-cli).
 
-These options have equal standing. Docker Agent consumes installed skills;
-experimental Docker Sandboxes installation and source-level fallbacks are
-covered in the [installation hub](https://docker.github.io/skills/install/).
+These options have equal standing. [Google Antigravity](https://docs.docker.com/ai/skills/install/#google-antigravity)
+uses the skills CLI or manual copy; it has no dedicated plugin manifest. Docker Agent
+consumes installed skills; experimental Docker Sandboxes installation and
+source-level fallbacks are covered in the
+[installation hub](https://docs.docker.com/ai/skills/install/).
 
 ## Published surfaces
 
@@ -30,27 +33,27 @@ This inventory is generated from [`catalog.yaml`](catalog.yaml).
 <!-- distributions-start -->
 ### Native marketplaces
 
-- **[Claude Code marketplace](docs/install/native-marketplaces.md#claude-code-marketplace).** Client-managed plugin installation from Docker's marketplace.
-- **[GitHub Copilot CLI marketplace](docs/install/native-marketplaces.md#github-copilot-cli-marketplace).** Client-managed plugin installation from Docker's marketplace.
-- **[Cursor marketplace](docs/install/native-marketplaces.md#cursor-marketplace).** Client-managed installation through Cursor's documented plugin interface.
-- **[Codex marketplace](docs/install/native-marketplaces.md#codex-marketplace).** Client-managed installation where the Codex marketplace is available.
+- **[Claude Code marketplace](https://docs.docker.com/ai/skills/install/#claude-code).** Client-managed plugin installation from Docker's marketplace.
+- **[GitHub Copilot CLI marketplace](https://docs.docker.com/ai/skills/install/#github-copilot-cli).** Client-managed plugin installation from Docker's marketplace.
+- **[Cursor marketplace](https://docs.docker.com/ai/skills/install/#cursor).** Client-managed installation through Cursor's documented plugin interface.
+- **[Codex marketplace](https://docs.docker.com/ai/skills/install/#codex).** Client-managed installation where the Codex marketplace is available.
 
 ### Extensions
 
-- **[Gemini CLI extension](docs/install/extensions.md#gemini-cli-extension).** Repository-backed extension installation managed by Gemini CLI.
+- **[Gemini CLI extension](https://docs.docker.com/ai/skills/install/#gemini-cli).** Repository-backed extension installation managed by Gemini CLI.
 
 ### skills CLI
 
-- **[skills CLI](docs/install/skills-cli.md#skills-cli).** Cross-client project or user installation with explicit skill selection.
+- **[skills CLI](https://docs.docker.com/ai/skills/install/#skills-cli).** Cross-client project or user installation with explicit skill selection.
 
 ### Docker products
 
-- **[Docker Sandboxes *(experimental)*](docs/install/docker-products.md#docker-sandboxes).** Product-native installation into the shared sandbox skill store.
-- **[Docker Agent](docs/install/docker-products.md#docker-agent).** Consumer of skills installed in supported project or user paths.
+- **[Docker Sandboxes *(experimental)*](https://docs.docker.com/ai/skills/install/#docker-sandboxes).** Product-native installation into the shared sandbox skill store.
+- **[Docker Agent](https://docs.docker.com/ai/skills/install/#docker-agent).** Consumer of skills installed in supported project or user paths.
 
 ### Sources and fallback
 
-- **[Git clone or manual copy](docs/install/sources.md#git-clone-or-manual-copy).** Auditable fallback when no managed installer fits the client.
+- **[Git clone or manual copy](https://docs.docker.com/ai/skills/install/#git-clone-or-manual-copy).** Auditable fallback when no managed installer fits the client.
 <!-- distributions-end -->
 
 The installation hub covers skill selection, project and user scope, updates,
@@ -80,11 +83,11 @@ Run validation from the repository root:
 
 ```console
 task
-task docs:check
 ```
 
-The docs site is under [`docs/`](docs/), canonical skill content is under
-[`skills/`](skills/), and repository contracts are summarized in
+Installation guidance lives on [Docker Docs](https://docs.docker.com/ai/skills/install/),
+canonical skill content is under [`skills/`](skills/), and repository contracts
+are summarized in
 [`AGENTS.md`](AGENTS.md).
 
 ## License

@@ -10,7 +10,7 @@ from urllib.parse import unquote, urlsplit
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ROOT_DOCUMENTS = ("README.md", "CONTRIBUTING.md", "SECURITY.md", "AGENTS.md", "CHANGELOG.md")
-DOCUMENTATION_GLOBS = ("evals/**/*.md", "skills/**/*.md", "docs/**/*.md")
+DOCUMENTATION_GLOBS = ("evals/**/*.md", "skills/**/*.md")
 EXTERNAL_SCHEMES = {"data", "http", "https", "mailto", "tel"}
 
 FENCED_CODE_RE = re.compile(r"^\s{0,3}(`{3,}|~{3,})")
