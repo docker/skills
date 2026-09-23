@@ -8,6 +8,11 @@ for distribution releases.
 
 ## [Unreleased]
 
+### Added
+
+- README quick-start instructions for client marketplaces, Gemini CLI, the
+  skills CLI, and manual copy; Docker Docs remains the detailed guide.
+
 ## [0.3.0] - 2026-09-23
 
 ### Changed
