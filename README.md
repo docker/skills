@@ -13,18 +13,98 @@ relevant guidance when a request matches a skill's description.
 
 ## Install
 
-Choose the distribution model that fits your client or organization:
+Choose your client's marketplace or extension, or the cross-client `skills`
+CLI; these are peer installation paths. Manual copy is a fallback. For skill
+selection, scope, updates, pinning, removal, verification, and troubleshooting,
+see the [Docker Docs installation guide](https://docs.docker.com/ai/skills/install/).
 
-- a [native marketplace](https://docs.docker.com/ai/skills/install/#claude-code)
-  (see also Copilot CLI, Cursor, and Codex in the published surfaces below),
-- an [extension](https://docs.docker.com/ai/skills/install/#gemini-cli), or
-- the cross-client [skills CLI](https://docs.docker.com/ai/skills/install/#skills-cli).
+### `skills` CLI
 
-These options have equal standing. [Google Antigravity](https://docs.docker.com/ai/skills/install/#google-antigravity)
-uses the skills CLI or manual copy; it has no dedicated plugin manifest. Docker Agent
-consumes installed skills; experimental Docker Sandboxes installation and
-source-level fallbacks are covered in the
-[installation hub](https://docs.docker.com/ai/skills/install/).
+The [`skills` CLI](https://skills.sh) reads this repository's
+[`skills.sh.json`](skills.sh.json) index and prompts you to select skills and
+agents. Examples:
+
+```bash
+# Choose skills and agents interactively
+npx skills add docker/skills
+
+# Browse without installing
+npx skills add docker/skills --list
+
+# Install one skill into the project (add -g for user scope)
+npx skills add docker/skills --skill docker-compose-patterns --yes
+
+# Install every skill into Codex
+npx skills add docker/skills --skill '*' --agent codex --yes
+
+# Install every skill into every detected agent
+npx skills add docker/skills --all
+
+# Update installed skills
+npx skills update
+
+# Pin one skill to a reviewed release tag (replace vX.Y.Z)
+npx skills add https://github.com/docker/skills/tree/vX.Y.Z \
+  --skill docker-compose-patterns --yes
+```
+
+### Marketplace or extension
+
+In **Claude Code** or **GitHub Copilot CLI**, run:
+
+```text
+/plugin marketplace add docker/skills
+/plugin install docker-skills@docker
+```
+
+In **Cursor** or **Codex**, select `docker/skills` and the `docker-skills`
+plugin from the client's marketplace where repository-backed plugins are
+available. Otherwise, use the `skills` CLI with `--agent cursor` or
+`--agent codex`, respectively, or copy the skills manually. Start a new Codex
+session after installing.
+
+For **Gemini CLI**, run in your terminal:
+
+```bash
+gemini extensions install https://github.com/docker/skills
+```
+
+Restart Gemini CLI after installation to discover the extension and its skills.
+These client-managed installs are not updated by `npx skills update`.
+
+### Manual copy
+
+If no managed installer fits your client, choose a reviewed tag from
+[Docker Skills releases](https://github.com/docker/skills/releases), clone it,
+and copy complete folders from `skills/` into your agent's skill directory.
+Replace `vX.Y.Z` with your chosen release tag:
+
+```bash
+git clone --branch vX.Y.Z --depth 1 https://github.com/docker/skills.git
+```
+
+Check your client's skill-discovery documentation for the right path and scope;
+common destinations include:
+
+| Agent | Skill directory |
+|-------|-----------------|
+| Claude Code | `~/.claude/skills/` |
+| Codex | `~/.codex/skills/` or `~/.agents/skills/` |
+| Cursor | `~/.cursor/skills/` |
+| GitHub Copilot | `.github/skills/` in the project |
+| Gemini CLI | `~/.gemini/skills/` |
+| OpenCode | `~/.config/opencode/skills/` |
+
+If you clone the repository into a project's root, agents that support its
+discovery symlinks can find the skills there; a clone inside a subdirectory
+is not discovered this way. Manual copies have no managed updater; replace
+complete skill folders when upgrading.
+
+[Google Antigravity](https://docs.docker.com/ai/skills/install/#google-antigravity)
+uses the `skills` CLI or manual copy; it has no dedicated plugin manifest.
+Docker Agent consumes skills installed in supported project or user paths.
+Docker Sandboxes installation is experimental; see the Docker Docs guide for
+that path.
 
 ## Published surfaces
 
@@ -56,9 +136,6 @@ This inventory is generated from [`catalog.yaml`](catalog.yaml).
 - **[Git clone or manual copy](https://docs.docker.com/ai/skills/install/#git-clone-or-manual-copy).** Auditable fallback when no managed installer fits the client.
 <!-- distributions-end -->
 
-The installation hub covers skill selection, project and user scope, updates,
-pinning, removal, verification, and troubleshooting for each model.
-
 ## Catalog
 
 The table is generated from [`catalog.yaml`](catalog.yaml) by `task catalog`.
@@ -85,10 +162,8 @@ Run validation from the repository root:
 task
 ```
 
-Installation guidance lives on [Docker Docs](https://docs.docker.com/ai/skills/install/),
-canonical skill content is under [`skills/`](skills/), and repository contracts
-are summarized in
-[`AGENTS.md`](AGENTS.md).
+Canonical skill content is under [`skills/`](skills/), and repository contracts
+are summarized in [`AGENTS.md`](AGENTS.md).
 
 ## License
 
