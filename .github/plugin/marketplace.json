@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Docker-authored knowledge skills for AI coding agents across Dockerfiles, Compose, Docker Agent, Docker Sandboxes, and safe Docker workflows.",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "plugins": [
     {
       "name": "docker-skills",
       "source": "./",
       "description": "Docker-authored knowledge skills for AI coding agents across Dockerfiles, Compose, Docker Agent, Docker Sandboxes, and safe Docker workflows.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "author": {
         "name": "Docker, Inc."
       },
