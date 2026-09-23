@@ -7,7 +7,19 @@ from unittest import mock
 
 import yaml
 
-from catalog import CATALOG_END, CATALOG_START, DOCS_CATALOG, MANIFESTS, stale_files, write_generated
+from catalog import (
+    CATALOG_END,
+    CATALOG_START,
+    DISTRIBUTION_END,
+    DISTRIBUTION_START,
+    DOCS_CATALOG,
+    DOCS_INSTALL,
+    MANIFESTS,
+    PUBLISHED_DISTRIBUTION_MANIFESTS,
+    stale_files,
+    test_distributions,
+    write_generated,
+)
 from prepare_release import ReleasePreparationError, main, prepare_release
 
 
@@ -15,6 +27,8 @@ CATALOG = {
     "schema": "v1",
     "name": "test",
     "version": "1.2.3",
+    "description": "Docker skills for tests.",
+    "distributions": test_distributions(),
     "products": [{"id": "build", "name": "Build", "description": "Images."}],
     "skills": [
         {
@@ -65,12 +79,23 @@ class PrepareReleaseTests(unittest.TestCase):
             return handle.read()
 
     def _make_repo(self):
+        manifest_lines = "".join(f"      - {path}\r\n" for path in PUBLISHED_DISTRIBUTION_MANIFESTS)
         self._write(
             "catalog.yaml",
             "# preserved comment\r\n"
             "schema: v1\r\n"
             "name: test\r\n"
             "version  :  '1.2.3'  # distribution\r\n"
+            "description: Docker skills for tests.\r\n"
+            "distributions:\r\n"
+            "  - id: test-cli\r\n"
+            "    category: skills-cli\r\n"
+            "    name: Test CLI\r\n"
+            "    description: Installs test skills.\r\n"
+            "    page: docs/install/skills-cli.md\r\n"
+            "    role: installer\r\n"
+            "    manifests:\r\n"
+            + manifest_lines +
             "products:\r\n"
             "  - id: build\r\n"
             "    name: Build\r\n"
@@ -84,7 +109,8 @@ class PrepareReleaseTests(unittest.TestCase):
         )
         self._write("CHANGELOG.md", CHANGELOG)
         self._write("skills/build-a/skill.yaml", "description: Builds images.\n")
-        self._write("README.md", "# Title\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n")
+        self._write("README.md", "# Title\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n" + DISTRIBUTION_START + "\n" + DISTRIBUTION_END + "\n")
+        self._write(DOCS_INSTALL, "# Install\n\n" + DISTRIBUTION_START + "\n" + DISTRIBUTION_END + "\n")
         self._write("evals/README.md", "# Evals\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n")
         self._write(DOCS_CATALOG, "# Catalog\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n")
         for rel_path in MANIFESTS:

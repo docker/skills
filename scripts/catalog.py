@@ -1,10 +1,12 @@
 """Load, validate, and render the skill catalog (catalog.yaml).
 
-`catalog.yaml` is the single source of truth for skill grouping and the distribution
-version. This module renders the derived artifacts from it: the product-grouped skill
-tables in README.md and docs/catalog/index.md, the runbook table in evals/README.md,
-the `skills.sh.json` index read by the skills CLI, and format-preserved versions in
-plugin manifests. `render_catalog.py` writes them; `validate.py` fails when they drift.
+`catalog.yaml` is the single source of truth for skill grouping, the distribution
+version, and the canonical distribution description. This module renders the
+derived artifacts from it: the product-grouped skill tables in README.md and
+docs/catalog/index.md, the runbook table in evals/README.md, the `skills.sh.json`
+index read by the skills CLI, and format-preserved versions and descriptions in
+plugin manifests. `render_catalog.py` writes them; `validate.py` fails when they
+drift.
 """
 
 from __future__ import annotations
@@ -17,6 +19,45 @@ from typing import Any
 import yaml
 
 STATUSES = ("stable", "experimental")
+DISTRIBUTION_CATEGORIES = {
+    "native-marketplaces": "Native marketplaces",
+    "extensions": "Extensions",
+    "skills-cli": "skills CLI",
+    "docker-products": "Docker products",
+    "sources": "Sources and fallback",
+}
+DISTRIBUTION_ROLES = ("installer", "consumer", "source")
+DISTRIBUTION_START = "<!-- distributions-start -->"
+DISTRIBUTION_END = "<!-- distributions-end -->"
+PUBLISHED_DISTRIBUTION_MANIFESTS = (
+    ".agents/plugins/marketplace.json",
+    ".claude-plugin/marketplace.json",
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+    ".cursor-plugin/marketplace.json",
+    ".cursor-plugin/plugin.json",
+    ".github/plugin/marketplace.json",
+    ".github/plugin/plugin.json",
+    "gemini-extension.json",
+    "skills.sh.json",
+)
+
+
+def test_distributions() -> list[dict[str, Any]]:
+    """Return a minimal valid fixture mapping every published manifest once."""
+    return [
+        {
+            "id": "test-cli",
+            "category": "skills-cli",
+            "name": "Test CLI",
+            "description": "Installs test skills.",
+            "page": "docs/install/skills-cli.md",
+            "role": "installer",
+            "manifests": list(PUBLISHED_DISTRIBUTION_MANIFESTS),
+        }
+    ]
+
+
 CATALOG_START = "<!-- catalog-start -->"
 CATALOG_END = "<!-- catalog-end -->"
 START_HERE_TITLE = "Start here"
@@ -27,6 +68,7 @@ START_HERE_DESCRIPTION = (
 SKILLS_INDEX_SCHEMA = "https://skills.sh/schemas/skills.sh.schema.json"
 SEMVER_RE = re.compile(r"^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$")
 MANIFEST_VERSION_RE = re.compile(r'("version"\s*:\s*")([^"\\]*)(")')
+MANIFEST_DESCRIPTION_RE = re.compile(r'("description"\s*:\s*")([^"\\]*)(")')
 
 
 # --- Loading -----------------------------------------------------------------
@@ -62,7 +104,8 @@ def _is_url(value: Any) -> bool:
 def validate_catalog(catalog: Any) -> list[str]:
     """Validate the structure of a parsed catalog.yaml.
 
-    Checks the `products` and `skills` sections, that every skill belongs to exactly one
+    Checks the distribution surface and manifest mapping plus the `products` and
+    `skills` sections; every skill belongs to exactly one
     declared product (except the overview skill, which belongs to none), that ids and
     paths are unique and consistent, that statuses are known, and that no product is
     left without skills.
@@ -74,6 +117,68 @@ def validate_catalog(catalog: Any) -> list[str]:
     version = catalog.get("version")
     if not isinstance(version, str) or not SEMVER_RE.fullmatch(version):
         errors.append("catalog.yaml 'version' must be a string in X.Y.Z format")
+
+    description = catalog.get("description")
+    if not isinstance(description, str) or not description.strip():
+        errors.append("catalog.yaml 'description' must be a non-empty string")
+    elif len(description) > 500:
+        errors.append("catalog.yaml 'description' must be at most 500 characters")
+    elif any(character in description for character in ('"', "\\", "\n", "\r")):
+        errors.append("catalog.yaml 'description' must not contain quotes, backslashes, or newlines")
+
+    distributions = catalog.get("distributions")
+    if not isinstance(distributions, list) or not distributions:
+        errors.append("catalog.yaml 'distributions' must be a non-empty list")
+        distributions = []
+    seen_distribution_ids: set[str] = set()
+    manifest_owners: dict[str, str] = {}
+    published_manifests = set(PUBLISHED_DISTRIBUTION_MANIFESTS)
+    for i, distribution in enumerate(distributions):
+        prefix = "catalog.yaml distributions[" + str(i) + "]"
+        if not isinstance(distribution, dict):
+            errors.append(prefix + " must be a mapping")
+            continue
+        distribution_id = distribution.get("id")
+        if not isinstance(distribution_id, str) or not distribution_id.strip():
+            errors.append(prefix + " missing non-empty 'id'")
+            distribution_id = "#" + str(i)
+        elif distribution_id in seen_distribution_ids:
+            errors.append("catalog.yaml declares distribution '" + distribution_id + "' twice")
+        seen_distribution_ids.add(distribution_id)
+        prefix = "catalog.yaml distribution '" + distribution_id + "'"
+        for field in ("name", "description"):
+            value = distribution.get(field)
+            if not isinstance(value, str) or not value.strip():
+                errors.append(prefix + " missing non-empty '" + field + "'")
+        category = distribution.get("category")
+        if category not in DISTRIBUTION_CATEGORIES:
+            errors.append(prefix + " category '" + str(category) + "' must be one of: " + ", ".join(DISTRIBUTION_CATEGORIES))
+        page = distribution.get("page")
+        expected_page = "docs/install/" + str(category) + ".md"
+        if not isinstance(page, str) or page != expected_page:
+            errors.append(prefix + " page must be '" + expected_page + "'")
+        role = distribution.get("role")
+        if role not in DISTRIBUTION_ROLES:
+            errors.append(prefix + " role '" + str(role) + "' must be one of: " + ", ".join(DISTRIBUTION_ROLES))
+        status = distribution.get("status", "stable")
+        if status not in STATUSES:
+            errors.append(prefix + " status '" + str(status) + "' must be one of: " + ", ".join(STATUSES))
+        manifests = distribution.get("manifests")
+        if not isinstance(manifests, list) or any(not isinstance(item, str) or not item for item in manifests):
+            errors.append(prefix + " 'manifests' must be a list of non-empty paths")
+            manifests = []
+        for manifest in manifests:
+            if manifest not in published_manifests:
+                errors.append(prefix + " references unpublished manifest '" + manifest + "'")
+            elif manifest in manifest_owners:
+                errors.append("published manifest '" + manifest + "' is mapped by both '" + manifest_owners[manifest] + "' and '" + distribution_id + "'")
+            else:
+                manifest_owners[manifest] = distribution_id
+        unknown = set(distribution) - {"id", "category", "name", "description", "page", "role", "status", "manifests"}
+        if unknown:
+            errors.append(prefix + " has unsupported fields: " + ", ".join(sorted(unknown)))
+    for manifest in sorted(published_manifests - set(manifest_owners)):
+        errors.append("published manifest '" + manifest + "' is not mapped by a catalog distribution")
 
     products = catalog.get("products")
     if not isinstance(products, list) or not products:
@@ -234,8 +339,12 @@ def render_readme_table(catalog: dict[str, Any], descriptions: dict[str, str]) -
 
 
 def render_docs_catalog(catalog: dict[str, Any], descriptions: dict[str, str]) -> str:
-    """Human-facing catalog grouped by product for docs/catalog/index.md."""
-    sections: list[str] = []
+    """Human-facing catalog grouped by product, including release and skill versions."""
+    version = catalog["version"]
+    sections: list[str] = [
+        "Latest distribution release: [`v" + version + "`](https://github.com/docker/skills/releases/tag/v" + version + ").",
+        "",
+    ]
     overview = overview_skill(catalog)
     if overview:
         sections.extend(
@@ -256,11 +365,40 @@ def render_docs_catalog(catalog: dict[str, Any], descriptions: dict[str, str]) -
         sections.extend([heading, "", product["description"], ""])
         for skill in skills:
             line = "- [`" + skill["id"] + "`](https://github.com/docker/skills/tree/main/" + skill["path"] + ")"
+            line += " **v" + skill["version"] + ".**"
             if skill.get("status", "stable") == "experimental":
                 line += " **Experimental.**"
             description = descriptions.get(skill["id"], "")
             if description:
                 line += " " + description
+            sections.append(line)
+        sections.append("")
+    return "\n".join(sections)
+
+
+def markdown_anchor(value: str) -> str:
+    """Return the GitHub-style anchor used by the repository link checker."""
+    value = re.sub(r"[^\w\- ]", "", value.lower())
+    return re.sub(r"\s+", "-", value.strip())
+
+
+def render_distribution_inventory(catalog: dict[str, Any], docs: bool = False) -> str:
+    """Render documented installation surfaces, grouped by distribution model."""
+    sections: list[str] = []
+    for category, title in DISTRIBUTION_CATEGORIES.items():
+        entries = [item for item in catalog.get("distributions") or [] if item.get("category") == category]
+        if not entries:
+            continue
+        sections.extend(["### " + title, ""])
+        for item in entries:
+            label = item["name"]
+            if item.get("status", "stable") == "experimental":
+                label += " *(experimental)*"
+            if docs:
+                line = "- **" + label + ".** " + item["description"]
+            else:
+                target = item["page"] + "#" + markdown_anchor(item["name"])
+                line = "- **[" + label + "](" + target + ").** " + item["description"]
             sections.append(line)
         sections.append("")
     return "\n".join(sections)
@@ -295,8 +433,16 @@ def render_skills_index(catalog: dict[str, Any]) -> str:
     return json.dumps(index, indent=2, ensure_ascii=False) + "\n"
 
 
+def render_manifest(content: str, version: str, description: str) -> str:
+    """Replace manifest version and description values without reformatting JSON."""
+    content = MANIFEST_VERSION_RE.sub(lambda match: match.group(1) + version + match.group(3), content)
+    return MANIFEST_DESCRIPTION_RE.sub(
+        lambda match: match.group(1) + description + match.group(3), content
+    )
+
+
 def render_manifest_version(content: str, version: str) -> str:
-    """Replace manifest version string values without changing any other formatting."""
+    """Replace manifest version values; retained for callers that only need versions."""
     return MANIFEST_VERSION_RE.sub(lambda match: match.group(1) + version + match.group(3), content)
 
 
@@ -314,6 +460,7 @@ def replace_section(content: str, body: str, start: str = CATALOG_START, end: st
 # --- Generated files ---------------------------------------------------------
 
 README = "README.md"
+DOCS_INSTALL = os.path.join("docs", "install", "_index.md")
 DOCS_CATALOG = os.path.join("docs", "catalog", "index.md")
 EVALS_README = os.path.join("evals", "README.md")
 SKILLS_INDEX = "skills.sh.json"
@@ -339,7 +486,18 @@ def generated_files(root: str = ".", catalog: dict[str, Any] | None = None) -> d
     catalog = catalog or load_catalog(os.path.join(root, "catalog.yaml"))
     descriptions = load_skill_descriptions(root, catalog)
     generated = {
-        README: replace_section(_read(os.path.join(root, README)), render_readme_table(catalog, descriptions)),
+        README: replace_section(
+            replace_section(_read(os.path.join(root, README)), render_readme_table(catalog, descriptions)),
+            render_distribution_inventory(catalog),
+            DISTRIBUTION_START,
+            DISTRIBUTION_END,
+        ),
+        DOCS_INSTALL: replace_section(
+            _read(os.path.join(root, DOCS_INSTALL)),
+            render_distribution_inventory(catalog, docs=True),
+            DISTRIBUTION_START,
+            DISTRIBUTION_END,
+        ),
         DOCS_CATALOG: replace_section(
             _read(os.path.join(root, DOCS_CATALOG)), render_docs_catalog(catalog, descriptions)
         ),
@@ -347,8 +505,8 @@ def generated_files(root: str = ".", catalog: dict[str, Any] | None = None) -> d
         SKILLS_INDEX: render_skills_index(catalog),
     }
     for manifest in MANIFESTS:
-        generated[manifest] = render_manifest_version(
-            _read(os.path.join(root, manifest)), catalog["version"]
+        generated[manifest] = render_manifest(
+            _read(os.path.join(root, manifest)), catalog["version"], catalog["description"]
         )
     return generated
 

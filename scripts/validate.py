@@ -12,7 +12,13 @@ from catalog import overview_skill, stale_files, validate_catalog
 from compose_assets import validate_compose_assets
 from content_risk import validate_content_risk
 from frontmatter import validate_frontmatter
-from manifests import collect_versions, validate_codex_marketplace, validate_skills_index, validate_versions
+from manifests import (
+    collect_versions,
+    validate_codex_marketplace,
+    validate_descriptions,
+    validate_skills_index,
+    validate_versions,
+)
 from repository_hygiene import validate_codeowners, validate_discovery_links, validate_skill_line_limits
 
 errors = 0
@@ -291,7 +297,14 @@ except FileNotFoundError:
 except json.JSONDecodeError as e:
     error("invalid JSON in " + codex_marketplace + ": " + str(e))
 
-# --- 5a. All plugin manifests must declare the same version ---
+# --- 5a. All plugin manifests must declare the catalog description and version ---
+print("==> Checking manifest description consistency")
+description_errors = validate_descriptions(loaded_manifests, catalog["description"])
+for message in description_errors:
+    error(message)
+if not description_errors:
+    print("  OK: all manifest descriptions match catalog.yaml")
+
 print("==> Checking manifest version consistency")
 version_errors = validate_versions(loaded_manifests)
 for location, version in sorted(collect_versions(loaded_manifests).items()):

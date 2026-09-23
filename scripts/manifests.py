@@ -97,6 +97,29 @@ def validate_codex_marketplace(data: Any, filename: str) -> list[str]:
     return errors
 
 
+def collect_descriptions(manifests: dict[str, Any]) -> dict[str, str]:
+    """Return every description declared across plugin and marketplace manifests."""
+    descriptions: dict[str, str] = {}
+    for filename, data in manifests.items():
+        if not isinstance(data, dict):
+            continue
+        if "description" in data:
+            descriptions[filename] = str(data["description"])
+        for i, plugin in enumerate(data.get("plugins") or []):
+            if isinstance(plugin, dict) and "description" in plugin:
+                descriptions[filename + " plugins[" + str(i) + "].description"] = str(plugin["description"])
+    return descriptions
+
+
+def validate_descriptions(manifests: dict[str, Any], canonical: str) -> list[str]:
+    """Every manifest description must match the catalog's canonical description."""
+    return [
+        location + " does not match catalog description"
+        for location, description in sorted(collect_descriptions(manifests).items())
+        if description != canonical
+    ]
+
+
 def collect_versions(manifests: dict[str, Any]) -> dict[str, str]:
     """Return every version declared across plugin and marketplace manifests, keyed by location."""
     versions: dict[str, str] = {}
