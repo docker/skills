@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from check_links import check_documentation, check_link, extract_links, heading_anchors
+from check_links import check_documentation, check_link, documentation_files, extract_links, heading_anchors
 
 
 class CheckLinksTest(unittest.TestCase):
@@ -23,6 +23,15 @@ class CheckLinksTest(unittest.TestCase):
         path = self.root / "evals" / "guide.md"
         path.write_text(content, encoding="utf-8")
         return path
+
+    def test_scans_repository_guidance_without_retired_site(self):
+        (self.root / "docs").mkdir()
+        (self.root / "docs" / "retired.md").write_text("[Missing](missing.md)\n", encoding="utf-8")
+
+        paths = {path.relative_to(self.root).as_posix() for path in documentation_files(self.root)}
+        self.assertIn("AGENTS.md", paths)
+        self.assertNotIn("docs/retired.md", paths)
+        self.assertEqual([], check_documentation(self.root))
 
     def test_existing_file_and_anchor_links_pass(self):
         self.write_eval(

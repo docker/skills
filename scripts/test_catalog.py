@@ -15,7 +15,6 @@ from catalog import (
     PUBLISHED_DISTRIBUTION_MANIFESTS,
     generated_files,
     release_tag,
-    render_docs_catalog,
     render_distribution_inventory,
     render_evals_table,
     render_manifest,
@@ -39,7 +38,7 @@ CATALOG = {
             "category": "skills-cli",
             "name": "Test CLI",
             "description": "Installs test skills.",
-            "page": "docs/install/skills-cli.md",
+            "docs": "https://docs.docker.com/ai/skills/install/#skills-cli",
             "role": "installer",
             "manifests": list(PUBLISHED_DISTRIBUTION_MANIFESTS),
         }
@@ -148,12 +147,32 @@ class ValidateCatalogTests(unittest.TestCase):
                 "category": "skills-cli",
                 "name": "Duplicate",
                 "description": "Duplicate.",
-                "page": "docs/install/skills-cli.md",
+                "docs": "https://docs.docker.com/ai/skills/install/#skills-cli",
                 "role": "installer",
                 "manifests": [PUBLISHED_DISTRIBUTION_MANIFESTS[0]],
             }
         )
         self.assertTrue(any("is mapped by both" in error for error in validate_catalog(data)))
+
+    def test_distribution_docs_requires_canonical_install_anchor(self):
+        invalid_urls = (
+            None,
+            "docs/install/skills-cli.md",
+            "http://docs.docker.com/ai/skills/install/#skills-cli",
+            "https://example.com/ai/skills/install/#skills-cli",
+            "https://docs.docker.com/ai/skills/install/#",
+        )
+        for bad in invalid_urls:
+            data = catalog()
+            data["distributions"][0]["docs"] = bad
+            self.assertTrue(
+                any("docs must be a https://docs.docker.com/ai/skills/install/" in error
+                    for error in validate_catalog(data)),
+                bad,
+            )
+        data = catalog()
+        data["distributions"][0]["page"] = "docs/install/skills-cli.md"
+        self.assertTrue(any("unsupported fields: page" in error for error in validate_catalog(data)))
 
     def test_bad_status_urls_and_unknown_fields(self):
         data = catalog()
@@ -191,21 +210,10 @@ class RenderTests(unittest.TestCase):
         self.assertNotIn("Start here", table)
         self.assertEqual(len(table.strip().splitlines()), 4)
 
-    def test_docs_catalog_groups_skills_and_links_to_source(self):
-        content = render_docs_catalog(CATALOG, DESCRIPTIONS)
-        self.assertIn("## [Build](https://example.com/build)", content)
-        self.assertIn("Latest distribution release: [`v1.2.3`]", content)
-        self.assertIn("[`build-a`](https://github.com/docker/skills/tree/main/skills/build-a) **v0.1.0.** Builds.", content)
-        self.assertIn("[`agent-a`](https://github.com/docker/skills/tree/main/skills/agent-a) **v0.1.0.** **Experimental.** Agents.", content)
-        self.assertLess(content.index("## [Build]"), content.index("## Agent"))
-
-    def test_distribution_inventory_groups_models_and_links_pages(self):
+    def test_distribution_inventory_groups_models_and_links_to_install_anchors(self):
         rendered = render_distribution_inventory(CATALOG)
         self.assertIn("### skills CLI", rendered)
-        self.assertIn("[Test CLI](docs/install/skills-cli.md#test-cli)", rendered)
-        docs = render_distribution_inventory(CATALOG, docs=True)
-        self.assertIn("**Test CLI.** Installs test skills.", docs)
-        self.assertNotIn("docs/install", docs)
+        self.assertIn("[Test CLI](https://docs.docker.com/ai/skills/install/#skills-cli)", rendered)
 
     def test_evals_table_lists_every_skill_overview_first(self):
         table = render_evals_table(CATALOG)
@@ -265,13 +273,9 @@ class GeneratedFilesTests(unittest.TestCase):
             with open(os.path.join(root, skill["path"], "skill.yaml"), "w") as handle:
                 yaml.safe_dump({"description": DESCRIPTIONS[skill["id"]]}, handle)
         os.makedirs(os.path.join(root, "evals"))
-        os.makedirs(os.path.join(root, "docs", "catalog"))
-        os.makedirs(os.path.join(root, "docs", "install"))
-        for rel in ("README.md", os.path.join("evals", "README.md"), os.path.join("docs", "catalog", "index.md")):
+        for rel in ("README.md", os.path.join("evals", "README.md")):
             with open(os.path.join(root, rel), "w") as handle:
                 handle.write("# Title\n\n" + CATALOG_START + "\n" + CATALOG_END + "\n" + DISTRIBUTION_START + "\n" + DISTRIBUTION_END + "\n")
-        with open(os.path.join(root, "docs", "install", "_index.md"), "w") as handle:
-            handle.write("# Install\n\n" + DISTRIBUTION_START + "\n" + DISTRIBUTION_END + "\n")
         for rel in MANIFESTS:
             path = os.path.join(root, rel)
             os.makedirs(os.path.dirname(path) or root, exist_ok=True)
@@ -284,7 +288,7 @@ class GeneratedFilesTests(unittest.TestCase):
 
     def test_write_then_check_round_trip(self):
         root = self.make_repo()
-        expected = sorted(["README.md", "docs/catalog/index.md", "docs/install/_index.md", "evals/README.md", "skills.sh.json", *MANIFESTS])
+        expected = sorted(["README.md", "evals/README.md", "skills.sh.json", *MANIFESTS])
         self.assertEqual(sorted(stale_files(root)), expected)
         changed = write_generated(root)
         self.assertEqual(sorted(changed), expected)
@@ -294,7 +298,7 @@ class GeneratedFilesTests(unittest.TestCase):
         self.assertTrue(readme.startswith("# Title\n\n" + CATALOG_START + "\n| Product |"))
         self.assertIn("[`agent-a`](skills/agent-a) *(experimental)* — Agents.", readme)
         generated = generated_files(root)
-        self.assertEqual(set(generated), {"README.md", "docs/catalog/index.md", "docs/install/_index.md", "evals/README.md", "skills.sh.json", *MANIFESTS})
+        self.assertEqual(set(generated), {"README.md", "evals/README.md", "skills.sh.json", *MANIFESTS})
         for rel in MANIFESTS:
             manifest = open(os.path.join(root, rel)).read()
             self.assertNotIn("0.0.1", manifest)

@@ -40,18 +40,6 @@ tasks:
     cmds:
       - docker run --rm -e RELEASE_VERSION -v "{{.ROOT_DIR}}:/work" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d sh -c 'pip install -q --require-hashes -r scripts/requirements.txt && python3 scripts/prepare_release.py "$RELEASE_VERSION"'
 
-  docs:serve:
-    desc: Serve the edge documentation site at http://localhost:1313/skills/
-    cmds:
-      - docker build -t docker-skills-docs docs
-      - docker run --rm -it -p 1313:1313 -v "{{.ROOT_DIR}}/docs:/src:ro" docker-skills-docs hugo server --bind 0.0.0.0 --destination /tmp/hugo-public --cacheDir /tmp/hugo-cache --noBuildLock --baseURL http://localhost:1313/skills/ --appendPort=false --disableFastRender
-
-  docs:check:
-    desc: Lint and build docs; validate canonicals, portable links, and llms.txt
-    cmds:
-      - docker run --rm -v "{{.ROOT_DIR}}/docs:/work" -w /work node@sha256:b21fe589dfbe5cc39365d0544b9be3f1f33f55f3c86c87a76ff65a02f8f5848e npx --yes markdownlint-cli2@0.22.1
-      - bash scripts/docs-check-site.sh
-
   links:
     desc: Check local Markdown links and heading anchors
     cmds:

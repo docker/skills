@@ -10,36 +10,17 @@ for distribution releases.
 
 ### Changed
 
-- Reorganized installation documentation around equal distribution models:
-  native marketplaces, extensions, and the skills CLI. Added model-specific
-  install, advanced use, update/pin/scope, verification, and troubleshooting;
-  classified Docker Agent as a consumer, experimental Docker Sandboxes as a
-  product-native installer, and Git/manual copy as sources and fallbacks. The
-  catalog now generates a published-surface inventory and validates that
-  every plugin manifest maps exactly once; docs tooling now supports branch
-  `_index.md` pages and enforces the installation-page contract.
-
-- Replaced the single-page installation guide with the distribution-model
-  bundle above and removed the former `/advanced-install/` route. Installation
-  selection, scope, pinning, updates, removal, verification, and troubleshooting
-  now live on the owning model page. The former community page remains removed;
-  use `CONTRIBUTING.md` for repository contributions.
+- Moved installation documentation to Docker Docs and retired this repository's
+  Hugo site, GitHub Pages workflows, and site-specific checks. Catalog-generated
+  installation links now target Docker Docs; Antigravity installation is documented
+  there through the skills CLI or manual copy, not a dedicated plugin.
+- The catalog now generates a published-surface inventory, validates that every
+  plugin manifest maps exactly once, and synchronizes its description across
+  plugin manifests.
 - Tightened `docker-project-foundations` development Compose defaults: application
   and optional Postgres host access use loopback, while unauthenticated Redis stays
   on the Compose network; the development-only password fallback and `.env`
   override are now explicit.
-- Added human-facing Hugo documentation for installation, getting started, and
-  the skill catalog, with local validation and an edge GitHub Pages site.
-- Added path-filtered documentation CI for Markdown style, canonical URLs,
-  portable links, Hugo builds, and generated `llms.txt` content.
-- Catalog generation now publishes the latest distribution release and each
-  skill version in the docs catalog, and synchronizes a canonical catalog
-  description across plugin manifests.
-- Documentation checks now reject missing or stale navigation entries and stale
-  backticked `docker-<id>` skill references in hand-authored pages.
-- Catalog generation now keeps the human-facing documentation catalog in sync
-  with `catalog.yaml` and skill descriptions.
-- The skills-content image build context excludes the human-facing docs site.
 
 ## [0.2.0] - 2026-09-22
 

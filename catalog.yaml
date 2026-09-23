@@ -2,9 +2,9 @@
 # family each belongs to, whether it is stable or experimental, and the canonical
 # description shared by distribution manifests.
 #
-# `task catalog` renders the README and docs skill tables, the installation
-# surface inventory, the evals/README.md runbook table, skills.sh.json, and plugin manifest versions and descriptions from
-# this file; `task validate` fails when they drift.
+# `task catalog` renders the README skill table and installation inventory,
+# the evals/README.md runbook table, skills.sh.json, and plugin manifest
+# versions and descriptions from this file; `task validate` fails when they drift.
 # `version` is the distribution version: its v-prefixed release tag must match,
 # and `task catalog` renders it into every versioned plugin manifest.
 schema: v1
@@ -17,7 +17,7 @@ distributions:
     category: native-marketplaces
     name: Claude Code marketplace
     description: Client-managed plugin installation from Docker's marketplace.
-    page: docs/install/native-marketplaces.md
+    docs: https://docs.docker.com/ai/skills/install/#claude-code
     role: installer
     manifests:
       - .claude-plugin/marketplace.json
@@ -26,7 +26,7 @@ distributions:
     category: native-marketplaces
     name: GitHub Copilot CLI marketplace
     description: Client-managed plugin installation from Docker's marketplace.
-    page: docs/install/native-marketplaces.md
+    docs: https://docs.docker.com/ai/skills/install/#github-copilot-cli
     role: installer
     manifests:
       - .github/plugin/marketplace.json
@@ -35,7 +35,7 @@ distributions:
     category: native-marketplaces
     name: Cursor marketplace
     description: Client-managed installation through Cursor's documented plugin interface.
-    page: docs/install/native-marketplaces.md
+    docs: https://docs.docker.com/ai/skills/install/#cursor
     role: installer
     manifests:
       - .cursor-plugin/marketplace.json
@@ -44,7 +44,7 @@ distributions:
     category: native-marketplaces
     name: Codex marketplace
     description: Client-managed installation where the Codex marketplace is available.
-    page: docs/install/native-marketplaces.md
+    docs: https://docs.docker.com/ai/skills/install/#codex
     role: installer
     manifests:
       - .agents/plugins/marketplace.json
@@ -53,7 +53,7 @@ distributions:
     category: extensions
     name: Gemini CLI extension
     description: Repository-backed extension installation managed by Gemini CLI.
-    page: docs/install/extensions.md
+    docs: https://docs.docker.com/ai/skills/install/#gemini-cli
     role: installer
     manifests:
       - gemini-extension.json
@@ -61,7 +61,7 @@ distributions:
     category: skills-cli
     name: skills CLI
     description: Cross-client project or user installation with explicit skill selection.
-    page: docs/install/skills-cli.md
+    docs: https://docs.docker.com/ai/skills/install/#skills-cli
     role: installer
     manifests:
       - skills.sh.json
@@ -69,7 +69,7 @@ distributions:
     category: docker-products
     name: Docker Sandboxes
     description: Product-native installation into the shared sandbox skill store.
-    page: docs/install/docker-products.md
+    docs: https://docs.docker.com/ai/skills/install/#docker-sandboxes
     role: installer
     status: experimental
     manifests: []
@@ -77,14 +77,14 @@ distributions:
     category: docker-products
     name: Docker Agent
     description: Consumer of skills installed in supported project or user paths.
-    page: docs/install/docker-products.md
+    docs: https://docs.docker.com/ai/skills/install/#docker-agent
     role: consumer
     manifests: []
   - id: git-manual
     category: sources
     name: Git clone or manual copy
     description: Auditable fallback when no managed installer fits the client.
-    page: docs/install/sources.md
+    docs: https://docs.docker.com/ai/skills/install/#git-clone-or-manual-copy
     role: source
     manifests: []
 
