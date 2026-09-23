@@ -10,8 +10,16 @@ for distribution releases.
 
 ### Added
 
-- README quick-start instructions for client marketplaces, Gemini CLI, the
-  skills CLI, and manual copy; Docker Docs remains the detailed guide.
+- Expanded the README with client-specific installation commands, experimental
+  Docker Sandboxes installation, manual-copy guidance, and release pinning and
+  update options. The README remains self-contained and records canonical
+  Docker Docs links for each distribution surface.
+
+### Changed
+
+- Reorganized the README around skill discovery, installation, published
+  distribution surfaces, release channels, and local development. The catalog
+  continues to generate the skill table and published-surface inventory.
 
 ## [0.3.0] - 2026-09-23
 
