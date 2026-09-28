@@ -26,6 +26,8 @@ for distribution releases.
 
 ### Fixed
 
+- Corrected the Compose evaluation's Postgres and Redis health verification to
+  inspect container IDs from `docker compose ps -q` with `docker inspect`.
 - Corrected the Compose healthcheck sidecar and project-structure examples to
   use published curl and Prometheus image tags.
 

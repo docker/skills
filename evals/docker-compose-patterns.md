@@ -112,10 +112,10 @@ docker compose up -d
 docker compose ps
 
 # Confirm Postgres health check is passing
-docker compose inspect db --format '{{.State.Health.Status}}' 2>/dev/null || docker inspect $(docker compose ps -q db) --format '{{.State.Health.Status}}'
+docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q db)"
 
 # Confirm Redis health check is passing
-docker inspect $(docker compose ps -q redis) --format '{{.State.Health.Status}}'
+docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q redis)"
 
 # Tear down
 docker compose down -v
