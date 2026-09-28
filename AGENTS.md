@@ -40,6 +40,8 @@ are required; validation runs in pinned container images.
 - `task eval`: run deterministic checks against checked-in skill assets. This is
   not a live model evaluation.
 - `task links`: check local Markdown destinations and heading anchors.
+- `task links:external`: opt-in live HTTPS link check; runs separately from
+  offline `task`/`task ci` in a pinned container.
 - `task catalog`: regenerate all files derived from `catalog.yaml`.
 - `task catalog:check`: verify generated catalog files are current without
   changing them.

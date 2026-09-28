@@ -10,6 +10,10 @@ for distribution releases.
 
 ### Added
 
+- Added a separate external HTTPS link checker for advisory pull-request URL checks
+  and weekly full sweeps, with an opt-in live-network Task command. Pull-request
+  checks include repeated URLs added on new lines; HTTPS requests connect only to
+  vetted public addresses and warn rather than bypass configured proxies.
 - Expanded the README with client-specific installation commands, experimental
   Docker Sandboxes installation, manual-copy guidance, and release pinning and
   update options. The README remains self-contained and records canonical

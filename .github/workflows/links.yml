@@ -1,0 +1,40 @@
+name: External HTTPS links
+
+on:
+  pull_request:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  external-links:
+    runs-on: ubuntu-latest
+    container: python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d
+    timeout-minutes: 15
+    # Pull-request diagnostics are advisory during rollout; full sweeps report failures.
+    continue-on-error: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - name: Install Git for pull-request comparison
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -qq --no-install-recommends git=1:2.47.3-0+deb13u1 >/dev/null
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Check external HTTPS links
+        env:
+          LINK_CHECK_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            if [ -z "$LINK_CHECK_BASE_SHA" ]; then
+              echo "Missing pull-request base SHA" >&2
+              exit 2
+            fi
+            python3 scripts/check_external_links.py --base "$LINK_CHECK_BASE_SHA"
+          else
+            python3 scripts/check_external_links.py
+          fi

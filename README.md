@@ -188,13 +188,27 @@ capabilities.
 Prerequisites: [Task](https://taskfile.dev/) and Docker.
 
 ```bash
-task             # Run the complete CI/release validation suite
-task validate    # Check skill structure, frontmatter, and manifests; run validator tests
-task eval        # Static asset and verification-snippet checks, not live agent evals
-task links       # Check local Markdown links and heading anchors
-task catalog     # Regenerate catalog tables, skills.sh.json, and plugin manifest versions from catalog.yaml
-task catalog:check # Verify generated catalog files are current
+task                # Run the complete CI/release validation suite
+task validate       # Check skill structure, frontmatter, and manifests; run validator tests
+task eval           # Static asset and verification-snippet checks, not live agent evals
+task links          # Check local Markdown links and heading anchors
+task links:external # Check external HTTPS URLs via live network (opt-in)
+task catalog        # Regenerate catalog tables, skills.sh.json, and plugin manifest versions from catalog.yaml
+task catalog:check  # Verify generated catalog files are current
 ```
+
+External checks require public network access. `task links:external` scans Markdown prose
+and catalog/plugin metadata; `python3 scripts/check_external_links.py --base <commit>`
+checks URL occurrences on added lines since the merge base (including repeated URLs).
+CI runs this network-dependent check separately from deterministic `task` validation:
+pull requests check added-line URL occurrences, while the weekly schedule and manual
+dispatch check all URLs. This advisory workflow is **not required for merges during
+initial rollout**. Confirmed HTTP 404/410 and missing Docker Docs anchors are reported
+as failures; access denial, rate limiting, server/network errors, and uncertain anchors
+are warnings. When an HTTPS proxy is configured, the checker warns rather than bypassing
+it; these warnings cannot confirm link availability. Redirects are reported so maintainers
+can update moved links. An intentional session-dependent Slack invitation
+(`https://dockr.ly/slack`) is excluded from automated checks.
 
 ## Repository Structure
 

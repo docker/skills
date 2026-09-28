@@ -44,3 +44,8 @@ tasks:
     desc: Check local Markdown links and heading anchors
     cmds:
       - docker run --rm -v "{{.ROOT_DIR}}:/work" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d python3 scripts/check_links.py
+
+  links:external:
+    desc: Check public HTTPS links (live network; separate from offline CI)
+    cmds:
+      - docker run --rm -v "{{.ROOT_DIR}}:/work:ro" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d python3 scripts/check_external_links.py

@@ -30,6 +30,24 @@ class CIWorkflowTests(unittest.TestCase):
         )
         self.assertIn('-v "$REPO_ROOT/.git:/work/.git:ro"', CI_SCRIPT)
 
+    def test_external_links_are_advisory_on_prs_and_separate_from_offline_ci(self):
+        workflow = (REPO_ROOT / ".github" / "workflows" / "links.yml").read_text()
+        taskfile = (REPO_ROOT / "Taskfile.yml").read_text()
+        self.assertIn("pull_request:", workflow)
+        self.assertIn("schedule:", workflow)
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn("permissions:\n  contents: read", workflow)
+        self.assertIn("persist-credentials: false", workflow)
+        self.assertIn("fetch-depth: 0", workflow)
+        self.assertIn("continue-on-error: ${{ github.event_name == 'pull_request' }}", workflow)
+        self.assertIn("container: python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d", workflow)
+        self.assertIn("git=1:2.47.3-0+deb13u1", workflow)
+        self.assertLess(workflow.index("Install Git for pull-request comparison"), workflow.index("uses: actions/checkout@"))
+        self.assertIn('python3 scripts/check_external_links.py --base "$LINK_CHECK_BASE_SHA"', workflow)
+        self.assertIn("links:external:", taskfile)
+        self.assertIn('-v "{{.ROOT_DIR}}:/work:ro"', taskfile)
+        self.assertNotIn("check_external_links.py", CI_SCRIPT)
+
     def test_python_dependency_is_fully_pinned(self):
         requirements_in = (REPO_ROOT / "scripts" / "requirements.in").read_text()
         requirements = (REPO_ROOT / "scripts" / "requirements.txt").read_text()
