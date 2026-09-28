@@ -15,7 +15,7 @@ Skill under test: `skills/docker-build-strategies/`
 - [ ] Dockerfile starts with `# syntax=docker/dockerfile:1`
 - [ ] Dockerfile uses a multi-stage build with explicitly named stages (e.g., `FROM golang:1.23 AS build`)
 - [ ] Build stage compiles the Go binary with `CGO_ENABLED=0` for a static binary
-- [ ] Build stage copies `go.mod` and `go.sum` first and runs `go mod download` before copying source (layer caching)
+- [ ] Build stage makes `go.mod` and `go.sum` available (via `COPY` or a bind mount) and runs `go mod download` before copying source (layer caching)
 - [ ] Runtime stage uses a minimal base: `scratch`, `distroless`, or Alpine
 - [ ] Only the compiled binary is copied into the runtime stage with `COPY --from=build`
 - [ ] Dockerfile sets a non-root user in the runtime stage
@@ -73,7 +73,7 @@ head -1 Dockerfile | grep -q 'syntax=docker/dockerfile' && echo "PASS" || echo "
 - [ ] Agent rewrites the Dockerfile as a multi-stage build
 - [ ] Build stage uses `node:20` (or a similar full image) for compiling
 - [ ] Runtime stage uses a slim or Alpine-based image (e.g., `node:20-slim` or `node:20-alpine`)
-- [ ] Agent copies `package.json` and `package-lock.json` before copying source code (layer caching fix)
+- [ ] Agent makes `package.json` and `package-lock.json` available (via `COPY` or a bind mount) before copying source code (layer caching fix)
 - [ ] Agent uses `npm ci` instead of `npm install` for reproducible builds
 - [ ] Only production `node_modules` and the built `dist/` folder are copied to the runtime stage
 - [ ] Agent adds a `.dockerignore` or recommends one if not present
@@ -132,8 +132,8 @@ docker stop test-app
 - [ ] Dockerfile uses at least two stages (a build stage and a runtime stage; optionally a separate frontend build stage)
 - [ ] All stages have explicit names (e.g., `AS frontend-build`, `AS runtime`)
 - [ ] Frontend build stage installs frontend dependencies and runs the React build (`npm run build`)
-- [ ] Frontend dependency install copies `client/package.json` and `client/package-lock.json` first (layer caching)
-- [ ] Backend dependency install copies `server/package.json` and `server/package-lock.json` first (layer caching)
+- [ ] Frontend dependency install makes `client/package.json` and `client/package-lock.json` available (via `COPY` or a bind mount) before source (layer caching)
+- [ ] Backend dependency install makes `server/package.json` and `server/package-lock.json` available (via `COPY` or a bind mount) before source (layer caching)
 - [ ] Uses `npm ci` for reproducible installs
 - [ ] Runtime stage uses a slim or Alpine-based Node image with a pinned version
 - [ ] Only the server code, production `node_modules`, and built frontend assets are in the final image

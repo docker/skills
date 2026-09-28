@@ -25,9 +25,9 @@
       pattern: "CGO_ENABLED=0"
 
     - id: bs-p1-dep-cache
-      description: Copies go.mod/go.sum before source for layer caching
+      description: Bind-mounts go.mod/go.sum before source for layer caching
       type: line_order
-      first_pattern: "^COPY go\\.mod go\\.sum"
+      first_pattern: "mount=type=bind,source=go\\.mod"
       second_pattern: "^COPY \\. \\."
 
     - id: bs-p1-minimal-runtime
@@ -92,9 +92,9 @@
       pattern: "(slim|alpine)"
 
     - id: bs-p2-dep-cache
-      description: Copies package.json/package-lock.json before source
+      description: Bind-mounts package.json/package-lock.json before source
       type: file_match
-      pattern: "COPY.*package.*\\.json"
+      pattern: "mount=type=bind,source=package\\.json"
 
     - id: bs-p2-npm-ci
       description: Uses npm ci for reproducible builds

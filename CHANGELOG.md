@@ -23,6 +23,11 @@ for distribution releases.
 - Reorganized the README around skill discovery, installation, published
   distribution surfaces, release channels, and local development. The catalog
   continues to generate the skill table and published-surface inventory.
+- `docker-build-strategies` now recommends BuildKit cache mounts for `apt`/`apk`
+  package installs instead of cleaning up the cache in the same `RUN` layer,
+  and bind-mounting dependency manifests (`package.json`, `go.mod`,
+  `requirements.txt`) into install steps instead of `COPY`-ing them, for
+  install commands that don't rewrite the manifest.
 
 ### Fixed
 

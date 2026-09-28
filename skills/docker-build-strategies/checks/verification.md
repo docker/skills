@@ -40,7 +40,7 @@ If the image exceeds these bounds, check for:
 - Missing multi-stage build (build tools included in runtime image)
 - Large unnecessary files copied into the image
 - Missing `.dockerignore`
-- Package manager caches not cleaned
+- OS package caches baked into a layer instead of a BuildKit cache mount (`apt-get`/`apk`)
 
 Use `docker history test-image` to identify which layers are largest.
 

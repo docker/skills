@@ -45,11 +45,13 @@ See `references/multi-stage-builds.md` for language-specific patterns (Go, Node,
 
 Order Dockerfile instructions from least-frequently-changed to most-frequently-changed.
 
-1. Place dependency manifests (`package.json`, `go.mod`, `requirements.txt`) and install steps before copying application source code.
+1. Place dependency manifests (`package.json`, `go.mod`, `requirements.txt`) and install steps before copying application source code. Bind-mount the manifest into the install step instead of `COPY`-ing it, so it never enters a layer: `RUN --mount=type=bind,source=package.json,target=package.json --mount=type=bind,source=package-lock.json,target=package-lock.json npm ci`. This is safe for install commands that only read the manifest (`npm ci`, `pip install -r`, `go mod download`); if a step also needs to write the manifest back into the image, `COPY` it instead.
 2. Use BuildKit cache mounts for package manager caches:
    - Go: `RUN --mount=type=cache,target=/go/pkg/mod go build ...`
    - Node: `RUN --mount=type=cache,target=/root/.npm npm ci`
    - Python: `RUN --mount=type=cache,target=/root/.cache/pip pip install ...`
+   - apt: `RUN --mount=type=cache,target=/var/cache/apt,sharing=locked --mount=type=cache,target=/var/lib/apt,sharing=locked apt-get update && apt-get install -y ...` — no `rm -rf /var/lib/apt/lists/*` needed, since the cache lives outside the image layer. `sharing=locked` is required because apt needs exclusive access to its cache directories.
+   - apk (Alpine — per the [Alpine wiki](https://wiki.alpinelinux.org/wiki/Local_APK_cache), not a Docker-verified doc): `RUN --mount=type=cache,target=/etc/apk/cache,sharing=locked apk add ...` — drop `--no-cache` so downloaded packages land in the mounted cache directory instead of being discarded.
 3. Pin base image tags to a specific version or digest — never use `latest` in production.
 4. Combine related `RUN` commands with `&&` to reduce layer count, but keep logically distinct steps separate for cache granularity.
 
@@ -121,7 +123,7 @@ Always configure the final image to run as a non-root user.
 ### Image size optimization
 
 1. Prefer `FROM scratch` (Go static binaries), distroless, or Alpine-based images for the runtime stage.
-2. Remove package manager caches in the same `RUN` layer that installs packages: `apt-get install -y ... && rm -rf /var/lib/apt/lists/*`
+2. Install OS packages with a BuildKit cache mount rather than `rm -rf`-ing the cache in the same layer — see "Layer caching" above. The cache mount keeps the package cache out of the image layer entirely, so no cleanup step is needed.
 3. Do not install documentation, man pages, or debug tools in the runtime image.
 4. Use `.dockerignore` aggressively to minimize the build context.
 
