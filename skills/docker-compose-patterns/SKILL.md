@@ -68,7 +68,7 @@ services:
     # No healthcheck here — the image has no tools to run one
 
   api-health:
-    image: curlimages/curl:8
+    image: curlimages/curl:8.22.0
     network_mode: "service:api"   # shares api's localhost
     entrypoint: ["sleep", "infinity"]  # keep sidecar alive for healthcheck
     healthcheck:

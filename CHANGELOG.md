@@ -24,6 +24,11 @@ for distribution releases.
   distribution surfaces, release channels, and local development. The catalog
   continues to generate the skill table and published-surface inventory.
 
+### Fixed
+
+- Corrected the Compose healthcheck sidecar and project-structure examples to
+  use published curl and Prometheus image tags.
+
 ## [0.3.0] - 2026-09-23
 
 ### Changed
