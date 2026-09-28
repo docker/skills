@@ -42,6 +42,10 @@ are required; validation runs in pinned container images.
 - `task links`: check local Markdown destinations and heading anchors.
 - `task links:external`: opt-in live HTTPS link check; runs separately from
   offline `task`/`task ci` in a pinned container.
+- `task images:inventory`: count actionable skill and eval container image
+  references offline; this inventory also runs in `task ci`.
+- `task images:check`: opt-in live public image tag and linux/amd64 plus
+  linux/arm64 check; it does not run in offline `task ci`.
 - `task catalog`: regenerate all files derived from `catalog.yaml`.
 - `task catalog:check`: verify generated catalog files are current without
   changing them.
@@ -81,6 +85,8 @@ Keep these repository-wide contracts intact:
   images, and Docker socket mounts.
 - Plugin manifest versions match the catalog distribution version and continue
   to represent the catalog.
+- Every actionable container image reference in skill and eval examples is
+  included in the offline image inventory; live checking runs separately.
 - Generated files match `catalog.yaml`, and all checked local links and anchors
   resolve, including links in `CHANGELOG.md`.
 - Installation documentation lives in Docker Docs. Keep the catalog inventory's

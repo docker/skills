@@ -1,0 +1,41 @@
+name: Public container images
+
+on:
+  pull_request:
+  schedule:
+    - cron: "37 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  image-references:
+    runs-on: ubuntu-latest
+    container: python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d
+    timeout-minutes: 15
+    # New PR references are advisory; the full weekly inventory alerts maintainers.
+    continue-on-error: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - name: Install Git for pull-request comparison
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -qq --no-install-recommends git=1:2.47.3-0+deb13u1 >/dev/null
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Check public image references
+        env:
+          IMAGE_CHECK_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            if [ -z "$IMAGE_CHECK_BASE_SHA" ]; then
+              echo "Missing pull-request base SHA" >&2
+              exit 2
+            fi
+            python3 scripts/check_images.py --base "$IMAGE_CHECK_BASE_SHA"
+          else
+            python3 scripts/check_images.py
+          fi

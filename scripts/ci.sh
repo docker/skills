@@ -29,6 +29,7 @@ docker run --rm \
         python3 -m unittest discover -s scripts -p "test_*.py"
         python3 scripts/render_catalog.py --check
         python3 scripts/validate.py
+        python3 scripts/image_inventory.py
         python3 scripts/check_version_bumps.py "${VERSION_CHECK_BASE_SHA:-}" --head "${VALIDATION_HEAD_SHA:-HEAD}"
         python3 scripts/check_dco.py "${VERSION_CHECK_BASE_SHA:-}" --head "${VALIDATION_HEAD_SHA:-HEAD}"
         if [ -n "$RELEASE_TAG" ]; then

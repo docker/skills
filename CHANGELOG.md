@@ -14,6 +14,11 @@ for distribution releases.
   and weekly full sweeps, with an opt-in live-network Task command. Pull-request
   checks include repeated URLs added on new lines; HTTPS requests connect only to
   vetted public addresses and warn rather than bypass configured proxies.
+- Added offline inventory and opt-in live validation for actionable public
+  container image tags in skill and eval examples, including implicit `latest`
+  for untagged references. Docker Hub and gcr.io manifests are checked for
+  linux/amd64 and linux/arm64. Advisory PR checks inspect new references,
+  while weekly/manual full sweeps report failures.
 - Expanded the README with client-specific installation commands, experimental
   Docker Sandboxes installation, manual-copy guidance, and release pinning and
   update options. The README remains self-contained and records canonical

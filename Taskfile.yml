@@ -49,3 +49,13 @@ tasks:
     desc: Check public HTTPS links (live network; separate from offline CI)
     cmds:
       - docker run --rm -v "{{.ROOT_DIR}}:/work:ro" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d python3 scripts/check_external_links.py
+
+  images:inventory:
+    desc: Inventory actionable container image references offline
+    cmds:
+      - docker run --rm -v "{{.ROOT_DIR}}:/work:ro" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d python3 scripts/image_inventory.py
+
+  images:check:
+    desc: Check public image tags and amd64/arm64 availability (live network; separate from offline CI)
+    cmds:
+      - docker run --rm -v "{{.ROOT_DIR}}:/work:ro" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d python3 scripts/check_images.py

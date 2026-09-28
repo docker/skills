@@ -53,6 +53,22 @@ problem or suggestion has already been reported.
    Pull request CI supplies this base automatically. If `origin/main` is
    unavailable while working offline, plain `task` remains usable and skips
    only the version comparison.
+   The offline suite inventories actionable `FROM`, `# syntax=`, Compose `image:`,
+   and external `COPY --from=` references in skill and eval examples. For a
+   separate, live check of public tags and linux/amd64 plus linux/arm64
+   availability, run `task images:check`. Untagged references resolve to the
+   registry's implicit `latest` tag; deliberately untagged input examples remain
+   inventoried rather than silently skipped. `task images:inventory` prints offline
+   occurrence and unique-reference totals. The checker contacts only Docker Hub
+   and gcr.io registry endpoints (and Docker Hub's fixed anonymous token endpoint),
+   without local registry credentials; unsupported registries and ambiguous
+   network/authentication responses are reported as notices or warnings, not
+   proof of a missing tag. PR image checks examine newly added reference lines
+   and are advisory; weekly and manual full sweeps report failures with source
+   locations in the Actions summary, and fail if all references are indeterminate
+   (for example, when a registry rate-limits every check). Deliberately unpinned
+   input examples whose tags exist are still counted; invented or local application
+   images are excluded.
 5. Commit your changes with a `Signed-off-by` line (see *Sign your work* below).
 6. Open a pull request and fill out the template.
 
