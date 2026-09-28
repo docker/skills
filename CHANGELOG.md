@@ -17,6 +17,9 @@ for distribution releases.
 
 ### Changed
 
+- Replaced obsolete Docker Agent documentation and Claude Code schema links,
+  and removed the unavailable Docker Sandboxes source repository link from the
+  generated skill catalog.
 - Reorganized the README around skill discovery, installation, published
   distribution surfaces, release channels, and local development. The catalog
   continues to generate the skill table and published-surface inventory.

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "docker-skills",
   "version": "0.3.0",
   "description": "Docker-authored knowledge skills for AI coding agents across Dockerfiles, Compose, Docker Agent, Docker Sandboxes, and safe Docker workflows.",

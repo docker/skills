@@ -103,7 +103,6 @@ products:
     name: Docker Sandboxes
     description: Run AI coding agents in isolated microVMs with the sbx CLI, including network policy, credentials, environments, and kits.
     docs: https://docs.docker.com/ai/sandboxes/
-    repo: https://github.com/docker/sandboxes
   - id: docker-agent
     name: Docker Agent
     description: Author, run, and ship AI agents with Docker Agent, from agent.yaml to serving and distribution.
@@ -152,17 +151,17 @@ skills:
   - id: docker-agent-config
     product: docker-agent
     path: skills/docker-agent-config
-    version: 0.1.0
+    version: 0.1.1
     status: stable
   - id: docker-agent-run
     product: docker-agent
     path: skills/docker-agent-run
-    version: 0.1.0
+    version: 0.1.1
     status: stable
   - id: docker-agent-deploy
     product: docker-agent
     path: skills/docker-agent-deploy
-    version: 0.1.0
+    version: 0.1.1
     status: stable
   - id: docker-destructive-guardrails
     product: all
