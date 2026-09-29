@@ -17,7 +17,7 @@
       "author": {
         "name": "Docker, Inc."
       },
-      "homepage": "https://github.com/docker/skills",
+      "homepage": "https://www.docker.com/",
       "repository": "https://github.com/docker/skills",
       "license": "Apache-2.0",
       "keywords": ["docker", "dockerfile", "compose", "containers", "devops"],

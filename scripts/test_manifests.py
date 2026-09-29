@@ -86,6 +86,28 @@ class ClaudePluginIconTests(unittest.TestCase):
         self.assertFalse((path.tail or "").strip())
 
 
+class ClaudePluginListingLinkTests(unittest.TestCase):
+    def test_directory_listing_links_are_declared(self):
+        root = Path(__file__).resolve().parent.parent
+        plugin = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+        marketplace = json.loads((root / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            {key: plugin.get(key) for key in (
+                "homepage", "repository", "documentationUrl", "supportUrl",
+                "privacyPolicyUrl", "termsOfServiceUrl",
+            )},
+            {
+                "homepage": "https://www.docker.com/",
+                "repository": "https://github.com/docker/skills",
+                "documentationUrl": "https://docs.docker.com/ai/skills/",
+                "supportUrl": "https://github.com/docker/skills/issues",
+                "privacyPolicyUrl": "https://www.docker.com/legal/privacy/",
+                "termsOfServiceUrl": "https://www.docker.com/legal/docker-terms-use/",
+            },
+        )
+        self.assertEqual(marketplace["plugins"][0]["homepage"], plugin["homepage"])
+
+
 class SkillsIndexTests(unittest.TestCase):
     catalog = ["a", "b", "c"]
 

@@ -58,6 +58,10 @@ for distribution releases.
 - Added a square, undistorted Docker mark icon to the Claude plugin manifest to
   resolve marketplace `ICON_MISSING` warnings, using a plain SVG path compatible
   with marketplace icon validation.
+- Added Docker homepage, Docker Docs, GitHub issues support, privacy policy, and
+  terms of use links to the Claude plugin manifest so the directory listing no
+  longer infers documentation from the README. The Claude marketplace entry's
+  homepage now matches.
 - Corrected the Compose evaluation's Postgres and Redis health verification to
   inspect container IDs from `docker compose ps -q` with `docker inspect`.
 - Corrected the Compose healthcheck sidecar and project-structure examples to
