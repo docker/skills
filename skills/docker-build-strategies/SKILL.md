@@ -51,7 +51,7 @@ Order Dockerfile instructions from least-frequently-changed to most-frequently-c
    - Node: `RUN --mount=type=cache,target=/root/.npm npm ci`
    - Python: `RUN --mount=type=cache,target=/root/.cache/pip pip install ...`
    - apt: `RUN --mount=type=cache,target=/var/cache/apt,sharing=locked --mount=type=cache,target=/var/lib/apt,sharing=locked apt-get update && apt-get install -y ...` — no `rm -rf /var/lib/apt/lists/*` needed, since the cache lives outside the image layer. `sharing=locked` is required because apt needs exclusive access to its cache directories.
-   - apk (Alpine — per the [Alpine wiki](https://wiki.alpinelinux.org/wiki/Local_APK_cache), not a Docker-verified doc): `RUN --mount=type=cache,target=/etc/apk/cache,sharing=locked apk add ...` — drop `--no-cache` so downloaded packages land in the mounted cache directory instead of being discarded.
+   - apk (Alpine — per the Alpine wiki, not a Docker-verified doc; `references/layer-caching.md` links the source): `RUN --mount=type=cache,target=/etc/apk/cache,sharing=locked apk add ...` — drop `--no-cache` so downloaded packages land in the mounted cache directory instead of being discarded.
 3. Pin base image tags to a specific version or digest — never use `latest` in production.
 4. Combine related `RUN` commands with `&&` to reduce layer count, but keep logically distinct steps separate for cache granularity.
 
@@ -78,18 +78,18 @@ Never bake credentials into the image. Use BuildKit secrets and SSH mounts so cr
        ssh-keyscan github.com >> /root/.ssh/known_hosts && \
        git clone git@github.com:org/private-repo.git
    ```
-   Do NOT use `StrictHostKeyChecking=no` as a shortcut — it disables host-key verification entirely. `ssh-keyscan` pins the known fingerprint at build time.
+   Do NOT use `StrictHostKeyChecking=no` as a shortcut — it disables host-key verification entirely. `ssh-keyscan` accepts whatever host key the server presents each time the step runs; nothing is pinned between builds. For stronger assurance, compare it against the provider's published host key fingerprints, or write the published key into `known_hosts` instead of scanning.
 6. **Invoke buildx with the secret and SSH sources:**
    ```bash
-   # Ensure an SSH agent is running with the key loaded (or use --ssh default=<key-file>):
-   eval "$(ssh-agent -s)" && ssh-add ~/.ssh/id_ed25519
+   # --ssh default forwards this shell's SSH agent (SSH_AUTH_SOCK); list every key the build can use:
+   ssh-add -l
 
    docker buildx build \
        --secret id=npmrc,src=$HOME/.npmrc \
        --ssh default \
        .
    ```
-   Alternatively, pass the key file directly without an agent: `--ssh default=$HOME/.ssh/id_ed25519`.
+   The `RUN --mount=type=ssh` step can use every key that `ssh-add -l` lists, so expose only the key this build needs. In an interactive terminal, run `ssh-agent bash` to start a shell with a dedicated agent, then run `ssh-add <key-file>`, confirm that `ssh-add -l` lists only that key, and run the build in that shell. A tool that starts a new shell for each command loses that agent between commands, so ask the user to run these steps. Alternatively, pass an unencrypted key file, such as a dedicated deploy key, directly with `--ssh default=<key-file>`; BuildKit rejects passphrase-protected keys in this form, so load those into an agent instead.
 7. `.dockerignore` exclusions of `.env` and credential files are **defense in depth**, not the primary mechanism — keep them, but do not rely on them as your only protection.
 
 See `references/multi-stage-builds.md` for per-language patterns (npm, pip, Maven, Go `GOPRIVATE`).

@@ -40,6 +40,6 @@ COPY --from=build --chown=appuser:appgroup /src/package.json .
 USER appuser
 EXPOSE 3000
 
-LABEL org.opencontainers.image.source="https://github.com/example/app"
+LABEL org.opencontainers.image.source="<source-repository-url>"
 
 ENTRYPOINT ["node", "dist/index.js"]

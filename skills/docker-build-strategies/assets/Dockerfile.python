@@ -33,6 +33,6 @@ ENV PATH="/opt/venv/bin:$PATH"
 USER appuser
 EXPOSE 8000
 
-LABEL org.opencontainers.image.source="https://github.com/example/app"
+LABEL org.opencontainers.image.source="<source-repository-url>"
 
 ENTRYPOINT ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0"]

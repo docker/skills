@@ -59,6 +59,13 @@ for distribution releases.
   inspect container IDs from `docker compose ps -q` with `docker inspect`.
 - Corrected the Compose healthcheck sidecar and project-structure examples to
   use published curl and Prometheus image tags.
+- Corrected `docker-build-strategies` SSH build guidance: examples list the
+  forwarded agent's keys with `ssh-add -l` instead of starting an agent with
+  `ssh-agent -s`, explain how to expose only the build's key, and note that
+  BuildKit rejects passphrase-protected key files passed with `--ssh`. The
+  `ssh-keyscan` note no longer claims the host key is pinned, the Alpine cache
+  citation moved to the layer-caching reference, and example Dockerfiles use a
+  placeholder OCI source label.
 
 ## [0.3.0] - 2026-09-23
 

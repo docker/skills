@@ -25,6 +25,6 @@ COPY --from=build --link /app/server .
 USER nonroot:nonroot
 EXPOSE 8080
 
-LABEL org.opencontainers.image.source="https://github.com/example/app"
+LABEL org.opencontainers.image.source="<source-repository-url>"
 
 ENTRYPOINT ["./server"]

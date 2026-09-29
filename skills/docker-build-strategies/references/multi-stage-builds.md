@@ -65,7 +65,7 @@ Key points:
       git config --global url."git@github.com:".insteadOf "https://github.com/" && \
       GOPRIVATE="github.com/your-org/*" go mod download
   ```
-  Invoke with `docker buildx build --ssh default .` (uses the host's SSH agent — ensure it is running and the key is loaded: `eval "$(ssh-agent -s)" && ssh-add ~/.ssh/id_ed25519`). To pass a key file directly without an agent, use `--ssh default=$HOME/.ssh/id_ed25519`.
+  Invoke with `docker buildx build --ssh default .`, which forwards the SSH agent of the shell that runs the build. The `RUN --mount=type=ssh` step can use every key that `ssh-add -l` lists. To expose only this build's key, run `ssh-agent bash` in an interactive terminal, then `ssh-add <key-file>`, and run the build in that shell. To pass an unencrypted key file directly without an agent, use `--ssh default=<key-file>`; BuildKit rejects passphrase-protected keys in this form.
 
 ## Node.js
 

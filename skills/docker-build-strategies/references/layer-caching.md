@@ -74,6 +74,8 @@ RUN --mount=type=cache,target=<path> <command>
 | apt | `/var/cache/apt` and `/var/lib/apt` (both `sharing=locked`) |
 | apk (Alpine) | `/etc/apk/cache` (`sharing=locked`, drop `--no-cache`) |
 
+The apk row follows the Alpine wiki's [Local APK cache](https://wiki.alpinelinux.org/wiki/Local_APK_cache) page, not a Docker-verified doc.
+
 ### Cache mount with a non-root build user
 
 When the build stage runs as a non-root user, specify `uid` and `gid`:
