@@ -141,6 +141,73 @@
   skip: true
   skip_reason: No monorepo asset exists for this prompt
 
+- eval: docker-build-strategies
+  prompt: "Prompt 4: Private Git dependency over SSH"
+  assets:
+    skill: skills/docker-build-strategies/SKILL.md
+    multistage_ref: skills/docker-build-strategies/references/multi-stage-builds.md
+    verification: skills/docker-build-strategies/checks/verification.md
+  checks:
+    - id: bs-p4-ssh-mount
+      description: SKILL.md fetches private Git sources with RUN --mount=type=ssh
+      type: file_match
+      asset_key: skill
+      pattern: "RUN --mount=type=ssh"
+
+    - id: bs-p4-no-eval-agent
+      description: SKILL.md does not start a background agent by evaluating ssh-agent output
+      type: file_must_not_match
+      asset_key: skill
+      pattern: "eval\\s+\"?\\$\\(ssh-agent"
+
+    - id: bs-p4-no-eval-agent-ref
+      description: multi-stage-builds.md does not start a background agent by evaluating ssh-agent output
+      type: file_must_not_match
+      asset_key: multistage_ref
+      pattern: "eval\\s+\"?\\$\\(ssh-agent"
+
+    - id: bs-p4-key-inventory
+      description: SKILL.md inventories the forwarded agent's keys and says the build can use every listed key
+      type: file_match
+      asset_key: skill
+      pattern: "every key that `ssh-add -l` lists"
+
+    - id: bs-p4-dedicated-agent
+      description: SKILL.md limits the build to one key with a dedicated agent
+      type: file_match
+      asset_key: skill
+      pattern: "`ssh-agent bash` to start a shell with a dedicated agent"
+
+    - id: bs-p4-passphrase-key-file
+      description: SKILL.md says key-file mode rejects passphrase-protected keys
+      type: file_match
+      asset_key: skill
+      pattern: "rejects passphrase-protected keys"
+
+    - id: bs-p4-passphrase-key-file-ref
+      description: multi-stage-builds.md says key-file mode rejects passphrase-protected keys
+      type: file_match
+      asset_key: multistage_ref
+      pattern: "rejects passphrase-protected keys"
+
+    - id: bs-p4-keyscan-not-pinned
+      description: SKILL.md does not claim ssh-keyscan pins the host key
+      type: file_must_not_match
+      asset_key: skill
+      pattern: "ssh-keyscan`? pins"
+
+    - id: bs-p4-verification-inventory
+      description: Verification runbook checks the forwarded agent's keys before an SSH build
+      type: file_match
+      asset_key: verification
+      pattern: "ssh-add -l"
+
+    - id: bs-p4-verification-passphrase
+      description: Verification runbook distinguishes passphrase-protected key files from agent forwarding
+      type: file_match
+      asset_key: verification
+      pattern: "rejects passphrase-protected keys"
+
 # ─── docker-compose-patterns ────────────────────────────────────────────────
 
 - eval: docker-compose-patterns

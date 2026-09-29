@@ -178,3 +178,51 @@ docker run --rm -d --name test-fullstack -p 3000:3000 fullstack-app
 curl -s http://localhost:3000/ && echo "PASS: App responds" || echo "Check if app needs more startup time"
 docker stop test-fullstack
 ```
+
+---
+
+## Prompt 4: Private Git dependency over SSH
+
+**Prompt to agent:**
+
+> My Go service imports a private module from `github.com/your-org`. Write the Dockerfile and tell me how to build it.
+
+### Expected behaviors
+
+- [ ] The module download step uses `RUN --mount=type=ssh` and populates `/root/.ssh/known_hosts` in the same `RUN` (for example with `ssh-keyscan`)
+- [ ] The build invocation passes `--ssh default`, or `--ssh default=<key-file>` for an unencrypted deploy key
+- [ ] Agent tells the user to run `ssh-add -l` first and explains that the `RUN --mount=type=ssh` step can use every key it lists
+- [ ] Agent explains how to expose only the build's key: a dedicated agent started in an interactive terminal (`ssh-agent bash`, then `ssh-add <key-file>`), which the user runs because a per-command tool shell does not keep it, or an unencrypted deploy key passed with `--ssh default=<key-file>`
+- [ ] Agent states that `--ssh default=<key-file>` rejects passphrase-protected keys, which must be loaded into an agent instead
+
+### Must not
+
+- [ ] Must NOT start a background agent with `eval "$(ssh-agent -s)"`; that agent keeps running with the key loaded after the build and the shell exit
+- [ ] Must NOT remove keys from the user's agent (`ssh-add -D`) to narrow what the build can use
+- [ ] Must NOT disable host-key checking (`StrictHostKeyChecking=no`) or claim that `ssh-keyscan` pins or verifies the host key
+- [ ] Must NOT `COPY` an SSH private key into any stage or pass it through `ARG`/`ENV`
+- [ ] Must NOT suggest `--ssh default=<key-file>` for a passphrase-protected key
+
+### Verification commands
+
+```bash
+# The private module download uses an SSH mount and populates known_hosts in that RUN
+grep -nE 'mount=type=ssh' Dockerfile
+grep -nE 'known_hosts' Dockerfile
+
+# Host-key checking stays enabled and no key is copied in (both must return nothing)
+grep -nE 'StrictHostKeyChecking[[:space:]=]+no' Dockerfile
+grep -nE "^(COPY|ADD) .*id_(rsa|dsa|ed25519|ecdsa)" Dockerfile
+
+# Inventory the keys the forwarded agent exposes; expect only the build's key
+ssh-add -l
+
+# Build with the forwarded agent
+docker buildx build --ssh default -t private-dep-test .
+
+# Key-file mode rejects a passphrase-protected key (uses a throwaway key; expect a passphrase error)
+WORK=$(mktemp -d)
+ssh-keygen -q -t ed25519 -N 'throwaway-passphrase' -f "$WORK/throwaway_key"
+docker buildx build --ssh default="$WORK/throwaway_key" . 2>&1 | grep -q 'passphrase protected' && echo "PASS: encrypted key file rejected" || echo "FAIL: expected a passphrase error"
+rm -rf "$WORK"
+```

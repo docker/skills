@@ -85,7 +85,7 @@ If the project needs registry credentials, the Dockerfile must use `RUN --mount=
 docker buildx build --secret id=<id>,src=<host-path> --progress=plain .
 ```
 
-The `--progress=plain` output should show the secret being consumed inside the right `RUN` step **without printing its value**. If you see the secret content in the log, the `RUN` is leaking it (e.g., via `echo`, `cat`, or shell substitution into a logged command) — that is a build-log leak even when the layer itself is clean. For private Git access, use `--mount=type=ssh` and `docker buildx build --ssh default .`.
+The `--progress=plain` output should show the secret being consumed inside the right `RUN` step **without printing its value**. If you see the secret content in the log, the `RUN` is leaking it (e.g., via `echo`, `cat`, or shell substitution into a logged command) — that is a build-log leak even when the layer itself is clean. For private Git access, use `--mount=type=ssh` and `docker buildx build --ssh default .`, then run the SSH checks in 4c.
 
 ### 4b. Backstop: scan the built image
 
@@ -96,6 +96,22 @@ docker history test-image --no-trunc
 Inspect the output for any `ENV` instructions or `COPY` steps that might include `.env` files, API keys, or credentials.
 
 **Note:** `docker history` shows layers of the final exported image only. It will **not** reveal credentials that were `COPY`-ed in an intermediate stage but not carried forward — those files still exist in BuildKit's build cache on the builder host. The static Dockerfile check in 4a is the only way to catch that class of leak. This step is a backstop.
+
+### 4c. SSH forwarding for private Git access
+
+If the Dockerfile uses `RUN --mount=type=ssh`, check what the build can reach before running it:
+
+```bash
+# Every key listed here can be used by the RUN --mount=type=ssh step
+ssh-add -l
+
+# Host-key checking stays enabled (must return nothing)
+grep -nE 'StrictHostKeyChecking[[:space:]=]+no' Dockerfile
+```
+
+- `ssh-add -l` should list only the key this build needs. If it lists more, run the build from a dedicated agent (in an interactive terminal, `ssh-agent bash`, then `ssh-add <key-file>`) instead of removing keys from the user's agent.
+- The `RUN` that fetches over SSH populates `/root/.ssh/known_hosts` in the same step (for example with `ssh-keyscan`) instead of disabling host-key checking.
+- `--ssh default=<key-file>` works only with an unencrypted key file. BuildKit rejects passphrase-protected keys in this form (`this private key is passphrase protected`), so load those into an agent and pass `--ssh default`.
 
 ## 5. Layer count
 

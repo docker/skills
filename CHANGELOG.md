@@ -68,7 +68,8 @@ for distribution releases.
   BuildKit rejects passphrase-protected key files passed with `--ssh`. The
   `ssh-keyscan` note no longer claims the host key is pinned, the Alpine cache
   citation moved to the layer-caching reference, and example Dockerfiles use a
-  placeholder OCI source label.
+  placeholder OCI source label. The skill's evaluation runbook, deterministic
+  checks, and verification runbook now cover private Git access over SSH.
 
 ## [0.3.0] - 2026-09-23
 
