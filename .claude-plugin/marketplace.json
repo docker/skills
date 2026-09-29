@@ -21,7 +21,13 @@
       "repository": "https://github.com/docker/skills",
       "license": "Apache-2.0",
       "keywords": ["docker", "dockerfile", "compose", "containers", "devops"],
-      "category": "workflow"
+      "classification": {
+        "object_acted_on": "code",
+        "work_department": "engineering",
+        "industry": "software development",
+        "life_area": "work",
+        "subject": "container development"
+      }
     }
   ]
 }

@@ -1,13 +1,61 @@
+import json
+from pathlib import Path
 import unittest
 
 from manifests import (
     collect_descriptions,
     collect_versions,
+    validate_claude_marketplace_controls,
     validate_codex_marketplace,
     validate_descriptions,
     validate_skills_index,
     validate_versions,
 )
+
+
+class ClaudeMarketplaceControlsTests(unittest.TestCase):
+    classification = {
+        "object_acted_on": "code",
+        "work_department": "engineering",
+        "industry": "software development",
+        "life_area": "work",
+        "subject": "container development",
+    }
+
+    def test_checked_in_manifests(self):
+        root = Path(__file__).resolve().parent.parent / ".claude-plugin"
+        marketplace = json.loads((root / "marketplace.json").read_text(encoding="utf-8"))
+        plugin = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
+        self.assertEqual(validate_claude_marketplace_controls(marketplace, plugin), [])
+        self.assertEqual(marketplace["plugins"][0]["classification"], self.classification)
+        self.assertNotIn("category", marketplace["plugins"][0])
+        self.assertNotIn("category", plugin)
+
+    def test_each_entry_requires_five_non_empty_string_fields(self):
+        marketplace = {"plugins": [{"classification": self.classification.copy()}, {"classification": {}}]}
+        errors = validate_claude_marketplace_controls(marketplace, {})
+        self.assertEqual(len(errors), 5)
+        self.assertTrue(all("plugins[1].classification" in error for error in errors))
+        marketplace["plugins"][1]["classification"] = self.classification | {"industry": "  ", "subject": 4}
+        errors = validate_claude_marketplace_controls(marketplace, {})
+        self.assertEqual(len(errors), 2)
+        self.assertTrue(any(".industry" in error for error in errors))
+        self.assertTrue(any(".subject" in error for error in errors))
+
+    def test_missing_classification_and_deprecated_category(self):
+        marketplace = {"plugins": [{"category": "workflow"}]}
+        errors = validate_claude_marketplace_controls(marketplace, {"category": "workflow"})
+        self.assertEqual(len(errors), 3)
+        self.assertTrue(any("plugins[0].classification must be an object" in error for error in errors))
+        self.assertTrue(any("plugin.json has deprecated field: category" in error for error in errors))
+        self.assertTrue(any("plugins[0] has deprecated field: category" in error for error in errors))
+
+    def test_marketplace_category_is_rejected_even_with_valid_classification(self):
+        marketplace = {"plugins": [{"classification": self.classification, "category": "workflow"}]}
+        self.assertEqual(
+            validate_claude_marketplace_controls(marketplace, {}),
+            [".claude-plugin/marketplace.json plugins[0] has deprecated field: category"],
+        )
 
 
 class SkillsIndexTests(unittest.TestCase):

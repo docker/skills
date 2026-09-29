@@ -1,4 +1,4 @@
-"""Validation helpers for distribution manifests (skills.sh index, Codex marketplace, versions)."""
+"""Validation helpers for distribution manifests (indexes, marketplaces, versions)."""
 
 from __future__ import annotations
 
@@ -61,6 +61,34 @@ def validate_skills_index(index: Any, catalog_ids: list[str]) -> list[str]:
     missing = sorted(catalog - set(seen))
     for skill in missing:
         errors.append("skills.sh.json does not list catalog skill '" + skill + "'")
+    return errors
+
+
+def validate_claude_marketplace_controls(marketplace: Any, plugin_manifest: Any) -> list[str]:
+    """Check Claude marketplace classifications and deprecated category metadata."""
+    errors: list[str] = []
+    plugin_path = ".claude-plugin/plugin.json"
+    marketplace_path = ".claude-plugin/marketplace.json"
+    if isinstance(plugin_manifest, dict) and "category" in plugin_manifest:
+        errors.append(plugin_path + " has deprecated field: category")
+    if not isinstance(marketplace, dict) or not isinstance(marketplace.get("plugins"), list):
+        return errors
+    required = {"object_acted_on", "work_department", "industry", "life_area", "subject"}
+    for i, plugin in enumerate(marketplace["plugins"]):
+        if not isinstance(plugin, dict):
+            continue
+        entry_path = marketplace_path + " plugins[" + str(i) + "]"
+        if "category" in plugin:
+            errors.append(entry_path + " has deprecated field: category")
+        prefix = entry_path + ".classification"
+        classification = plugin.get("classification")
+        if not isinstance(classification, dict):
+            errors.append(prefix + " must be an object")
+            continue
+        for key in sorted(required):
+            value = classification.get(key)
+            if not isinstance(value, str) or not value.strip():
+                errors.append(prefix + "." + key + " must be a non-empty string")
     return errors
 
 

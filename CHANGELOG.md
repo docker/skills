@@ -42,6 +42,9 @@ for distribution releases.
 
 ### Fixed
 
+- Added Claude marketplace classification for Docker development skills and removed
+  the deprecated `category` field from both the Claude plugin manifest and its
+  marketplace entry.
 - Corrected the Compose evaluation's Postgres and Redis health verification to
   inspect container IDs from `docker compose ps -q` with `docker inspect`.
 - Corrected the Compose healthcheck sidecar and project-structure examples to

@@ -14,6 +14,7 @@ from content_risk import validate_content_risk
 from frontmatter import validate_frontmatter
 from manifests import (
     collect_versions,
+    validate_claude_marketplace_controls,
     validate_codex_marketplace,
     validate_descriptions,
     validate_skills_index,
@@ -297,7 +298,14 @@ except FileNotFoundError:
 except json.JSONDecodeError as e:
     error("invalid JSON in " + codex_marketplace + ": " + str(e))
 
-# --- 5a. All plugin manifests must declare the catalog description and version ---
+# --- 5a. Claude's marketplace owns classification; neither manifest may declare category ---
+if ".claude-plugin/marketplace.json" in loaded_manifests and ".claude-plugin/plugin.json" in loaded_manifests:
+    for message in validate_claude_marketplace_controls(
+        loaded_manifests[".claude-plugin/marketplace.json"], loaded_manifests[".claude-plugin/plugin.json"]
+    ):
+        error(message)
+
+# --- 5b. All plugin manifests must declare the catalog description and version ---
 print("==> Checking manifest description consistency")
 description_errors = validate_descriptions(loaded_manifests, catalog["description"])
 for message in description_errors:
