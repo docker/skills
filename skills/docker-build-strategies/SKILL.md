@@ -159,7 +159,7 @@ Always configure the final image to run as a non-root user.
   ```bash
   bash "<skill-dir>/scripts/verify-build.sh" [--help] [IMAGE_NAME]
   ```
-  Replace `<skill-dir>` with the absolute path of the folder that contains this `SKILL.md`; the `scripts/` path is relative to that folder, not to the project. Do not change into the skill directory first: the script builds whatever is in the current directory. If the skill directory cannot be resolved, run the build and inspection commands in `checks/verification.md` directly. Exit status is `0` when all Docker commands succeed or help is requested, the failing Docker command's non-zero status when verification fails, and `2` for invalid arguments.
+  Replace `<skill-dir>` with the absolute path of the folder that contains this `SKILL.md`; the `scripts/` path is relative to that folder, not to the project. Do not change into the skill directory first: the script builds whatever is in the current directory. If the skill directory cannot be resolved, run `docker build -t verify-build-test .`, then `docker images verify-build-test` and `docker inspect verify-build-test --format '{{.Config.User}}'`. Exit status is `0` when all Docker commands succeed or help is requested, the failing Docker command's non-zero status when verification fails, and `2` for invalid arguments.
 
 ## Checks
 

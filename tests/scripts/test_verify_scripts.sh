@@ -82,7 +82,7 @@ assert_status 1 "verify-setup rejects a missing Dockerfile" bash -c 'cd "$1" && 
 assert_status 1 "verify-setup rejects a missing compose.yaml" bash -c 'cd "$1" && "$2"' _ "$TMP_DIR/project-missing-compose" "$PROJECT_SCRIPT"
 # shellcheck disable=SC2016
 assert_status 1 "verify-setup rejects invalid Compose configuration" bash -c 'cd "$1" && "$2"' _ "$TMP_DIR/project-invalid" "$PROJECT_SCRIPT"
-assert_help "$PROJECT_SCRIPT" "Usage: bash <skill-dir>/scripts/verify-setup.sh [--help]"
+assert_help "$PROJECT_SCRIPT" 'Usage: bash "<skill-dir>/scripts/verify-setup.sh" [--help]'
 assert_status 2 "verify-setup rejects invalid arguments" "$PROJECT_SCRIPT" unexpected
 
 mkdir -p "$TMP_DIR/build-valid" "$TMP_DIR/build-missing"
@@ -95,7 +95,7 @@ DOCKERFILE
 assert_status 0 "verify-build accepts a valid Dockerfile" bash -c 'cd "$1" && "$2" "$3"' _ "$TMP_DIR/build-valid" "$BUILD_SCRIPT" "$IMAGE"
 # shellcheck disable=SC2016
 assert_status nonzero "verify-build propagates a failed build" bash -c 'cd "$1" && "$2" "$3"' _ "$TMP_DIR/build-missing" "$BUILD_SCRIPT" "$IMAGE"
-assert_help "$BUILD_SCRIPT" "Usage: bash <skill-dir>/scripts/verify-build.sh [--help] [IMAGE_NAME]"
+assert_help "$BUILD_SCRIPT" 'Usage: bash "<skill-dir>/scripts/verify-build.sh" [--help] [IMAGE_NAME]'
 assert_status 2 "verify-build rejects invalid arguments" "$BUILD_SCRIPT" image-one image-two
 
 mkdir -p "$TMP_DIR/compose-valid" "$TMP_DIR/compose-invalid"
@@ -136,7 +136,7 @@ if [[ ! -s "$TMP_DIR/output" ]]; then
     exit 1
 fi
 echo "PASS: verify-compose preserves validation diagnostics"
-assert_help "$COMPOSE_SCRIPT" "Usage: bash <skill-dir>/scripts/verify-compose.sh [--help]"
+assert_help "$COMPOSE_SCRIPT" 'Usage: bash "<skill-dir>/scripts/verify-compose.sh" [--help]'
 assert_status 2 "verify-compose rejects invalid arguments" "$COMPOSE_SCRIPT" unexpected
 
 echo "All verification script tests passed."

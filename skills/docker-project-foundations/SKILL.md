@@ -114,7 +114,7 @@ When a project needs a database (Postgres, MySQL, MongoDB), cache (Redis, Memcac
   ```bash
   bash "<skill-dir>/scripts/verify-setup.sh" [--help]
   ```
-  Replace `<skill-dir>` with the absolute path of the folder that contains this `SKILL.md`; the `scripts/` path is relative to that folder, not to the project. Do not change into the skill directory first: the script checks the current directory. If the skill directory cannot be resolved, run the validation commands in `checks/verification.md` directly. Exit status is `0` when verification succeeds or help is requested, `1` when required files are missing or the Compose configuration is invalid, and `2` for invalid arguments.
+  Replace `<skill-dir>` with the absolute path of the folder that contains this `SKILL.md`; the `scripts/` path is relative to that folder, not to the project. Do not change into the skill directory first: the script checks the current directory. If the skill directory cannot be resolved, check that `.dockerignore`, `Dockerfile`, and `compose.yaml` exist in the project root, then run `docker compose config --quiet`. Exit status is `0` when verification succeeds or help is requested, `1` when required files are missing or the Compose configuration is invalid, and `2` for invalid arguments.
 
 ## Checks
 
