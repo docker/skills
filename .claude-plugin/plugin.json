@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "docker-skills",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Docker-authored knowledge skills for AI coding agents across Dockerfiles, Compose, Docker Agent, Docker Sandboxes, and safe Docker workflows.",
   "author": {
     "name": "Docker, Inc."

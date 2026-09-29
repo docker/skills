@@ -8,6 +8,8 @@ for distribution releases.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-29
+
 ### Added
 
 - Added a separate external HTTPS link checker for advisory pull-request URL checks
@@ -128,7 +130,8 @@ for distribution releases.
 - Skills trigger directly from their own descriptions rather than through a
   repository-wide router skill.
 
-[Unreleased]: https://github.com/docker/skills/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/docker/skills/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/docker/skills/releases/tag/v0.3.1
 [0.3.0]: https://github.com/docker/skills/releases/tag/v0.3.0
 [0.2.0]: https://github.com/docker/skills/releases/tag/v0.2.0
 [0.1.0]: https://github.com/docker/skills/releases/tag/v0.1.0
