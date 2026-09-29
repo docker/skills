@@ -2,6 +2,11 @@
 
 Skill under test: `skills/docker-build-strategies/`
 
+When the agent runs the bundled verification script, it must run it from the
+project root with the script path resolved under the installed skill directory;
+`bash scripts/...` from the project root, or running it from inside the skill
+directory, fails or checks the wrong folder.
+
 ---
 
 ## Prompt 1: Dockerfile for a Go API service

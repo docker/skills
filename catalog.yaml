@@ -116,17 +116,17 @@ skills:
   - id: docker-project-foundations
     product: docker-build
     path: skills/docker-project-foundations
-    version: 0.2.1
+    version: 0.2.2
     status: stable
   - id: docker-build-strategies
     product: docker-build
     path: skills/docker-build-strategies
-    version: 0.1.1
+    version: 0.1.2
     status: stable
   - id: docker-compose-patterns
     product: docker-compose
     path: skills/docker-compose-patterns
-    version: 0.1.2
+    version: 0.1.3
     status: stable
   - id: docker-sandboxes-lifecycle
     product: docker-sandboxes

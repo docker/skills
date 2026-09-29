@@ -155,11 +155,11 @@ Always configure the final image to run as a non-root user.
 
 ## Scripts
 
-- **`scripts/verify-build.sh`** — Builds the image, reports size and configured user.
+- **`scripts/verify-build.sh`** — Builds the Dockerfile in the current directory, then reports image size and configured user. Run it from the project root (the directory that contains the `Dockerfile`), with the script path resolved under this skill's directory:
   ```bash
-  bash scripts/verify-build.sh [--help] [IMAGE_NAME]
+  bash "${CLAUDE_SKILL_DIR}/scripts/verify-build.sh" [--help] [IMAGE_NAME]
   ```
-  Exit status is `0` when all Docker commands succeed or help is requested, the failing Docker command's non-zero status when verification fails, and `2` for invalid arguments.
+  The path prefix is this skill's directory, the folder that contains this `SKILL.md`. If your agent shows it as an unexpanded variable, replace it with that folder's absolute path; it is not set as an environment variable. Do not change into the skill directory first: the script builds whatever is in the current directory. Exit status is `0` when all Docker commands succeed or help is requested, the failing Docker command's non-zero status when verification fails, and `2` for invalid arguments.
 
 ## Checks
 

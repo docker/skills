@@ -4,11 +4,13 @@ Use these checks to verify a generated Dockerfile meets quality standards.
 
 ## Scripted verification
 
-Run the bundled script from the project root:
+Run the bundled script from the project root (the directory that contains the `Dockerfile`), with the script path resolved under the skill directory:
 
 ```bash
-bash scripts/verify-build.sh [--help] [IMAGE_NAME]
+bash "<skill-dir>/scripts/verify-build.sh" [--help] [IMAGE_NAME]
 ```
+
+Replace `<skill-dir>` with the absolute path of this skill's directory, the folder that contains `SKILL.md` and this `checks/` folder. Do not change into the skill directory to run it; the script builds the current directory.
 
 The image name defaults to `verify-build-test`. Exit status is `0` when the build and inspection commands succeed or help is requested, the failing Docker command's non-zero status when verification fails, and `2` for invalid arguments.
 

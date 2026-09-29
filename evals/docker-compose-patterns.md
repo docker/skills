@@ -3,8 +3,12 @@
 Skill under test: `skills/docker-compose-patterns/`
 
 For every prompt, validate with `docker compose config --quiet` or the bundled
-verification script. Do not dump resolved credentials into logs or agent
-transcripts; warnings and errors still need review before sharing.
+verification script. When the agent uses the script, it must run it from the
+project root with the script path resolved under the installed skill directory;
+`bash scripts/...` from the project root, or running it from inside the skill
+directory, fails or checks the wrong folder. Do not dump resolved credentials
+into logs or agent transcripts; warnings and errors still need review before
+sharing.
 
 ---
 
