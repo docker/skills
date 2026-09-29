@@ -128,6 +128,19 @@ class ReleaseLinkTests(unittest.TestCase):
         })
         self.assertEqual(links.expected_release_urls("1.2.3", "1.2.3"), set())
 
+    def test_downgrade_release_links_remain_errors(self):
+        release = f"{self.ORIGIN}/releases/tag/v0.2.0"
+        self.assertEqual(links.expected_release_urls("0.3.0", "0.2.0"), set())
+        # Version components must be ordered numerically, not as strings.
+        self.assertEqual(links.expected_release_urls("0.10.0", "0.9.0"), set())
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as output:
+            self.assertTrue(links.emit(
+                [links.Occurrence("CHANGELOG.md", 1, release)],
+                {release: links.Result("error", "HTTP 404", release)},
+                expected=links.expected_release_urls("0.3.0", "0.2.0"),
+            ))
+        self.assertIn("1 error, 0 warning, 0 notice", output.getvalue())
+
     def test_pr_release_rotation_fetches_and_reports_notice_per_occurrence(self):
         old = ("## [Unreleased]\n\n### Fixed\n\n- A link check.\n\n"
                "## [1.2.3] - 2026-01-02\n\n### Added\n\n- First release.\n\n"

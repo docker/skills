@@ -163,7 +163,7 @@ def occurrences(root: Path, base: str | None = None) -> list[Occurrence]:
 
 def expected_release_urls(base_version: str, head_version: str) -> set[str]:
     """Return links that cannot exist until a new distribution release is published."""
-    if base_version == head_version:
+    if tuple(map(int, head_version.split("."))) <= tuple(map(int, base_version.split("."))):
         return set()
     origin = "https://github.com/docker/skills"
     return {
