@@ -112,9 +112,9 @@ When a project needs a database (Postgres, MySQL, MongoDB), cache (Redis, Memcac
 
 - **`scripts/verify-setup.sh`** — Checks that required files exist in the current directory and validates its `compose.yaml`. Run it from the project root, with the script path resolved under this skill's directory:
   ```bash
-  bash "${CLAUDE_SKILL_DIR}/scripts/verify-setup.sh" [--help]
+  bash "<skill-dir>/scripts/verify-setup.sh" [--help]
   ```
-  The path prefix is this skill's directory, the folder that contains this `SKILL.md`. If your agent shows it as an unexpanded variable, replace it with that folder's absolute path; it is not set as an environment variable. Do not change into the skill directory first: the script checks the current directory. Exit status is `0` when verification succeeds or help is requested, `1` when required files are missing or the Compose configuration is invalid, and `2` for invalid arguments.
+  Replace `<skill-dir>` with the absolute path of the folder that contains this `SKILL.md`; the `scripts/` path is relative to that folder, not to the project. Do not change into the skill directory first: the script checks the current directory. If the skill directory cannot be resolved, run the validation commands in `checks/verification.md` directly. Exit status is `0` when verification succeeds or help is requested, `1` when required files are missing or the Compose configuration is invalid, and `2` for invalid arguments.
 
 ## Checks
 

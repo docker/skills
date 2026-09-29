@@ -162,9 +162,9 @@ If the goal is only to restart services or reclaim containers/networks, use `doc
 
 - **`scripts/verify-compose.sh`** — Validates the Compose project in the current directory with `docker compose config --quiet`, without printing resolved configuration. Run it from the project root (the directory that contains `compose.yaml`), with the script path resolved under this skill's directory:
   ```bash
-  bash "${CLAUDE_SKILL_DIR}/scripts/verify-compose.sh" [--help]
+  bash "<skill-dir>/scripts/verify-compose.sh" [--help]
   ```
-  The path prefix is this skill's directory, the folder that contains this `SKILL.md`. If your agent shows it as an unexpanded variable, replace it with that folder's absolute path; it is not set as an environment variable. Do not change into the skill directory first: the script validates whatever Compose project is in the current directory. Exit status is `0` when the Compose configuration is valid or help is requested, the non-zero status from `docker compose config --quiet` when validation fails, and `2` for invalid arguments. Plain `docker compose config` can expose interpolated and `env_file` credentials in tool output or logs; use quiet validation by default. Compose warnings and errors are still emitted and may contain sensitive details.
+  Replace `<skill-dir>` with the absolute path of the folder that contains this `SKILL.md`; the `scripts/` path is relative to that folder, not to the project. Do not change into the skill directory first: the script validates whatever Compose project is in the current directory. If the skill directory cannot be resolved, run `docker compose config --quiet` directly. Exit status is `0` when the Compose configuration is valid or help is requested, the non-zero status from `docker compose config --quiet` when validation fails, and `2` for invalid arguments. Plain `docker compose config` can expose interpolated and `env_file` credentials in tool output or logs; use quiet validation by default. Compose warnings and errors are still emitted and may contain sensitive details.
 
 ## Checks
 

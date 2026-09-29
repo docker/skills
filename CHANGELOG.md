@@ -43,11 +43,12 @@ for distribution releases.
 ### Fixed
 
 - `docker-build-strategies`, `docker-compose-patterns`, and
-  `docker-project-foundations` now invoke their bundled verification scripts as
-  `bash "${CLAUDE_SKILL_DIR}/scripts/<script>"` from the project root, with a
-  fallback for agents that do not expand the variable. The previous relative
-  `bash scripts/<script>` path failed from the project in installed plugins, and
-  running it from the skill directory checked the wrong folder.
+  `docker-project-foundations` now tell agents to resolve bundled verification
+  scripts under the skill directory and run them from the project root, with a
+  fallback to the equivalent commands when that directory is unknown. The
+  previous `bash scripts/<script>` instruction failed from the project when the
+  skill was installed elsewhere, and running it from the skill directory checked
+  the wrong folder.
 - Added Claude marketplace classification for Docker development skills and removed
   the deprecated `category` field from both the Claude plugin manifest and its
   marketplace entry.
