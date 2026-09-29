@@ -204,8 +204,11 @@ CI runs this network-dependent check separately from deterministic `task` valida
 pull requests check added-line URL occurrences, while the weekly schedule and manual
 dispatch check all URLs. This advisory workflow is **not required for merges during
 initial rollout**. Confirmed HTTP 404/410 and missing Docker Docs anchors are reported
-as failures; access denial, rate limiting, server/network errors, and uncertain anchors
-are warnings. When an HTTPS proxy is configured, the checker warns rather than bypassing
+as failures, except that PR checks with a changed catalog distribution version report
+an unredirected 404 for that version's exact `CHANGELOG.md` compare and release-tag
+links as notices until publication. Full sweeps and all other broken links still fail.
+Access denial, rate limiting, server/network errors, and uncertain anchors are warnings.
+When an HTTPS proxy is configured, the checker warns rather than bypassing
 it; these warnings cannot confirm link availability. Redirects are reported so maintainers
 can update moved links. An intentional session-dependent Slack invitation
 (`https://dockr.ly/slack`) is excluded from automated checks.

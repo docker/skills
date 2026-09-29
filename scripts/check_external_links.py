@@ -21,6 +21,9 @@ from urllib import error, parse, request
 from check_links import DOCUMENTATION_GLOBS, ROOT_DOCUMENTS, FENCED_CODE_RE
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+CATALOG_VERSION_RE = re.compile(
+    r"^version[ \t]*:[ \t]*(?P<quote>['\"]?)(?P<version>(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))(?P=quote)[ \t]*(?:#.*)?$"
+)
 METADATA = ("catalog.yaml", "skills.sh.json", "gemini-extension.json", ".github/ISSUE_TEMPLATE/config.yml")
 DOCUMENTS = (*ROOT_DOCUMENTS, "CODE_OF_CONDUCT.md")
 MANIFESTS = (".claude-plugin/*.json", ".cursor-plugin/*.json", ".codex-plugin/*.json", ".agents/plugins/*.json", ".github/plugin/*.json")
@@ -50,6 +53,7 @@ class Result:
     level: str  # error, warning, notice, ok
     message: str
     final_url: str = ""
+    redirected: bool = False
 
 
 def eligible(path: str) -> bool:
@@ -157,6 +161,31 @@ def occurrences(root: Path, base: str | None = None) -> list[Occurrence]:
     return found
 
 
+def expected_release_urls(base_version: str, head_version: str) -> set[str]:
+    """Return links that cannot exist until a new distribution release is published."""
+    if base_version == head_version:
+        return set()
+    origin = "https://github.com/docker/skills"
+    return {
+        f"{origin}/compare/v{head_version}...HEAD",
+        f"{origin}/releases/tag/v{head_version}",
+    }
+
+
+def _catalog_version(content: str) -> str:
+    lines = [line for line in content.splitlines() if re.match(r"^version[ \t]*:", line)]
+    if len(lines) != 1 or not (match := CATALOG_VERSION_RE.fullmatch(lines[0])):
+        raise ValueError("catalog.yaml must contain exactly one valid top-level X.Y.Z version")
+    return match.group("version")
+
+
+def _expected_pr_release_urls(root: Path, base: str) -> set[str]:
+    ancestor = _git(root, "merge-base", base, "HEAD").decode().strip()
+    base_version = _catalog_version(_git(root, "show", f"{ancestor}:catalog.yaml").decode("utf-8"))
+    head_version = _catalog_version(_git(root, "show", "HEAD:catalog.yaml").decode("utf-8"))
+    return expected_release_urls(base_version, head_version)
+
+
 class _Anchors(html.parser.HTMLParser):
     def __init__(self) -> None:
         super().__init__()
@@ -251,6 +280,7 @@ def open_pinned(req: request.Request, addresses: tuple[tuple[int, int, int, tupl
 def fetch(url: str) -> Result:
     original = url
     current = url
+    redirected = False
     for _ in range(MAX_REDIRECTS + 1):
         addresses = public_https(current)
         if addresses is None:
@@ -265,12 +295,13 @@ def fetch(url: str) -> Result:
                 if not destination:
                     return Result("warning", f"HTTP {exc.code} without Location", current)
                 current = parse.urljoin(current, destination)
+                redirected = True
                 if not parse.urlsplit(current).fragment and parse.urlsplit(original).fragment:
                     current += "#" + parse.urlsplit(original).fragment
                 continue
             exc.close()
             if exc.code in {404, 410}:
-                return Result("error", f"HTTP {exc.code}", current)
+                return Result("error", f"HTTP {exc.code}", current, redirected)
             return Result("warning", f"HTTP {exc.code}", current)
         except (OSError, ValueError, http.client.HTTPException) as exc:
             return Result("warning", f"network error: {exc}", current)
@@ -314,10 +345,17 @@ def check(url: str) -> Result:
     return result
 
 
-def emit(found: list[Occurrence], results: dict[str, Result], summary: Path | None = None) -> bool:
+def emit(found: list[Occurrence], results: dict[str, Result], summary: Path | None = None,
+         expected: set[str] | None = None) -> bool:
     counts = {key: 0 for key in ("error", "warning", "notice", "ok")}
+    reported = []
     for item in found:
         result = results[item.url]
+        if (expected and item.path == "CHANGELOG.md" and item.url in expected
+                and result.level == "error" and result.message == "HTTP 404"
+                and result.final_url == item.url and not result.redirected):
+            result = Result("notice", "HTTP 404 (release link not published yet)", result.final_url)
+        reported.append((item, result))
         counts[result.level] += 1
         if result.level != "ok":
             message = f"{item.url}: {result.message}"
@@ -331,8 +369,7 @@ def emit(found: list[Occurrence], results: dict[str, Result], summary: Path | No
     if summary:
         with summary.open("a", encoding="utf-8") as output:
             output.write(f"### External HTTPS links\n\n{text}\n\n")
-            for item in found:
-                result = results[item.url]
+            for item, result in reported:
                 if result.level != "ok":
                     output.write(f"- **{result.level}** `{item.path}:{item.line}` `{item.url}`: {result.message}\n")
     return counts["error"] > 0
@@ -345,6 +382,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         found = occurrences(args.root, args.base)
+        expected = _expected_pr_release_urls(args.root, args.base) if args.base is not None else None
         unique = list(dict.fromkeys(item.url for item in found))
         pool = concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS)
         futures = {pool.submit(check, url): url for url in unique}
@@ -368,7 +406,7 @@ def main(argv: list[str] | None = None) -> int:
                 results[futures[future]] = Result("warning", "overall check deadline exceeded")
         finally:
             pool.shutdown(wait=False, cancel_futures=True)
-        return int(emit(found, results, Path(os.environ["GITHUB_STEP_SUMMARY"]) if os.environ.get("GITHUB_STEP_SUMMARY") else None))
+        return int(emit(found, results, Path(os.environ["GITHUB_STEP_SUMMARY"]) if os.environ.get("GITHUB_STEP_SUMMARY") else None, expected))
     except (OSError, UnicodeError, ValueError) as exc:
         print(f"external link check: {exc}", file=sys.stderr)
         return 2

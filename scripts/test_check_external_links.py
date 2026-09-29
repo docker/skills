@@ -12,6 +12,7 @@ from email.message import Message
 from urllib import error, request
 
 import check_external_links as links
+from prepare_release import rotate_changelog
 
 
 class ExtractionTests(unittest.TestCase):
@@ -115,6 +116,159 @@ class ExtractionTests(unittest.TestCase):
                 (4, "https://docker.com/repeated"), (5, "https://docker.com/repeated"),
                 (9, "https://docker.com/new"),
             ])
+
+
+class ReleaseLinkTests(unittest.TestCase):
+    ORIGIN = "https://github.com/docker/skills"
+
+    def test_expected_urls_are_exactly_the_head_release_links(self):
+        self.assertEqual(links.expected_release_urls("1.2.3", "1.3.0"), {
+            f"{self.ORIGIN}/compare/v1.3.0...HEAD",
+            f"{self.ORIGIN}/releases/tag/v1.3.0",
+        })
+        self.assertEqual(links.expected_release_urls("1.2.3", "1.2.3"), set())
+
+    def test_pr_release_rotation_fetches_and_reports_notice_per_occurrence(self):
+        old = ("## [Unreleased]\n\n### Fixed\n\n- A link check.\n\n"
+               "## [1.2.3] - 2026-01-02\n\n### Added\n\n- First release.\n\n"
+               f"[Unreleased]: {self.ORIGIN}/compare/v1.2.3...HEAD\n"
+               f"[1.2.3]: {self.ORIGIN}/releases/tag/v1.2.3\n")
+        rotated = rotate_changelog(old, "1.2.3", "1.3.0", "2026-09-29")
+        expected = links.expected_release_urls("1.2.3", "1.3.0")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            def git(*args):
+                return subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True).stdout.strip()
+
+            git("init", "-q")
+            git("config", "user.name", "Test")
+            git("config", "user.email", "test@example.com")
+            (root / "catalog.yaml").write_text("schema: v1\nversion: 1.2.3\n")
+            (root / "CHANGELOG.md").write_text(old)
+            git("add", ".")
+            git("-c", "commit.gpgsign=false", "commit", "-qm", "base")
+            base = git("rev-parse", "HEAD")
+            (root / "catalog.yaml").write_text("schema: v1\nversion: 1.3.0\n")
+            (root / "CHANGELOG.md").write_text(rotated)
+            # An added repeat in a different file must remain an error even after URL deduplication.
+            (root / "README.md").write_text(f"{self.ORIGIN}/releases/tag/v1.3.0\n")
+            git("add", ".")
+            git("-c", "commit.gpgsign=false", "commit", "-qm", "release")
+            (root / "CHANGELOG.md").write_text("uncommitted text\n")
+            found = links.occurrences(root, base)
+            self.assertEqual({item.url for item in found if item.path == "CHANGELOG.md"}, expected)
+            self.assertEqual(links._expected_pr_release_urls(root, base), expected)
+            summary = root / "summary"
+            def missing(current):
+                return links.Result("error", "HTTP 404", current)
+
+            with mock.patch.object(links, "check", side_effect=missing) as check, \
+                 mock.patch.dict("os.environ", {"GITHUB_ACTIONS": "true", "GITHUB_STEP_SUMMARY": str(summary)}), \
+                 mock.patch("sys.stdout", new_callable=io.StringIO) as output:
+                self.assertEqual(links.main(["--root", str(root), "--base", base]), 1)
+            self.assertEqual(check.call_count, 2)
+            self.assertIn("2 notice", output.getvalue())
+            self.assertIn("1 error", output.getvalue())
+            self.assertIn("::notice file=CHANGELOG.md", output.getvalue())
+            self.assertIn("::error file=README.md", output.getvalue())
+            self.assertIn("**notice** `CHANGELOG.md:", summary.read_text())
+            self.assertIn("**error** `README.md:", summary.read_text())
+
+    def test_only_exact_unredirected_404_in_changelog_is_notice(self):
+        expected = links.expected_release_urls("1.2.3", "1.3.0")
+        release = f"{self.ORIGIN}/releases/tag/v1.3.0"
+        near = [f"{release}/", f"{release}?query=1", f"{self.ORIGIN}/releases/tag/v1.3.1"]
+        found = [links.Occurrence("CHANGELOG.md", 1, release),
+                 links.Occurrence("CHANGELOG.md", 2, release),
+                 links.Occurrence("README.md", 3, release)]
+        found.extend(links.Occurrence("CHANGELOG.md", index + 4, url) for index, url in enumerate(near))
+        results = {url: links.Result("error", "HTTP 404", url) for url in [release, *near]}
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as output:
+            self.assertTrue(links.emit(found, results, expected=expected))
+        self.assertIn("4 error, 0 warning, 2 notice", output.getvalue())
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as output:
+            self.assertFalse(links.emit(found[:2], {release: results[release]}, expected=expected))
+            self.assertIn("2 notice", output.getvalue())
+        for result in (links.Result("error", "HTTP 410", release),
+                       links.Result("error", "HTTP 404", release, True),
+                       links.Result("error", "HTTP 404", release + "/destination", True),
+                       links.Result("warning", "network error: timeout", release)):
+            with self.subTest(result=result), mock.patch("sys.stdout", new_callable=io.StringIO) as output:
+                failed = links.emit([found[0]], {release: result}, expected=expected)
+                self.assertEqual(failed, result.level == "error")
+                self.assertIn(f"1 {result.level}", output.getvalue())
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as output:
+            self.assertTrue(links.emit([found[0]], {release: results[release]}))
+            self.assertIn("1 error", output.getvalue())
+
+    def test_redirect_to_expected_url_ending_in_404_remains_error(self):
+        release = f"{self.ORIGIN}/releases/tag/v1.3.0"
+        with mock.patch.object(links, "public_https", return_value=((socket.AF_INET, socket.SOCK_STREAM, 6, ("1.1.1.1", 443)),)), \
+             mock.patch.object(links, "open_pinned", side_effect=[
+                 http_error(release, 302, "/releases/tag/v1.3.0"), http_error(release, 404)]):
+            result = links.fetch(release)
+        self.assertTrue(result.redirected)
+        with mock.patch("sys.stdout", new_callable=io.StringIO):
+            self.assertTrue(links.emit([links.Occurrence("CHANGELOG.md", 1, release)],
+                                       {release: result}, expected={release}))
+
+    def test_pr_catalog_version_must_be_present_and_strict_at_both_revisions(self):
+        for invalid in ("schema: v1\n", "version: 1.2.3\nversion: 1.2.3\n",
+                        "version: 01.2.3\n", "version: 1.2\n", "version: v1.2.3\n",
+                        "version: 1.2.3-beta\n"):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(ValueError, "catalog.yaml"):
+                    links._catalog_version(invalid)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            def git(*args):
+                return subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True).stdout.strip()
+
+            git("init", "-q")
+            git("config", "user.name", "Test")
+            git("config", "user.email", "test@example.com")
+            (root / "catalog.yaml").write_text("version: 1.2.3\n")
+            git("add", ".")
+            git("-c", "commit.gpgsign=false", "commit", "-qm", "base")
+            base = git("rev-parse", "HEAD")
+            (root / "catalog.yaml").write_text("version: invalid\n")
+            git("add", ".")
+            git("-c", "commit.gpgsign=false", "commit", "-qm", "head")
+            with mock.patch.object(links, "check") as check, mock.patch("sys.stderr", new_callable=io.StringIO) as err:
+                self.assertEqual(links.main(["--root", str(root), "--base", base]), 2)
+                self.assertIn("catalog.yaml", err.getvalue())
+                check.assert_not_called()
+            self.assertEqual(links._catalog_version("# version: no\nversion: '1.2.3' # comment\n"), "1.2.3")
+            with mock.patch.object(links, "_git", side_effect=[b"base\n", b"version: invalid\n"]):
+                with self.assertRaisesRegex(ValueError, "catalog.yaml"):
+                    links._expected_pr_release_urls(root, base)
+
+    def test_unchanged_version_pr_and_full_sweep_keep_404_errors(self):
+        release = f"{self.ORIGIN}/releases/tag/v1.2.3"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            def git(*args):
+                return subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True).stdout.strip()
+
+            git("init", "-q")
+            git("config", "user.name", "Test")
+            git("config", "user.email", "test@example.com")
+            (root / "catalog.yaml").write_text("version: 1.2.3\n")
+            (root / "CHANGELOG.md").write_text("# Changelog\n")
+            git("add", ".")
+            git("-c", "commit.gpgsign=false", "commit", "-qm", "base")
+            base = git("rev-parse", "HEAD")
+            (root / "CHANGELOG.md").write_text(release + "\n")
+            git("add", ".")
+            git("-c", "commit.gpgsign=false", "commit", "-qm", "head")
+            self.assertEqual(links._expected_pr_release_urls(root, base), set())
+            with mock.patch.object(links, "check", return_value=links.Result("error", "HTTP 404", release)), \
+                 mock.patch("sys.stdout", new_callable=io.StringIO):
+                self.assertEqual(links.main(["--root", str(root), "--base", base]), 1)
+                self.assertEqual(links.main(["--root", str(root)]), 1)
 
 
 class FakeResponse:
