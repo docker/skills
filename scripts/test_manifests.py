@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import unittest
+import xml.etree.ElementTree as ET
 
 from manifests import (
     collect_descriptions,
@@ -56,6 +57,22 @@ class ClaudeMarketplaceControlsTests(unittest.TestCase):
             validate_claude_marketplace_controls(marketplace, {}),
             [".claude-plugin/marketplace.json plugins[0] has deprecated field: category"],
         )
+
+
+class ClaudePluginIconTests(unittest.TestCase):
+    def test_checked_in_icon_is_square_and_keeps_the_docker_mark(self):
+        root = Path(__file__).resolve().parent.parent
+        plugin = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+        self.assertEqual(plugin["icon"], "./.claude-plugin/docker.svg")
+        icon = root / plugin["icon"]
+        svg = ET.parse(icon).getroot()
+        self.assertEqual(svg.attrib["width"], svg.attrib["height"])
+        self.assertGreaterEqual(int(svg.attrib["width"]), 128)
+        self.assertEqual(svg.attrib["viewBox"], "0 -36 340 340")
+        paths = svg.findall(".//{http://www.w3.org/2000/svg}path")
+        self.assertEqual(len(paths), 1)
+        self.assertTrue(paths[0].attrib["d"].startswith("M334,110.1"))
+        self.assertIn("fill: #2560ff", icon.read_text(encoding="utf-8"))
 
 
 class SkillsIndexTests(unittest.TestCase):
