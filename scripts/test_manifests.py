@@ -60,19 +60,30 @@ class ClaudeMarketplaceControlsTests(unittest.TestCase):
 
 
 class ClaudePluginIconTests(unittest.TestCase):
-    def test_checked_in_icon_is_square_and_keeps_the_docker_mark(self):
+    def test_checked_in_icon_is_plain_square_docker_mark(self):
         root = Path(__file__).resolve().parent.parent
         plugin = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
         self.assertEqual(plugin["icon"], "./.claude-plugin/docker.svg")
         icon = root / plugin["icon"]
-        svg = ET.parse(icon).getroot()
-        self.assertEqual(svg.attrib["width"], svg.attrib["height"])
-        self.assertGreaterEqual(int(svg.attrib["width"]), 128)
-        self.assertEqual(svg.attrib["viewBox"], "0 -36 340 340")
-        paths = svg.findall(".//{http://www.w3.org/2000/svg}path")
-        self.assertEqual(len(paths), 1)
-        self.assertTrue(paths[0].attrib["d"].startswith("M334,110.1"))
-        self.assertIn("fill: #2560ff", icon.read_text(encoding="utf-8"))
+        content = icon.read_bytes()
+        self.assertLess(len(content), 2 * 1024 * 1024)
+        text = content.decode("utf-8")
+        self.assertTrue(text.startswith("<svg "))
+        self.assertNotRegex(text, r"(?i)<!|<\?|\b(?:xmlns:|xlink:|url\s*\(|(?:href|on[a-z]+)\s*=)")
+
+        svg = ET.fromstring(content)
+        self.assertEqual(svg.tag, "{http://www.w3.org/2000/svg}svg")
+        self.assertEqual(svg.attrib, {"width": "340", "height": "340", "viewBox": "0 -36 340 340"})
+        self.assertEqual(len(svg), 1)
+        path = svg[0]
+        self.assertEqual(path.tag, "{http://www.w3.org/2000/svg}path")
+        self.assertEqual(len(path), 0)
+        self.assertEqual(set(path.attrib), {"d", "fill"})
+        self.assertEqual(path.attrib["fill"], "#2560ff")
+        self.assertTrue(path.attrib["d"].startswith("M334,110.1"))
+        self.assertFalse((svg.text or "").strip())
+        self.assertFalse((path.text or "").strip())
+        self.assertFalse((path.tail or "").strip())
 
 
 class SkillsIndexTests(unittest.TestCase):
