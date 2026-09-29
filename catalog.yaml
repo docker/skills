@@ -151,12 +151,12 @@ skills:
   - id: docker-agent-config
     product: docker-agent
     path: skills/docker-agent-config
-    version: 0.1.1
+    version: 0.1.2
     status: stable
   - id: docker-agent-run
     product: docker-agent
     path: skills/docker-agent-run
-    version: 0.1.1
+    version: 0.1.2
     status: stable
   - id: docker-agent-deploy
     product: docker-agent

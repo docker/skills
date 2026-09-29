@@ -39,6 +39,9 @@ for distribution releases.
   and bind-mounting dependency manifests (`package.json`, `go.mod`,
   `requirements.txt`) into install steps instead of `COPY`-ing them, for
   install commands that don't rewrite the manifest.
+- `docker-agent-config` and `docker-agent-run` routing notes describe evaluation
+  work by its sessions and `--baseline` regression gates; routing to
+  `docker-agent-deploy` is unchanged.
 
 ### Fixed
 
