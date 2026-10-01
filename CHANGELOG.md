@@ -8,6 +8,17 @@ for distribution releases.
 
 ## [Unreleased]
 
+### Changed
+
+- `docker-sandboxes-lifecycle`: `0.1.0` → `0.2.0`. Add creation-time shared-skills modes, clone teardown and root-isolation guidance; retain lifecycle routing.
+- `docker-sandboxes-network-credentials`: `0.1.0` → `0.2.0`. Add local reset impact/consent, HTTP caveats, source semantics and host-helper trust guidance; retain runtime ownership.
+- `docker-sandboxes-env`: `0.1.0` → `0.2.0`. Add v0.46.0 schema/resolution, host-hook approval, removal/drift and offline checks; retain experimental status and routing.
+- `docker-sandboxes-kits`: `0.1.0` → `0.2.0`. Refresh v2 `spec.yaml` validation/distribution, trust admission and runtime caveats; v3 is out of scope. Retain experimental status and routing; builder administration remains deferred.
+- `docker-agent-run`: `0.1.2` → `0.1.3`. Correct host workspace/Git-hook/shared-skills/stdio MCP trust guidance without wrapper-command or routing expansion.
+- `docker-destructive-guardrails`: `0.1.0` → `0.2.0`. Index env removal and local policy reset under existing owners; preserve rm/prune consent and defer unowned builders/templates.
+
+These are per-skill changes under Unreleased, not a distribution-version bump.
+
 ## [0.3.1] - 2026-09-29
 
 ### Added

@@ -60,7 +60,7 @@ Applies only to `docker rm <name>` on an already-stopped container and `docker r
 - For Compose-specific destructive commands (`docker compose down -v`, `docker compose rm -v`, `docker volume rm`/`docker volume prune` in a Compose context), use `docker-compose-patterns` — it owns that guidance in full detail; this skill only indexes it. This skill owns the standalone (non-Compose) case for `docker volume rm`/`docker volume prune` itself — see Core guidance and `references/docker-cli-destructive-commands.md`.
 - For Dockerfile internals, build caching, and image size optimization (non-destructive concerns), use `docker-build-strategies`.
 - For first-time Docker project scaffolding, use `docker-project-foundations`.
-- For sandbox (sbx) destructive commands (`sbx rm`, `sbx prune`), use `docker-sandboxes-lifecycle` — it owns that guidance in full detail; this skill only indexes it. Docker Desktop destructive-command guardrails will live in their own skill once merged (see `references/cross-skill-destructive-command-index.md` for tracking status); do not assume their content until that skill ships.
+- For sandbox (sbx) destructive commands (`sbx rm`, `sbx prune`), use `docker-sandboxes-lifecycle` — it owns that guidance in full detail; this skill only indexes it. Environment removal and local policy reset are indexed under their env/network owners; builder/cache/history workflows and template ownership remain deferred, not delegated to kits or lifecycle. Docker Desktop destructive-command guardrails will live in their own skill once merged (see `references/cross-skill-destructive-command-index.md` for tracking status); do not assume their content until that skill ships.
 
 ## References
 
