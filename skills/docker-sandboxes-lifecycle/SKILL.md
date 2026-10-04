@@ -2,7 +2,7 @@
 name: docker-sandboxes-lifecycle
 description: Use this skill when creating, running, reattaching to, listing, stopping, or removing Docker Sandboxes (the standalone `sbx` CLI that runs AI coding agents in isolated microVMs), even if the user just says they want to "run claude in a sandbox", "isolate an agent from my repo", "give an agent its own git clone", or "clean up old sandboxes". Covers `sbx run`/`sbx create` (including the built-in agents claude, codex, cursor, devin, docker-agent, gemini, opencode, shell), workspace bind-mount vs `--clone` isolation, additional read-only workspaces, reattaching by `--name`, `sbx ls`/`stop`/`rm`/`prune`, `sbx exec`, `sbx cp`, and `sbx ports`.
 license: Apache-2.0
-compatibility: Standalone `sbx` CLI (not the legacy `docker sandbox` plugin wrapper). Source-verified against docker/sandboxes (github.com/docker/sandboxes) @ commit df5c96ba60484fa2c375469dbac912c205da6c37. Cross-checked against an installed sbx v0.42.0-503-g951b7f6d7 (commit 951b7f6d7f6bb260fac15077b607109ffe8ae012, older than the pinned source); one source-only behavior change is called out explicitly below (`sbx prune --filter`). `docker_help` does not cover standalone `sbx` syntax.
+compatibility: Standalone `sbx` CLI (not the legacy `docker sandbox` plugin wrapper). Verified against sbx v0.46.0 (stable; docker/sandboxes tag v0.46.0, commit 991967dc90ce0d9a440cd1df1bdf3e395c5a2693) from its generated CLI reference and pinned internal source; no sbx binary was executed. `docker_help` does not cover standalone `sbx`.
 ---
 
 # Docker Sandboxes: Local Lifecycle & Workspace Isolation
@@ -12,9 +12,10 @@ compatibility: Standalone `sbx` CLI (not the legacy `docker sandbox` plugin wrap
 Docker Sandboxes (`sbx`) runs an AI coding agent inside an isolated microVM with
 its own filesystem, network, and Docker daemon. This skill owns the local
 sandbox lifecycle — creating, reattaching to, listing, stopping, and removing
-sandboxes — and the workspace isolation choice (direct bind mount vs.
-`--clone`). It does not cover network policy, credentials, `sbxenv.yaml`, or
-kit authoring — see Related skills.
+sandboxes — and the creation-time choices that decide what a sandbox shares with
+the host: workspace mode (direct bind mount vs. `--clone`), extra read-only
+paths, and the shared skills mode. It does not cover network policy,
+credentials, `sbxenv.yaml`, or kit authoring — see Related skills.
 
 ## When to use this skill
 
@@ -40,8 +41,10 @@ Do not use this skill when:
   credentials it uses — use `docker-sandboxes-network-credentials`.
 - The task is authoring or running a declarative `sbxenv.yaml` file — use
   `docker-sandboxes-env`.
-- The task is authoring, packaging, signing, or composing a kit `spec.yaml`
-  — use `docker-sandboxes-kits`.
+- The task is authoring, packaging, signing, or composing a v2 `spec.yaml` kit,
+  including composing a custom kit with a built-in agent — use
+  `docker-sandboxes-kits`. For v3 kit-format questions it states that
+  v3 descriptors are a separate format it does not cover.
 - The task is about `sbx --cloud` (Docker Cloud Sandboxes) — out of scope for
   this skill set, which covers the local daemon only.
 
@@ -58,16 +61,18 @@ Do not use this skill when:
   sbx create shell .             # create only, cwd mounted, do not attach
   sbx run --name my-sandbox       # reattach later
   ```
-- `AGENT` is a built-in name (`claude`, `codex`, `cursor`, `devin`,
-  `docker-agent`, `gemini`, `opencode`, `shell`) or a sandbox kit reference
-  (local directory, ZIP, git, or OCI). A relative local kit reference MUST be
-  an explicit path (`./my-kit`, a parent-relative `.zip` path) — a bare `my-kit` is read as
-  an agent/sandbox name, never a directory beside the cwd.
+- `AGENT` is a built-in name or a sandbox kit reference (local directory,
+  ZIP, git, or OCI). The embedded agent catalog at v0.46.0 is `claude`,
+  `codex`, `cursor`, `devin`, `docker-agent`, `gemini`, `opencode`, `shell`.
+  `sbx run --help` also lists `copilot`, `droid`, and `kiro`, which resolve to
+  pinned public kits by name; it is the list for the installed version. A
+  relative local kit reference MUST be an explicit path (`./my-kit`, a
+  parent-relative `.zip` path) — a bare `my-kit` is read as an agent/sandbox
+  name, never a directory beside the cwd.
 - **Omitting the path is not the same for every subcommand.** `sbx run claude`
   with no path mounts the **current directory**. `sbx create claude` with no
-  path mounts **nothing at all** — the agent then works only in the
-  container's own filesystem. Always pass a path explicitly with `sbx create`
-  if you intend to give the agent a workspace.
+  path mounts **nothing at all** — the agent works only in the container's own
+  filesystem. Always pass a path to `sbx create` to give the agent a workspace.
 - **Prefer `--name` to reattach; a bare positional name still works but is
   deprecated.** `sbx run --name NAME` (agent positional optional, read from
   the sandbox's own spec) is the recommended form. A bare `sbx run NAME` —
@@ -75,25 +80,37 @@ Do not use this skill when:
   is still **accepted** as a legacy re-attach shorthand, but prints a
   deprecation warning ("`sbx run NAME` is deprecated; use
   `sbx run --name NAME` instead") and may be removed in a future release.
-  Always write `--name` explicitly rather than relying on the legacy form.
+  Always write `--name` explicitly.
   ```bash
   sbx run --name existing-sandbox                 # reattach, agent read from spec
   sbx run claude --name existing-sandbox          # reattach, verify expected agent
   ```
+- **Creation-only flags fail on reattach.** `--template`, `--memory`, `--cpus`,
+  and `--skills` are rejected when `sbx run --name NAME` finds an existing
+  sandbox ("… can only be used when creating a new sandbox"). `-p/--publish`
+  is ignored on reattach instead; use `sbx ports`. To change a creation-only
+  setting, remove and recreate after the fetch-first and consent steps below.
 
 ### Workspace isolation: bind mount vs. `--clone`
 
 - **Default (bind mount):** the workspace path is mounted read/write inside
   the sandbox at the same path as on the host. The agent can write directly
   to your working tree.
+- **Direct mode changes host-executable files.** Edits appear live on the
+  host, including files that run implicitly during development: Git hooks,
+  CI configuration, IDE task configs, AI project settings, `Makefile`,
+  `package.json` scripts, and similar build files. Before running modified
+  code on the host, review the changes and inspect `.git/hooks` separately —
+  hooks live in `.git/` and do not appear in `git diff`. `--clone` and `:ro`
+  limit what the agent can write; neither hides file contents.
 - **`--clone` (creation-time only):** the agent runs against a private
   in-container clone of the host Git repository. The host repo is mounted
   **read-only**; the agent's commits land in the in-container clone and are
-  reachable from the host via a `sandbox-<name>` git remote — fetch or pull
-  from it to bring commits back.
+  reachable from the host via a `sandbox-<name>` git remote — fetch from it
+  to bring commits back.
   ```bash
   sbx create --clone --name demo claude .
-  # on the host, later:
+  # on the host, with the sandbox running (see below):
   git fetch sandbox-demo
   ```
 - **`--clone` has real preconditions, checked at creation time**, and fails
@@ -106,6 +123,12 @@ Do not use this skill when:
   - its `.git` must be a real directory, not a file (a submodule or a
     `--separate-git-dir` setup points `.git` elsewhere, which the read-only
     source mount would not include).
+- **The clone remote works only while the sandbox is running.** The Git
+  daemon that serves the clone stops with `sbx stop`, and `git fetch
+  sandbox-NAME` fails until the sandbox starts again. A sandbox made with
+  `sbx create` stops on its own after it goes idle, so start it before
+  fetching: `sbx run --name NAME -d`. Restarting changes the daemon port; the
+  CLI updates the remote URL, so do not hard-code it.
 - **`--clone` on `sbx run` when reattaching is a no-op ONLY on a sandbox
   already created in clone mode** — it re-validates nothing new and simply
   keeps running the existing in-container clone. Passing `--clone` while
@@ -114,23 +137,27 @@ Do not use this skill when:
   telling you to recreate the sandbox with `sbx create --clone ...`. Neither
   form can convert an existing sandbox's mode after creation.
 - **Removing or pruning a clone-mode sandbox permanently discards every
-  commit the agent made that was never fetched back to the host** — the
-  in-container clone lives on the sandbox's own filesystem and is deleted
-  with it. Before removing a clone-mode sandbox, fetch its work first:
+  commit the agent made that was not fetched to the host or pushed to a
+  remote you verified** — the in-container clone lives on the sandbox's own
+  filesystem and is deleted with it. Before removing a clone-mode sandbox,
+  start it and fetch its work:
   ```bash
+  sbx run --name demo -d
   git fetch sandbox-demo
   ```
   Fetching populates two refspecs: the ordinary `refs/remotes/sandbox-demo/*`
   (deleted along with the remote when the sandbox is removed) and a survivor
   copy at `refs/sandboxes/demo/*` (outside the remote namespace, so it is
-  **not** deleted when the remote goes). Recover a branch from the survivor
-  copy after removal with:
+  **not** deleted when the remote goes). Only fetched branches get survivor
+  refs. Recover a branch from the survivor copy after removal with:
   ```bash
   git branch <local-name> refs/sandboxes/demo/<branch>
   ```
-  `sbx rm`/`sbx prune` print this warning automatically for any clone-mode
-  sandbox they are about to remove; read it before confirming, don't
-  suppress it with `--force` out of habit.
+  `sbx rm` and a real `sbx prune` print an unsaved-commits warning for every
+  clone-mode sandbox they are about to remove. `--force` skips the prompt but
+  does not suppress the warning, so read it before choosing `--force`.
+  Review fetched commits, including hooks and build files, before checking them
+  out or running them on the host.
 - Additional workspaces are extra positional paths after the first. Append
   `:ro` to mount one read-only. **`:ro` blocks writes, not reads** — the
   sandbox can still read every file under a `:ro` mount; it is not a way to
@@ -142,9 +169,29 @@ Do not use this skill when:
   sbx run claude . /path/to/docs:ro
   ```
   **Never mount a secrets/credentials file this way** (`:ro` or otherwise) —
-  a read-only mount still lets the sandbox (and, through it, the proxy-less
-  agent process) read the secret in the clear. Use the credential store
-  instead; see `docker-sandboxes-network-credentials`.
+  a read-only mount still lets the sandbox read the secret in the clear. Use
+  the credential store instead; see `docker-sandboxes-network-credentials`.
+
+### Shared skills mode (creation time)
+
+- `--skills off|readonly|readwrite` on `sbx create`/`sbx run` chooses how the
+  agent's skills directory (for example `~/.claude/skills`) relates to the
+  host-side shared skills store. Default: `readonly`, or the configured
+  `skills.defaultMode` setting. The mode is fixed at creation; changing it
+  means remove and recreate.
+  ```bash
+  sbx create --skills=off --name isolated shell .
+  ```
+- Use `--skills=off` when the sandbox must stay outside the shared trust
+  boundary. Never choose `readwrite` unless the user asked for it: a
+  `readwrite` sandbox can change skills that other sandboxes, including
+  `readonly` ones, load later. `readonly` stops writes from that sandbox; it
+  does not isolate it from changes made elsewhere.
+- Shared skills are documented as experimental and apply to supported agents;
+  whether `shell` mounts the store is not verified — verify locally.
+- Managing the store itself (adding, importing, updating, removing skills) and
+  changing `skills.defaultMode` are not covered by this skill set; consult
+  `sbx skills --help` and `sbx settings --help` for the installed version.
 
 ### Reattaching, stopping, and removing
 
@@ -158,52 +205,67 @@ Do not use this skill when:
   unfetched commit (see above). Only use `--force` when you have already
   reviewed what will be destroyed and consented — for scripted teardown of
   resources this session itself created and uniquely named, not as a
-  default habit.
-- `sbx prune [--dry-run] [--filter until=VALUE] [--force]` removes only
-  **stopped** sandboxes — a running sandbox is never touched — but this is
-  still a destructive, irreversible bulk removal: every matching stopped
-  sandbox's state, secrets, and (for clone-mode sandboxes) any unfetched
-  commits are gone. Always preview with `--dry-run` first and read the
-  clone-commit warning it prints before removing for real; do not pass
-  `--force` as a default.
-  - **Current source flag is `--filter until=VALUE`**, not `since=`. `VALUE`
-    may be an RFC 3339 timestamp, a Unix timestamp, or a Go duration
-    relative to now (e.g. `until=168h` keeps anything stopped within the
-    last week — i.e. prunes what stopped *before* that point). **This is a
-    source-only behavior at the pinned commit that differs from some
-    installed builds**: an older installed `sbx` may still advertise
-    `--filter since=DURATION` as a legacy alias; prefer `until=` and treat
-    `since=` as legacy-only if your installed `--help` output does not show
-    `until=`.
+  default habit. `--force` also removes a sandbox that is in use.
+- `sbx prune [--dry-run] [--json] [--filter until=VALUE] [--force]` removes
+  only **stopped** sandboxes — a running sandbox is never touched — but this is
+  still a destructive, irreversible bulk removal: every matching sandbox's
+  state, scoped secrets, and (for clone-mode sandboxes) any unfetched commits
+  are gone. The help text calls it safe to run habitually; that describes
+  running sandboxes only, so do not treat it as permission to skip the preview.
+  - **Age cutoff:** `--filter until=VALUE` (RFC 3339 timestamp, Unix timestamp,
+    or Go duration) selects sandboxes that stopped *before* the cutoff, by
+    stop time, not creation time: `until=168h` prunes what stopped more than
+    168 hours ago. With an age filter, a stopped sandbox whose stop time is
+    unknown is skipped, never pruned; remove it with `sbx rm` only with the
+    user's consent. Write `until=`; see `references/prune-age-filter.md`.
+  - **Dry run vs. real run:** `--dry-run` does not print the clone-commit
+    warning; the real run prints it before the prompt. Without a terminal a
+    real run fails with "stdin is not a terminal; use --force": ask the user
+    before adding `--force`.
+  - Before a real prune, check whether any candidate is a clone-mode sandbox
+    (a `sandbox-<name>` remote in its workspace's Git config). Start it and
+    fetch first; the dry run does not identify them.
   ```bash
   sbx prune --dry-run --filter until=168h
-  # after reviewing the dry-run output and any clone-commit warnings:
+  # after reviewing the list, fetching any clone-mode candidates, and getting consent:
   sbx prune --filter until=168h
   ```
 
 ### Copying files and running ad-hoc commands
 
 - `sbx cp SRC DST` copies between host and sandbox; exactly one side must be
-  `SANDBOX:PATH`. Copying between two sandboxes is not supported.
+  `SANDBOX:PATH`. Copying between two sandboxes is not supported; stage
+  through a host file.
   ```bash
   sbx cp ./config.json my-sandbox:/home/agent/
   sbx cp my-sandbox:/home/agent/output.log ./
   ```
 - `sbx exec [flags] SANDBOX COMMAND [ARG...]` runs a command in a sandbox
-  (starting it first if stopped); flags mirror `docker exec` (`-it`, `-d`,
-  `-u`, `-w`, `-e`, `--env-file`, `--privileged`).
+  (starting it first if stopped); flags mirror `docker exec` (`-i`, `-t`, `-u`,
+  `-w`, `-e`, `--env-file`, `--privileged`) **except detached mode**. Never
+  suggest `sbx exec -d`/`--detach`: it is rejected with "--detach is not
+  supported for exec; omit -d to run the command in the foreground". Do not
+  confuse it with `sbx run -d`, which only starts a sandbox and prints its ID.
+  The default working directory is the primary workspace. Pass only
+  non-secret values with `-e`; credentials belong in the credential store.
   ```bash
   sbx exec -it my-sandbox bash
   sbx exec -u root my-sandbox apt-get update
   ```
 - `sbx ports SANDBOX [--publish SPEC] [--unpublish SPEC]` manages published
   ports after creation; `-p/--publish` on `sbx create`/`sbx run` only takes
-  effect when the sandbox is created, not on reattach.
+  effect when the sandbox is created, not on reattach. Keep bindings on
+  loopback and remove them with the same spec; see `references/port-publishing.md`.
 
 ### Sizing and naming
 
-- `--cpus` (0 = auto: all host CPUs) and `--memory`/`-m` (default 50% of
-  host memory, clamped 512 MiB–32 GiB) are create-time-only knobs.
+- `--cpus` and `--memory`/`-m` are create-time-only knobs (see the reattach
+  rule above).
+- `--cpus 0` (auto) uses all host CPUs, capped at 16 on Linux arm64; an explicit
+  `--cpus` can request more.
+- `--memory` takes binary units (`512m`, `8g`): minimum 512 MiB; default 50% of
+  host memory clamped to 512 MiB–32 GiB; maximum max(75% of host memory,
+  512 MiB).
 - `--name` sets the sandbox name (default `<agent>-<workdir>`); at least two
   characters, starting with a letter or number, letters/numbers/hyphens/
   periods only, at most 63 ASCII characters, ending in a letter or number;
@@ -213,17 +275,21 @@ Do not use this skill when:
 
 - For `docker agent run --sandbox` and `docker agent sandbox` commands,
   use `docker-agent-run`.
-
 - For network egress policy and service/registry credentials, use
   `docker-sandboxes-network-credentials`.
 - For declarative, checked-in `sbxenv.yaml` environments that wrap this same
   create/run/rm lifecycle, use `docker-sandboxes-env`.
-- For authoring or composing the kit `spec.yaml` an `AGENT` reference can
-  point to, use `docker-sandboxes-kits`.
+- For v2 `spec.yaml` authoring, packaging/signing, or composing a custom kit
+  (for example a mixin passed with `--kit`), use `docker-sandboxes-kits`.
+  For v3 kit-format questions it states that v3 is not covered.
 
 ## References
 
-- `references/sources.md` — provenance for every rule above (help captures, source paths, docs URLs).
+- `references/sources.md` — v0.46.0 provenance for every rule above (release record, help fields, docs sections, internal path:symbol), plus the removed-claims and eval-edit logs.
+- `references/prune-age-filter.md` — prune age-filter detail: cutoff semantics, unknown stop times, legacy `since=`, rejected input, dry-run JSON.
+- `references/port-publishing.md` — `sbx ports` round trip: publish on loopback, inspect, unpublish; binding is not reachability.
+- `skill.yaml` — routing metadata for this skill (owns, triggers, delegates).
+- `agents/openai.yaml` — discovery metadata for Codex.
 
 ## Assets
 
@@ -231,4 +297,4 @@ Do not use this skill when:
 
 ## Checks
 
-- `checks/verification.md` — Verification runbook for sandbox lifecycle commands (unexecuted runbook; run manually with an isolated `--app-name`, never with `--force` except consented cleanup of the runbook's own uniquely-named test sandboxes).
+- `checks/verification.md` — Verification runbook for sandbox lifecycle commands: clone, prune, exec, and skills steps to run after changing this guidance (unexecuted runbook; run manually with an isolated hidden `--app-name` test identity, never with `--force` except consented cleanup of the runbook's own uniquely-named test sandboxes).

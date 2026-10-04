@@ -19,13 +19,19 @@ Source: https://docs.docker.com/ai/docker-agent/features/cli/ (Commands >
 ## Sandbox trust boundary
 - Boundary: a hypervisor-isolated microVM per sandbox. No shared memory or
   processes with the host.
-- Crosses into the VM: the mounted workspace directory (read-write by
-  default), host-injected credential headers (raw values never enter the
-  VM), and allowlisted outbound TCP.
-- Not isolated by default: workspace file changes are live on the host in
-  direct mode (the default); Git hooks under `.git/` run with host
-  permissions when a modified script executes; the default network allowlist
-  includes broad wildcards (e.g. `*.googleapis.com`).
+- Crosses into the VM: the mounted workspace, staged skills/prompt kit,
+  configured shared skills store for supported agents, host-injected
+  credential headers (raw values never enter the VM), and allowlisted
+  outbound traffic. This list is not an
+  exhaustive mount inventory.
+- Writable shared skills can influence other sandboxes using that store.
+  Review workspace scripts/configs and Git hooks (including `.git/`, not
+  visible in `git diff`) before executing them on the host. VM isolation
+  does not protect host execution of shared files.
+- Workspace file changes are live on the host in direct mode (the default).
+- The default network allowlist includes broad wildcards (e.g.
+  `*.googleapis.com`), which cover services beyond AI APIs. Review it and
+  remove entries you do not need; the wrapper commands below are unchanged.
 - Local stdio MCP servers run **outside** the sandbox VM, on the host —
   treat them as trusted host integrations, not sandboxed ones.
 

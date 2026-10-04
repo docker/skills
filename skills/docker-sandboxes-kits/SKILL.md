@@ -3,7 +3,7 @@ name: docker-sandboxes-kits
 description: >-
   Use this skill when authoring, validating, packaging, signing, or composing a Docker Sandboxes kit `spec.yaml` (`sbx kit add/inspect/pack/pull/push/sign/validate/verify`), even if the user just says they want to "add a tool to a sandbox agent", "build a reusable sandbox extension", "publish a kit to a registry", or "give a mixin its own credentials and network access". Covers the kit-spec v2 grammar (`kind: sandbox` vs `kind: mixin`, the `sandbox:` block, `permissions.network`, `ports`, `credentials` apiKey/oauth, `environment`, `setup` install/startup/files, `volumes`, `args`, `extends`, `mixins`, `requires.agent`), composition via `--kit`/`sbx kit add`, and distribution (pack/push/pull/sign/verify/provenance).
 license: Apache-2.0
-compatibility: Requires standalone sbx with sbx kit support and kit-spec schemaVersion "2", not the legacy docker sandbox wrapper. Verified against docker/sandboxes df5c96ba60484fa2c375469dbac912c205da6c37; installed-help version and provenance are in references/sources.md. docker_help does not cover standalone sbx.
+compatibility: Requires standalone sbx with sbx kit support and kit-spec schemaVersion "2", not the legacy docker sandbox wrapper. Verified against sbx v0.46.0 (docker/sandboxes 991967dc90ce0d9a440cd1df1bdf3e395c5a2693); no installed binary was used as oracle. Provenance is in references/sources.md. docker_help does not cover standalone sbx.
 ---
 
 # Docker Sandboxes: Kits (spec.yaml)
@@ -18,6 +18,11 @@ distribution — everything under `spec.yaml`'s own grammar — and defers what 
 kit's declarations *mean at runtime* (credential injection, network
 enforcement) to `docker-sandboxes-network-credentials`, and the sandboxes a
 kit is composed into to `docker-sandboxes-lifecycle`.
+
+Scope is schema v2 at sbx v0.46.0. v2 remains supported and the built-in
+agents (`claude`, `codex`, `shell`, …) are v2 kits. V3 workloads and mixins
+exist, cannot be combined with v1 or v2 kits, and are not covered here; do not
+apply this skill's rules to v3 descriptors.
 
 ## When to use this skill
 
@@ -53,22 +58,21 @@ Do not use this skill when:
   agent: base image + launch config). Any number of `kind: mixin` kits
   layer onto it (tools, credentials, network, files). A mixin **must not**
   declare a `sandbox:` block, `extends:`, or `mixins:`.
-- Every kit needs `schemaVersion: "2"` (the current clean grammar — no
-  legacy shims), `kind`, and `name` matching
-  `^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$`. **Decoding is strict**: any
-  unrecognized field anywhere is a hard error (e.g. a typo like
-  `permissions.netwrok:`), so a kit that validates has no silent typos.
-  ```yaml
-  schemaVersion: "2"
-  kind: mixin
-  name: extra-egress
-  ```
+- Every v2 kit needs `schemaVersion: "2"` (v1 is still accepted; v3 is a
+  separate format), `kind`, and `name` matching
+  `^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$`.
+- Decoding is strict at the grammar level but **not a typo guarantee**: the
+  v2 decoder uses YAML `KnownFields(true)`, so an unknown key in a plain block
+  (e.g. `permissions.netwrok:`) is a decode error, yet a block with its own
+  unmarshaler (e.g. the `sandbox.command` mapping) may ignore unknown keys
+  (verify locally). A passing `sbx kit validate` never proves a typo-free spec.
+  `assets/spec-mixin.yaml` is a complete minimal mixin.
 - Do not redefine a base agent's credential in a mixin: declaring a new
   `apiKey.name` or `proxyManaged` for the same service fails composition.
   `shell`, `docker-agent`, and `opencode` already own `github`. An additive
   routing-only entry (`apiKey.inject`, no name/proxyManaged/oauth, and
   `required: false`) can extend the base credential instead. OAuth belongs
-  on sandbox kits, never mixins. See `references/spec-v2-fields.md`.
+  on sandbox kits, never v2 mixins. See `references/spec-v2-fields.md`.
   Inspect built-in definitions at `sandboxlib/agentkits/agents/<agent>/spec.yaml`
   in the pinned source; `sbx kit inspect` takes artifact references, not
   built-in names. Standalone mixin validation does not test composition.
@@ -80,53 +84,53 @@ Do not use this skill when:
 - `image:` is the pre-built base image. `entrypoint:` is the fixed process
   prefix (`entrypoint[0]` is the binary); `command:` is the mode-specific
   argument tail — either a bare list (sets `default`, `interactive` falls
-  back to it) or `{default: [...], interactive: [...]}`.
-  For a complete minimal kit, use `assets/spec-sandbox.yaml`, which inherits
-  the embedded shell definition rather than inventing an image or command.
+  back to it) or `{default: [...], interactive: [...]}`. With `extends:`,
+  `sandbox.command` **replaces** the inherited tail rather than appending.
 - `sandbox.build:` (Dockerfile build) is **accepted but not built by the
-  runtime this release** — a kit that sets `build:` must still set `image:`,
+  runtime at v0.46.0** — a kit that sets `build:` must still set `image:`,
   or it is rejected at load with an actionable error.
-- **`extends:` (below) is the simplest way to get a real, working image
-  without inventing one.** A sandbox kit that extends a built-in agent
-  (e.g. `extends: shell`) inherits that agent's real `sandbox.image` and
-  may omit `sandbox:` entirely — see the minimal example asset, which does
-  exactly this rather than naming a made-up image reference.
+- **`extends:` is the simplest way to get a real, working image without
+  inventing one.** A sandbox kit that extends a built-in agent (e.g.
+  `extends: shell`) inherits its real `sandbox.image` and may omit `sandbox:`;
+  `assets/spec-sandbox.yaml` does exactly this.
 
 ### Egress: `permissions.network` — and the all-egress-declared rule
 
 - `permissions.network.allow`/`deny` are the v2 home for what v1 spelled as
-  top-level `network:`. Enforced shapes include exact host, exact host+port,
-  single-label wildcards (`*.example.com`), multi-label wildcards
-  (`**.example.com`), and CIDR prefixes. Port ranges are not supported by
-  the runtime matcher; use separate exact ports.
-  **Deny wins within domain rules or within CIDR rules.** A decisive domain
-  decision is evaluated before CIDR rules: an allowed hostname is not
-  checked against a CIDR deny for its resolved IP. Do not rely on a CIDR
-  deny alone to block an already-allowed hostname.
-  ```yaml
-  permissions:
-    network:
-      allow:
-        - registry.npmjs.org
-      deny:
-        - telemetry.example.com
-  ```
+  top-level `network:`. Shapes the pinned runtime lowers and matches (source
+  evidence, not live-observed): exact host, exact host+port, `host:*` (all
+  ports), `*.example.com` (one label), `**.example.com` (multi-label), and CIDR
+  prefixes. Public kits-v2 calls `**.`, `:*`, port ranges and CIDR "pending";
+  SPEC-v2 calls `**.` and `:*` enforced but CIDR and port ranges not: the
+  sources disagree and the pinned implementation decides. A port range such as
+  `host:80-443` never matches (ports compare exactly); use separate exact ports.
+  **Deny wins within one identifier type; across identifiers evaluation is
+  first-decisive, domain then resolved IP.** A decisive domain allow or deny
+  is final: an allowed hostname is not checked against a CIDR deny, and a
+  hostname deny is not overridden by a CIDR allow. Never rely on a CIDR deny
+  to block an allowed hostname; never claim a universal cross-identifier
+  deny-wins. `assets/spec-mixin.yaml` shows an `allow` entry.
 - **`permissions.network.allow` is additive across a composition, and a
   kit's own allow list is not the only thing granting a sandbox egress.**
-  The sandbox already carries the base agent's own allow list, plus
-  whatever the *global* or *per-sandbox* network policy (`sbx policy`,
-  independently of any kit) permits — see `docker-sandboxes-network-
-  credentials`. **Removing a host from one kit's `allow` list does not by
-  itself prove that host is blocked** — the global policy defaults
-  (`balanced` allows common package registries and AI services; `allow-all`
-  allows everything) or another composed kit may still permit it. Never
-  claim a host is blocked without checking the actual effective decision
-  with `sbx policy check network --sandbox <name> <host>` on a real
-  sandbox.
-- Declare the egress a kit requires explicitly for reproducibility. Credential
-  injection does not itself grant network access. Omitting an allow entry
-  leaves reachability dependent on the existing global/per-sandbox policy;
-  it does not necessarily block the host. Check the effective decision.
+  The sandbox also carries the base agent's allow list and whatever the
+  *global* or *per-sandbox* policy (`sbx policy`) permits — see
+  `docker-sandboxes-network-credentials`. **Removing a host from one kit's
+  `allow` does not by itself prove that host is blocked** (`balanced` allows
+  common registries and AI services; `allow-all` allows everything). Never
+  claim a host is blocked without `sbx policy check network --sandbox <name>
+  <host>` on a real sandbox; it evaluates host/port, not HTTP method or path.
+- Declare the egress a kit requires, including every
+  `credentials[].apiKey.inject[].domain` (public kits-v2: an inject domain
+  "must also be allowed in `permissions.network`"). Credential injection does
+  not itself grant access; `sbx kit validate` only warns when an inject domain
+  is missing from the kit's own allow list and proves nothing about effective
+  policy or reachability. Check the effective decision.
+- A kit `allow` is declared intent, not an administrator bypass: it is
+  provisioned as a TCP allow (a kit `deny` as TCP+UDP) and stays inactive
+  while remote governance applies (user/local permits are dropped, denies
+  survive). List kit rules with
+  `sbx policy ls <SANDBOX> --source kit --include-inactive`. Effective-policy
+  semantics belong to `docker-sandboxes-network-credentials`.
 
 ### `credentials` — what the kit needs, never how the user stores it
 
@@ -134,13 +138,15 @@ Do not use this skill when:
   resolved value (`apiKey` and/or `oauth`); it never declares *how* the
   user obtains or stores the credential — that lives in the user's own
   bindings file, wired through `sbx secret set` (see
-  `docker-sandboxes-network-credentials`).
+  `docker-sandboxes-network-credentials`). A declaration requests; a user
+  binding authorizes. An unbound `required` credential starts withheld.
 - `apiKey.inject[]` needs a `domain` and either an explicit `header`+
   `format` (`format` must contain exactly one `%s`) or the `scheme:`
   sugar: `scheme: bearer` expands to `Authorization: Bearer %s` (no
-  `username`), `scheme: basic` requires `username` and is mutually
-  exclusive with `format`. **Pick a `service` name no composed base agent
-  already declares** (see the duplicate-service rule above) — see
+  `username`); `scheme: basic` requires `username`, is mutually exclusive
+  with `format`, leaves `header` empty in the normalized kit, and the proxy
+  builds `Authorization: Basic`. **Pick a `service` name no composed base
+  agent already declares** (duplicate-service rule above); see
   `references/spec-v2-fields.md` for a complete fragment.
 - `apiKey.proxyManaged: true` sets the in-container env var to the literal
   `proxy-managed` sentinel rather than leaving it unset; the real value is
@@ -157,7 +163,7 @@ Do not use this skill when:
 |---|---|---|
 | `setup.install[].command` | **string**, via `sh -c` | Once, synchronously, before the agent first launches. Runs for every kit, built-in or not. |
 | `setup.startup[].command` | **list<string>**, exec-style (no shell) | On **every** container start (create, stop/start, daemon restart, host reboot) — **must be idempotent**. |
-| `setup.files[]` | file write via shell exec | At container startup; `path` absolute; only `${WORKDIR}` placeholder allowed in `content`. |
+| `setup.files[]` | file write via shell exec | At sandbox start, after install and before startup commands are registered; `path` absolute; only `${WORKDIR}` allowed in `content`. |
 
 Optional fragment for the shell kit in `assets/spec-sandbox.yaml`:
 ```yaml
@@ -168,31 +174,34 @@ setup:
     - path: /home/agent/.my-kit/config.json
       content: '{"workdir": "${WORKDIR}"}'
 ```
-- **`setup.files` is not the same mechanism as the `files/` directory
-  tree (below).** `setup.files` entries are dynamic, `${WORKDIR}`-
-  substituted writes performed at startup time; the `files/home/` and
-  `files/workspace/` directory tree is a set of **static** files packed
-  alongside `spec.yaml` and copied in at container-create time, and it is
-  specifically the `files/workspace/` half of that tree — not
-  `setup.files` — that is written **after** the workspace is populated
-  (e.g. after an in-container `git clone` under `--clone`). Do not
-  conflate the two: `setup.files` has no "after workspace population"
-  timing guarantee of its own.
-- All three `setup:` lists **concatenate in `--kit` order** across composed
-  kits.
+- **`setup.files` is not the static `files/` directory tree.** `setup.files`
+  are dynamic, `${WORKDIR}`-substituted writes; `files/home/` and
+  `files/workspace/` are static files copied in at create time, and only
+  `files/workspace/` is written **after** the workspace is populated (e.g.
+  after an in-container `git clone` under `--clone`). Order: network/env,
+  `files/home/`, install, `setup.files`, startup registered, `files/workspace/`;
+  stacked kits follow `--kit` order within each stage.
 - Default execution users: install as root (`user: "0"`) unless overridden;
   startup/entrypoint as the agent user (uid `1000`) unless overridden.
   Root install steps writing under `/home/agent` **must** `chown` it back to
   `agent:agent`, or later agent-user writes there fail.
+- `setup.startup` is non-interactive (no TTY, cannot prompt) and does not gate
+  the agent entrypoint: the agent launches once startup commands are
+  dispatched, whatever `background` says. Put prerequisites the agent needs at
+  launch in the image, `setup.install`, or `setup.files`. Use
+  `background: true`, not a trailing `&`, for a service.
+- Install commands start in the image `WORKDIR`, not necessarily the
+  workspace; use absolute paths.
 
 ### `volumes` — creation-time only, every volume must set a size
 
 - Each entry needs an absolute `path:`, optional `type: tmpfs` (RAM-backed;
   omit/`""` for the default block-backed volume), optional `size:`
   (byte-size string) and `mode:` (octal).
-- **Volumes apply only at sandbox-create time** — `sbx kit add` (runtime
-  injection) skips volume changes entirely; a kit that needs one must be
-  present at creation.
+- **Volumes apply only at sandbox-create time.** `sbx kit add` recreates the
+  sandbox and **refuses** a kit that declares `volumes:` (it neither applies
+  nor skips them): create the sandbox with the kit. Existing kit volumes and
+  the workspace are preserved across an add.
 - **Always set `size:` on a block volume.** An unsized volume inherits a
   50 GiB default and costs real host disk immediately (ext4 inode-table
   zeroing); 512 MiB is the practical floor — below it `mke2fs` switches
@@ -200,32 +209,34 @@ setup:
 
 ### `args` — parameterizing a kit
 
-- Declare under top-level `args:` (v2 only — the frozen v1 grammar has no
-  `args` block), each with exactly one of `default`/`required: true`, plus
-  optional `description`/`enum`/`pattern`. Reference with
-  `${{ kit.args.NAME }}` anywhere in `spec.yaml` or `files/`; substitution
-  happens **before** the spec is decoded. Every reference **must** be
-  declared, or loading fails — that is what makes the block a trustworthy
-  list of a kit's inputs. **Quote a placeholder used in a string field**
-  (`VERSION: "${{ kit.args.version }}"`), or an unquoted numeric-looking
-  value decodes as a number and fails to decode into a string field.
+- Declare under top-level `args:` (v2 only), each with exactly one of
+  `default`/`required: true`, plus optional `description`/`enum`/`pattern`.
+  Reference with `${{ kit.args.NAME }}` in `spec.yaml` or `files/`;
+  substitution happens **before** decoding, and every reference **must** be
+  declared or loading fails. **Quote a placeholder used in a string field**
+  (`VERSION: "${{ kit.args.version }}"`), or a numeric-looking value fails to
+  decode into a string field.
 - Supply values with `--kit-arg name=value` (every kit) or
   `--kit-arg kitname.name=value` (one kit only), or `--kit-args-file`.
-  **Never pass a secret this way** — `--kit-arg` values are not masked; see
+  **Never pass a secret this way** — values are not masked, stay in shell
+  history and are unencrypted in args files; see
   `docker-sandboxes-network-credentials`.
 
 ### `extends` and `mixins` — composition, not runtime injection
 
-- `extends:` resolves only built-in agent names at this pinned release
-  (`shell`, `claude`, etc.). Remote git/OCI parents fail to resolve, even
-  if pinned; the broader format specification is not an implementation
-  guarantee. The minimal asset uses the supported `extends: shell`.
-- `mixins:` is accepted with a warning but is not applied by this runtime.
-  Use `--kit` or `sbx kit add` for composition. The format's immutable-ref
-  requirements do not make unimplemented remote inheritance work.
-- Prefer digest/commit-pinned CLI kit references for reproducibility.
-  `--kit` and `sbx kit add` still accept mutable tags/branches; the CLI
-  parser does not enforce this recommendation.
+- `extends:` resolves only embedded built-in agent names at v0.46.0
+  (`shell`, `claude`, etc.). A git/OCI/ZIP/directory reference in `extends:`
+  is not dispatched, even if pinned, although SPEC-v2 describes "a pinned
+  remote ref". `assets/spec-sandbox.yaml` uses `extends: shell`.
+- `mixins:` inside a spec is accepted with a "not yet applied" warning and is
+  not composed (public kits-v2: runtime composition "is pending"). Compose
+  mixins with `--kit` (applied at create/run) or `sbx kit add`.
+- `--kit` and `sbx kit *` references dispatch by form: directory, ZIP,
+  `oci://` or `registry/repo:tag`, `git+https://`/`git+ssh://` with
+  `#ref=`/`dir=`. Prefer digest/commit-pinned references; mutable tags and
+  branches are still accepted. Only commit-SHA-pinned git refs can be
+  engine-"vouched" (an admission exemption for built-ins extracted into kits),
+  which is not a user pinning feature.
 - `requires.agent` (mixin-only; **rejected** on `kind: sandbox`) pins the
   single base agent a mixin is designed for (e.g. Claude-specific env
   vars). It is well-formedness-checked by the spec library; the actual
@@ -236,17 +247,28 @@ setup:
 
 | Command | Purpose |
 |---|---|
-| `sbx kit validate REFERENCE [--kit-arg ...]` | Local directory, ZIP, or git reference; OCI is rejected. Schema-only well-formedness check. **Never composes against a base agent** — cannot catch a duplicate-service credential collision or confirm any domain is reachable at runtime. |
-| `sbx kit inspect REFERENCE [--kit-arg ...] [--json]` | Loads and prints the decoded artifact before composing it, including `--kit-arg` substitution preview. |
-| `sbx kit pack DIRECTORY [-o OUTPUT.zip]` | Packages a validated directory as a ZIP. |
+| `sbx kit validate REFERENCE [--json] [--kit-arg ...]` | Help says "directory or ZIP" but local directory, ZIP and git references load; OCI is rejected up front. Schema-only. **Never composes against a base agent** — cannot catch a duplicate-service collision, confirm a domain is reachable, or prove the spec typo-free. |
+| `sbx kit inspect REFERENCE [--kit-arg ...] [--json]` | Loads (local, ZIP, OCI or git; source policy applies, remote content is fetched) and prints the artifact in v2 grammar with `--kit-arg` substitution. Ordinary loads keep `extends` and do not inherit the parent image; a signature-vouched pinned-git load resolves and clears it. Not raw YAML, not composed output. |
+| `sbx kit pack DIRECTORY [-o OUTPUT.zip]` | Validates and packages a directory as a ZIP. ZIP kits cannot carry verifiable signatures. |
 | `sbx kit pull REFERENCE [-o OUTPUT]` | Pulls a kit's raw layer payload from an OCI registry without composing it. |
 | `sbx kit push DIRECTORY REGISTRY/REPO:TAG [--sign]` | Packages and pushes; every push attaches an unsigned-by-default SLSA provenance attestation. |
 | `sbx kit provenance REFERENCE [--certificate-identity ...]` | Prints the attestation `push` attached; marked UNSIGNED unless verified against a matching key/identity. |
 | `sbx kit sign REFERENCE` / `sbx kit verify REFERENCE` | Sigstore sign/verify (keyless by default); prefer `--identity-token-file` over `--identity-token`. |
-| `sbx kit add SANDBOX REFERENCE [--kit-arg ...]` | Injects a **mixin only** into an existing sandbox at runtime (recreate-aware label required); container-immutable settings (`security.privileged`, `volumes:`) cannot take effect this way. |
+| `sbx kit add SANDBOX REFERENCE [--kit-arg ...]` | **Recreates** an existing sandbox with a mixin appended, not live injection. Accepts only `environment.variables`, `setup.install` and `permissions.network.allow`; refuses startup, `setup.files`, static files, volumes, resources, `security.privileged`, ports, network `deny` and credentials. Needs the original-kit label; refused for legacy worktree sandboxes. |
 
-See `references/kit-distribution-commands.md` for full flag lists and
-worked examples of each command above.
+See `references/kit-distribution-commands.md` for full flag lists, the add
+refusal table, recovery warnings and worked examples.
+
+- After `sbx kit add` read every warning (withheld credentials, runtime
+  mounts that failed to replay, "record could not be saved": a daemon restart
+  would revert the kit set); live success alone is not durable. Removing a
+  mixin means recreating the sandbox; never `sbx rm` without user consent.
+- Source policy applies to every load: `kit.allowedSources`,
+  `kit.allowLocalKits`, `kit.requireSignature`, `kit.trustedSigners`. Set
+  trusted signers before requiring signatures; never change these settings
+  without user approval. A signature covers `spec.yaml` and `files/`, not
+  image tags or install/startup downloads; `verify`/`provenance` success does
+  not make content benign.
 
 ## Related skills
 
@@ -262,19 +284,16 @@ worked examples of each command above.
 
 ## References
 
-- `references/sources.md` — provenance for every rule above (spec package, SPEC-v2.md, help captures, docs URLs).
+- `skill.yaml` — routing metadata; `agents/openai.yaml` — Codex discovery interface (both frozen at v2 scope).
+- `references/sources.md` — claim-level provenance for every rule above (sbx v0.46.0 help fields, public kits-v2 sections, pinned internal `path:symbol` excerpts, removed/disagreeing sources).
 - `references/spec-v2-fields.md` — the complete v2 field table (common fields, sandbox-only fields, mixin-only fields, shared blocks) for lookup without re-reading the full spec.
-- `references/kit-distribution-commands.md` — full flags and worked examples for `sbx kit validate/inspect/pack/pull/push/provenance/sign/verify/add`.
+- `references/kit-distribution-commands.md` — full flags, add refusal table, trust admission and worked examples for `sbx kit validate/inspect/pack/pull/push/provenance/sign/verify/add`.
 
 ## Assets
 
-- `assets/spec-sandbox.yaml` — a genuine minimal `kind: sandbox` kit that
-  `extends: shell` to inherit a real, working image rather than inventing
-  one.
-- `assets/spec-mixin.yaml` — a genuine minimal `kind: mixin` kit with no
-  credentials at all (an egress-only extension), which composes cleanly
-  with every built-in agent.
+- `assets/spec-sandbox.yaml` — a genuine minimal `kind: sandbox` kit that `extends: shell` to inherit a real, working image rather than inventing one.
+- `assets/spec-mixin.yaml` — a genuine minimal `kind: mixin` kit with no credentials at all (an egress-only extension), which composes cleanly with every built-in agent.
 
 ## Checks
 
-- `checks/verification.md` — Schema, composition, egress, and kit-add checks (unexecuted integration runbook; isolated `--app-name`, no registry publishing or signing).
+- `checks/verification.md` — Schema, strictness, composition, egress, kit-add acceptance/refusal and inspect checks (unexecuted integration runbook; isolated hidden `--app-name`, no registry publishing or signing).

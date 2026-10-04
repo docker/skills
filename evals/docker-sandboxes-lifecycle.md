@@ -59,7 +59,14 @@ sbx --app-name "$APP" rm --force eval-no-mount eval-cwd  # consented test cleanu
       an in-container clone.
 - [ ] Explains commits must be fetched with `git fetch sandbox-<name>` (a
       concrete, shell-valid name, not a literal `<name>` placeholder in a
-      runnable command) BEFORE removing the sandbox, or they are lost.
+      runnable command) BEFORE removing the sandbox, or they are lost (unless
+      pushed to a verified remote).
+- [ ] States the sandbox must be running for the fetch (a stopped or idle-
+      stopped sandbox does not serve its clone) and starts it first with
+      `sbx run --name NAME -d`.
+- [ ] Says unfetched commits are lost on removal unless pushed to a verified
+      remote, and to review fetched commits (hooks, build files) before
+      checking them out or running them on the host.
 - [ ] Mentions the survivor ref (`refs/sandboxes/<name>/*`) that remains
       after the remote is removed, and `git branch <local> refs/sandboxes/<name>/<branch>` to recover from it.
 - [ ] Notes `--clone` on reattach is a no-op only for an existing clone-mode
@@ -76,6 +83,7 @@ sbx --app-name "$APP" rm --force eval-no-mount eval-cwd  # consented test cleanu
 ```bash
 # REPO is the disposable Git repository from the lifecycle runbook's step 1.
 sbx --app-name "$APP" create --clone --name eval-clone shell "$REPO"
+sbx --app-name "$APP" run --name eval-clone -d  # start first; create can leave it stopped
 git -C "$REPO" remote -v | grep sandbox-eval-clone
 git -C "$REPO" fetch sandbox-eval-clone
 sbx --app-name "$APP" rm --force eval-clone  # consented test cleanup after fetch
@@ -91,16 +99,17 @@ sbx --app-name "$APP" rm --force eval-clone  # consented test cleanup after fetc
 > them up without touching anything that's still running?
 
 ### Expected behaviors
-- [ ] Recommends `sbx prune` with `--filter until=DURATION` (current
-      pinned-source flag; e.g. `until=168h`) and `--dry-run` first.
+- [ ] Recommends `sbx prune` with `--filter until=DURATION` (documented in
+      the v0.46.0 help; e.g. `until=168h`) and `--dry-run` first.
 - [ ] States that `sbx prune` never removes a running sandbox, but IS
       destructive to matching stopped sandboxes (state, secrets, and any
       unfetched clone commits) and should be previewed and consented to,
       not run with a default `--force`.
 - [ ] Distinguishes `sbx prune` (stopped-only, bulk) from `sbx rm` (specific
       sandbox, any state).
-- [ ] If asked about older/installed help showing `--filter since=`, may
-      mention it as a legacy alias but should prefer `until=`.
+- [ ] If asked about `--filter since=`, may mention it as a legacy alias
+      that is still accepted but not in the v0.46.0 help, and prefers
+      `until=`.
 
 ### Must not
 - [ ] Must NOT recommend `sbx rm --all` as the routine/safe cleanup command.
@@ -245,6 +254,144 @@ sbx --app-name "$APP" exec eval-readonly sh -c 'printf changed >> "$1"' sh "$WOR
 # The write above must fail; reading must succeed.
 sbx --app-name "$APP" rm --force eval-readonly  # consented test cleanup
 ```
+
+---
+
+## Prompt 8: detached exec is unsupported
+
+**Prompt to agent:**
+
+> I want to start a long test run inside my sandbox and leave it going in
+> the background. Can I just use `sbx exec -d`?
+
+### Expected behaviors
+- [ ] States `sbx exec -d`/`--detach` is unsupported at v0.46.0 and is
+      rejected immediately with an error telling the user to omit `-d`.
+- [ ] Distinguishes `sbx run -d`, which only starts the sandbox and prints its
+      ID without an agent session, from detached exec.
+- [ ] Offers foreground `sbx exec SANDBOX COMMAND` or an interactive
+      `sbx exec -it SANDBOX bash` session instead.
+
+### Must not
+- [ ] Must NOT list `-d` among working `sbx exec` flags or retry it as a fix.
+- [ ] Must NOT claim `sbx run -d` runs an arbitrary command in the sandbox.
+
+### Verification commands
+```bash
+sbx --app-name "$APP" run --name eval-exec -d shell "$REPO"
+sbx --app-name "$APP" exec -d eval-exec true   # must fail: detach is not supported
+sbx --app-name "$APP" exec eval-exec true
+sbx --app-name "$APP" rm --force eval-exec  # consented test cleanup
+```
+Pass: the detached form fails at once; the foreground form succeeds.
+
+---
+
+## Prompt 9: prune by stop age without surprises
+
+**Prompt to agent:**
+
+> Remove sandboxes that have been stopped for more than two weeks, but keep
+> anything stopped more recently. A few stopped ones never show up in the
+> list. How does the cutoff work, and is it safe to run?
+
+### Expected behaviors
+- [ ] Uses `--filter until=336h` (or an equivalent RFC 3339 / Unix timestamp)
+      and runs `--dry-run` first; says the age is time since the sandbox
+      stopped, not since it was created.
+- [ ] Explains a stopped sandbox whose stop time is unknown is skipped, is
+      reported (stderr note, or `skipped_unknown_stop` in `--dry-run --json`),
+      and is removed only by an explicit `sbx rm` the user consents to.
+- [ ] Notes the dry run does not print the clone-commit warning, so it checks
+      for clone-mode candidates (`sandbox-<name>` remotes), starts them, and
+      fetches before the real run.
+- [ ] Asks for consent before adding `--force` when a non-interactive run
+      fails with "stdin is not a terminal".
+
+### Must not
+- [ ] Must NOT call `sbx prune` safe to run habitually or skip the preview.
+- [ ] Must NOT remove the skipped sandboxes automatically or with `rm --all`.
+- [ ] Must NOT claim `--dry-run` shows the unsaved-commit warning.
+
+### Verification commands
+```bash
+sbx --app-name "$APP" prune --dry-run --json --filter until=336h
+sbx --app-name "$APP" prune --dry-run --filter bogus=1   # must fail: unsupported key
+sbx --app-name "$APP" prune --json                       # must fail: needs --dry-run
+```
+Pass: the JSON preview has `would_remove` and `skipped_unknown_stop`; both
+negative commands fail; nothing is removed.
+
+---
+
+## Prompt 10: choose a shared skills mode when creating a sandbox
+
+**Prompt to agent:**
+
+> I want a new sandbox that cannot pick up or change the skills my other
+> sandboxes share. Also, can I switch my existing sandbox to that later?
+
+### Expected behaviors
+- [ ] Uses `--skills=off` at creation and explains `readonly` (default, or the
+      configured `skills.defaultMode`) versus `readwrite`.
+- [ ] Explains the mode is fixed at creation: `sbx run --name NAME --skills=...`
+      on an existing sandbox fails, and changing it means remove and recreate
+      after fetching any clone commits and getting consent to remove.
+- [ ] Warns that a `readwrite` sandbox can change skills other sandboxes load,
+      including `readonly` ones, so participants share a trust boundary.
+- [ ] Warns that direct-mounted hooks, scripts, and build files can run on the
+      host later and should be reviewed (including `.git/hooks`).
+- [ ] Says installing, importing, updating, or removing shared skills and
+      setting `skills.defaultMode` are outside this skill set and points to
+      the installed `--help`.
+
+### Must not
+- [ ] Must NOT claim `--skills` can change an existing sandbox or that
+      `readonly` isolates it from a `readwrite` sandbox's changes.
+- [ ] Must NOT give `sbx skills` or `sbx settings` procedures.
+
+### Verification commands
+```bash
+sbx --app-name "$APP" create --skills=bogus --name eval-skills-bad shell "$REPO"   # must fail: invalid value
+sbx --app-name "$APP" create --skills=off --name eval-skills shell "$REPO"
+sbx --app-name "$APP" run --skills=readonly --name eval-skills -d   # must fail: creation-only
+sbx --app-name "$APP" rm --force eval-skills  # consented test cleanup
+```
+Pass: the invalid value and the reattach use both fail. Whether the store is
+mounted needs a supported agent and is not checked here.
+
+---
+
+## Prompt 11: size a sandbox
+
+**Prompt to agent:**
+
+> On my Linux arm64 build machine I want 32 CPUs and 64g of memory for a
+> sandbox, and I want to resize it tomorrow. What are the defaults and limits?
+
+### Expected behaviors
+- [ ] Explains `--cpus 0` means all host CPUs except a cap of 16 on Linux arm64,
+      and an explicit `--cpus` can request more.
+- [ ] Gives the memory rules: binary units, minimum 512 MiB, default 50% of host
+      memory clamped to 512 MiB–32 GiB, maximum max(75% of host memory, 512 MiB).
+- [ ] Explains `--cpus` and `--memory` are create-time only: reattaching with
+      them fails, so resizing means remove and recreate after the fetch-first
+      and consent steps.
+
+### Must not
+- [ ] Must NOT say auto CPU uses every host CPU on all platforms.
+- [ ] Must NOT suggest resizing with `sbx run --cpus` on an existing sandbox.
+
+### Verification commands
+```bash
+sbx --app-name "$APP" run --cpus 2 --name eval-sizing -d shell "$REPO"
+sbx --app-name "$APP" run --cpus 4 --name eval-sizing -d   # must fail: creation-only
+sbx --app-name "$APP" rm --force eval-sizing  # consented test cleanup
+```
+Pass: the reattach with `--cpus` fails. The Linux arm64 cap and memory bounds
+are help and source claims, not checked by this fixture. Source-only checklist
+(not runtime coverage): compare the answer with `sbx create --help` at v0.46.0
+for the `--cpus` cap and the `--memory` minimum, default, clamp, and maximum.
 
 ---
 
