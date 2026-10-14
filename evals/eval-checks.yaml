@@ -1151,3 +1151,85 @@
       type: yaml_value_equals
       key: policy.allow_implicit_invocation
       value: true
+
+# ─── docker-docs ─────────────────────────────────────────────────────────────
+
+- eval: docker-docs
+  prompt: "Prompt 1: Release-sensitive CLI question"
+  asset: skills/docker-docs/SKILL.md
+  checks:
+    - id: dd-search-tool-named
+      description: SKILL.md names the search_docker_docs MCP tool
+      type: file_match
+      pattern: "`search_docker_docs`"
+
+    - id: dd-missing-tool-not-setup
+      description: SKILL.md says a missing search tool is not a setup request
+      type: file_match
+      pattern: "A missing search tool is not a setup\\s+request"
+
+    - id: dd-fetch-before-cite
+      description: SKILL.md forbids citing pages that were not read
+      type: file_match
+      pattern: "Don't\\s+cite a page you haven't read"
+
+- eval: docker-docs
+  prompt: "Prompt 2: Fallback retrieval without a search tool"
+  asset: skills/docker-docs/SKILL.md
+  checks:
+    - id: dd-llms-txt
+      description: SKILL.md documents the llms.txt entry point
+      type: file_match
+      pattern: "https://docs\\.docker\\.com/llms\\.txt"
+
+    - id: dd-markdown-accept-header
+      description: SKILL.md documents requesting pages with Accept text/markdown
+      type: file_match
+      pattern: "Accept: text/markdown"
+
+    - id: dd-no-full-index-in-context
+      description: SKILL.md warns against loading llms-full.txt into context whole
+      type: file_match
+      pattern: "Don't load it into context\\s+whole"
+
+- eval: docker-docs
+  prompt: "Prompt 3: Ambiguous sandbox product"
+  asset: skills/docker-docs/references/product-map.md
+  checks:
+    - id: dd-map-cloud-sandboxes
+      description: Product map routes cloud sandboxes to their own docs section
+      type: file_match
+      pattern: "/ai/sandboxes/cloud/"
+
+    - id: dd-map-separate-stores
+      description: Product map warns that local and cloud sandboxes use separate secret stores
+      type: file_match
+      pattern: "separate\\s+secret\\s+stores"
+
+    - id: dd-map-dhi
+      description: Product map expands DHI to Docker Hardened Images
+      type: file_match
+      pattern: "Docker Hardened Images \\| DHI"
+
+- eval: docker-docs
+  prompt: "Prompt 4: Pricing or entitlement question"
+  asset: skills/docker-docs/SKILL.md
+  checks:
+    - id: dd-no-invented-pricing
+      description: SKILL.md limits pricing and entitlement claims to fetched pages
+      type: file_match
+      pattern: "State only what the fetched page\\s+says"
+
+- eval: docker-docs
+  prompt: "Prompt 5: Explicit MCP setup request"
+  asset: skills/docker-docs/references/mcp-setup.md
+  checks:
+    - id: dd-setup-endpoint
+      description: MCP setup reference names the server endpoint
+      type: file_match
+      pattern: "https://ai-backend-service\\.docker\\.com/mcp"
+
+    - id: dd-setup-session-caveat
+      description: MCP setup reference says configuration does not make the tool callable in the running session
+      type: file_match
+      pattern: "doesn't make the tool callable in the current\\s+session"

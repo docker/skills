@@ -8,6 +8,18 @@ for distribution releases.
 
 ## [Unreleased]
 
+### Added
+
+- Added the experimental `docker-docs` skill. It answers questions about any
+  Docker product from current, cited Docker Docs pages. It uses the Docker docs
+  MCP search tool when one is available. Otherwise it falls back to
+  `docs.docker.com/llms.txt` and per-page Markdown. A product map covers Docker
+  Sandboxes, cloud sandboxes, DHI, Docker Agent, Model Runner, MCP Toolkit, and
+  account, admin, and billing docs.
+- The plugin now registers the remote Docker docs MCP server
+  (`https://ai-backend-service.docker.com/mcp`) for Claude Code, Codex, Cursor,
+  GitHub Copilot CLI, and Gemini CLI installations.
+
 ## [0.3.1] - 2026-09-29
 
 ### Added

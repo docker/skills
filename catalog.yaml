@@ -110,7 +110,7 @@ products:
     repo: https://github.com/docker/docker-agent
   - id: all
     name: Cross-Product
-    description: Guardrails and policies that apply across every Docker skill product.
+    description: Documentation lookup, guardrails, and policies that apply across every Docker product.
 
 skills:
   - id: docker-project-foundations
@@ -163,6 +163,11 @@ skills:
     path: skills/docker-agent-deploy
     version: 0.1.1
     status: stable
+  - id: docker-docs
+    product: all
+    path: skills/docker-docs
+    version: 0.1.0
+    status: experimental
   - id: docker-destructive-guardrails
     product: all
     path: skills/docker-destructive-guardrails

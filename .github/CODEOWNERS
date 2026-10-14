@@ -27,3 +27,7 @@
 # Docker destructive command guardrails
 /skills/docker-destructive-guardrails/ @docker/compose-maintainers @docker/gordon
 /evals/docker-destructive-guardrails.md @docker/compose-maintainers @docker/gordon
+
+# Docker documentation retrieval
+/skills/docker-docs/ @docker/gordon
+/evals/docker-docs.md @docker/gordon

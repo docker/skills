@@ -22,7 +22,7 @@ Skills are grouped by the Docker product they cover. The table is generated from
 | **[Docker Compose](https://docs.docker.com/compose/)**<br>[source](https://github.com/docker/compose) | Wire multi-container stacks with robust, maintainable Compose configurations. | [`docker-compose-patterns`](skills/docker-compose-patterns) — Patterns for robust, maintainable Docker Compose configurations. |
 | **[Docker Sandboxes](https://docs.docker.com/ai/sandboxes/)** | Run AI coding agents in isolated microVMs with the sbx CLI, including network policy, credentials, environments, and kits. | [`docker-sandboxes-lifecycle`](skills/docker-sandboxes-lifecycle) — Create, reattach to, and tear down local `sbx` sandboxes; choose workspace bind-mount vs --clone isolation.<br>[`docker-sandboxes-network-credentials`](skills/docker-sandboxes-network-credentials) — Configure sandbox network egress policy and provision service/registry credentials safely through the proxy-injection model.<br>[`docker-sandboxes-env`](skills/docker-sandboxes-env) *(experimental)* — Author, plan, and run declarative sbxenv.yaml environments (workspace, kits, args, host lifecycle hooks, secrets/registries/bindings, ports) for Docker Sandboxes.<br>[`docker-sandboxes-kits`](skills/docker-sandboxes-kits) *(experimental)* — Author, validate, package, sign, and compose reusable sandbox/mixin kits (spec.yaml, schema v2). |
 | **[Docker Agent](https://docs.docker.com/ai/docker-agent/)**<br>[source](https://github.com/docker/docker-agent) | Author, run, and ship AI agents with Docker Agent, from agent.yaml to serving and distribution. | [`docker-agent-config`](skills/docker-agent-config) — Reference and rules for authoring agent.yaml configs for Docker Agent (cagent) — agents, models, providers, toolsets, and multi-agent teams.<br>[`docker-agent-run`](skills/docker-agent-run) — Rules for running Docker Agent locally — safety/approval modes, sandbox isolation, aliases, worktrees, and troubleshooting a run.<br>[`docker-agent-deploy`](skills/docker-agent-deploy) — Rules for exposing Docker Agents as servers, distributing them via OCI registries, and evaluating them for regressions in CI. |
-| **Cross-Product** | Guardrails and policies that apply across every Docker skill product. | [`docker-destructive-guardrails`](skills/docker-destructive-guardrails) — Cross-product policy for confirming irreversible or destructive Docker operations before running them. |
+| **Cross-Product** | Documentation lookup, guardrails, and policies that apply across every Docker product. | [`docker-docs`](skills/docker-docs) *(experimental)* — Answer questions about any Docker product from current, cited official Docker documentation, using the Docker docs MCP search tool or the docs.docker.com llms.txt and Markdown fallback.<br>[`docker-destructive-guardrails`](skills/docker-destructive-guardrails) — Cross-product policy for confirming irreversible or destructive Docker operations before running them. |
 <!-- catalog-end -->
 
 Each skill triggers directly from its own description; there is no entry-point skill to load first.
@@ -65,6 +65,9 @@ npx skills add https://github.com/docker/skills/tree/vX.Y.Z \
 ### Install as a plugin
 
 Plugin installs are managed by each agent's marketplace, so updates arrive through the agent rather than through `npx skills update`.
+Plugin and extension installs also register the remote Docker docs MCP server
+(`https://ai-backend-service.docker.com/mcp`) used by `docker-docs`. The
+skills CLI, Docker Sandboxes, and manual copies install skills only.
 
 **Claude Code** (run in the Claude Code prompt):
 ```text
@@ -230,7 +233,8 @@ evals/                — Evaluation runbooks
 .agents/plugins/      — Codex marketplace manifest
 .cursor-plugin/       — Cursor plugin + marketplace manifests
 .github/plugin/       — Copilot CLI plugin + marketplace manifests
-gemini-extension.json — Gemini CLI extension manifest
+gemini-extension.json — Gemini CLI extension manifest (declares the docs MCP server inline)
+plugin-mcp.json       — Docker docs MCP server referenced by the Claude Code, Codex, Cursor, and Copilot CLI plugin manifests
 Taskfile.yml          — CI and validation tasks
 scripts/ci.sh         — Shared CI and release validation entrypoint
 ```
