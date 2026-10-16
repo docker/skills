@@ -15,5 +15,6 @@
   "license": "Apache-2.0",
   "keywords": ["docker", "dockerfile", "compose", "containers", "devops"],
   "icon": "./.claude-plugin/docker.svg",
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": "./plugin-mcp.json"
 }

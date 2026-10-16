@@ -11,6 +11,7 @@
   "license": "Apache-2.0",
   "keywords": ["docker", "dockerfile", "compose", "containers", "devops", "docker-agent", "sandboxes"],
   "skills": "./skills/",
+  "mcpServers": "./plugin-mcp.json",
   "interface": {
     "displayName": "Docker Skills",
     "shortDescription": "Docker, Compose, Docker Agent, and Docker Sandboxes guidance",

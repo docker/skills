@@ -38,8 +38,9 @@
     },
     {
       "title": "Cross-Product",
-      "description": "Guardrails and policies that apply across every Docker skill product.",
+      "description": "Documentation lookup, guardrails, and policies that apply across every Docker product.",
       "skills": [
+        "docker-docs",
         "docker-destructive-guardrails"
       ]
     }
