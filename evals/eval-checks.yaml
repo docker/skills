@@ -634,520 +634,972 @@
 
 # ─── docker-sandboxes-env ───────────────────────────────────────────────────
 
-- eval: docker-sandboxes-env
-  prompt: "Prompt 1: checked-in reproducible environment"
-  skip: true
-  skip_reason: No fixtures-clone asset; host initialization and approval require manual evaluation
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 2: my agent keeps editing its own environment file"
-  skip: true
-  skip_reason: No subdirectory-protection asset; mount rename behavior requires runtime verification
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 3: preRemove hook fails, teardown blocked?"
-  skip: true
-  skip_reason: No teardown asset; warning-only failure and destroy-plan drift require manual verification
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 4: quick sanity check with no credentials on hand"
-  asset: skills/docker-sandboxes-env/assets/sbxenv.yaml
-  checks:
-    - id: se-schema
-      description: Environment schema version is the string "1"
-      type: yaml_value_equals
-      key: schemaVersion
-      value: "1"
-    - id: se-agent
-      description: Minimal environment uses the credential-free shell agent
-      type: yaml_value_equals
-      key: agent
-      value: shell
-    - id: se-workspace
-      description: File is located at the workspace mount root
-      type: yaml_value_equals
-      key: workspace
-      value: .
-    - id: se-no-secrets
-      description: Minimal environment declares no service secrets
-      type: yaml_key_absent
-      key: secrets
-    - id: se-no-registries
-      description: Minimal environment declares no registry credentials
-      type: yaml_key_absent
-      key: registries
-    - id: se-no-bindings
-      description: Minimal environment changes no global credential bindings
-      type: yaml_key_absent
-      key: bindings
-    - id: se-no-hooks
-      description: Minimal environment runs no host lifecycle commands
-      type: yaml_key_absent
-      key: lifecycle
-    - id: se-no-writable-env
-      description: Minimal environment retains default environment-file protection
-      type: yaml_key_absent
-      key: sandboxOptions.writableEnvFiles
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 5: literal secrets in plan output"
-  skip: true
-  skip_reason: No literal-secret asset; plan and state redaction require a manual source check
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 6: seed fixtures once after creation"
-  skip: true
-  skip_reason: No postCreate asset; hook ordering and rerun behavior require the manual runbook
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 7: non-interactive CI approval"
-  skip: true
-  skip_reason: No CI asset; non-interactive approval and untrusted-input refusal require manual evaluation
-
-# ─── docker-sandboxes-kits ──────────────────────────────────────────────────
-
-- eval: docker-sandboxes-kits
-  prompt: "Prompt 1: adding a tool to an existing agent"
-  # Partial asset coverage: portable mixin structure, not the Postgres MCP setup.
-  asset: skills/docker-sandboxes-kits/assets/spec-mixin.yaml
-  checks:
-    - id: sk-mixin-schema
-      description: Mixin kit schema version is the string "2"
-      type: yaml_value_equals
-      key: schemaVersion
-      value: "2"
-    - id: sk-mixin-kind
-      description: Extension asset declares the mixin kind
-      type: yaml_value_equals
-      key: kind
-      value: mixin
-    - id: sk-mixin-no-sandbox
-      description: Mixin does not declare a forbidden sandbox block
-      type: yaml_key_absent
-      key: sandbox
-    - id: sk-mixin-no-extends
-      description: Mixin does not declare forbidden inheritance
-      type: yaml_key_absent
-      key: extends
-    - id: sk-mixin-no-mixins
-      description: Mixin does not compose other mixins
-      type: yaml_key_absent
-      key: mixins
-    - id: sk-mixin-no-credentials
-      description: Example mixin avoids duplicate base-agent credential definitions
-      type: yaml_key_absent
-      key: credentials
-    - id: sk-mixin-network
-      description: Example mixin declares its required egress
-      type: yaml_value_equals
-      key: permissions.network.allow
-      value: [registry.npmjs.org]
-    - id: sk-mixin-env
-      description: Mixin variable used by the runbook is a string
-      type: yaml_value_equals
-      key: environment.variables.MY_MIXIN
-      value: "1"
-
-- eval: docker-sandboxes-kits
-  prompt: "Prompt 2: a minimal kit that should just work"
-  asset: skills/docker-sandboxes-kits/assets/spec-sandbox.yaml
-  checks:
-    - id: sk-sandbox-schema
-      description: Sandbox kit schema version is the string "2"
-      type: yaml_value_equals
-      key: schemaVersion
-      value: "2"
-    - id: sk-sandbox-kind
-      description: Sandbox asset declares the sandbox kind
-      type: yaml_value_equals
-      key: kind
-      value: sandbox
-    - id: sk-sandbox-parent
-      description: Sandbox kit inherits the built-in shell agent
-      type: yaml_value_equals
-      key: extends
-      value: shell
-    - id: sk-no-invented-image
-      description: Sandbox kit does not override the inherited image
-      type: yaml_key_absent
-      key: sandbox.image
-
-- eval: docker-sandboxes-kits
-  prompt: "Prompt 3: mixin fails when composed, even though it validated"
-  skip: true
-  skip_reason: No duplicate-credential asset; schema validation versus composition requires a runtime check
-
-- eval: docker-sandboxes-kits
-  prompt: "Prompt 4: credential domain not allow-listed, and additive policy"
-  skip: true
-  skip_reason: No credential-policy asset; effective egress requires composition and a policy check
-
-- eval: docker-sandboxes-kits
-  prompt: "Prompt 5: publishing and trusting a kit"
-  skip: true
-  skip_reason: No signed asset; the manual snippet generates ephemeral keys and verifies tamper rejection
-
-- eval: docker-sandboxes-kits
-  prompt: "Prompt 6: CIDR and multi-label network rules"
-  skip: true
-  skip_reason: No runtime-matcher asset; CIDR and domain precedence require the manual source check
-
-# ─── docker-sandboxes-lifecycle ───────────────────────────────────────────────
-
 - eval: docker-sandboxes-lifecycle
-  prompt: "Prompt 1: create vs. run and the omitted-path trap"
+  prompt: 'Prompt 1: create vs. run and the omitted-path trap'
   skip: true
   skip_reason: No lifecycle asset; omitted workspace and reattachment require runtime verification
-
 - eval: docker-sandboxes-lifecycle
-  prompt: "Prompt 2: isolate an agent from the host working tree"
+  prompt: 'Prompt 2: isolate an agent from the host working tree'
   skip: true
   skip_reason: No clone asset; Git fetch and survivor refs require a disposable sandbox
-
 - eval: docker-sandboxes-lifecycle
-  prompt: "Prompt 3: routine cleanup"
+  prompt: 'Prompt 3: routine cleanup'
   skip: true
   skip_reason: No cleanup asset; stopped-only pruning requires runtime verification
-
 - eval: docker-sandboxes-lifecycle
-  prompt: "Prompt 4: run a diagnostic and copy its output"
+  prompt: 'Prompt 4: run a diagnostic and copy its output'
   skip: true
   skip_reason: No diagnostic asset; exec startup and bidirectional copy require a disposable sandbox
-
 - eval: docker-sandboxes-lifecycle
-  prompt: "Prompt 5: publish a port on an existing sandbox"
+  prompt: 'Prompt 5: publish a port on an existing sandbox'
   skip: true
   skip_reason: No port asset; publish and unpublish require runtime verification
-
 - eval: docker-sandboxes-lifecycle
-  prompt: "Prompt 6: stop now, resume later without losing state"
+  prompt: 'Prompt 6: stop now, resume later without losing state'
   skip: true
   skip_reason: No resume asset; state retention requires stopping and restarting a sandbox
-
 - eval: docker-sandboxes-lifecycle
-  prompt: "Prompt 7: read-only reference files are not secret"
+  prompt: 'Prompt 7: read-only reference files are not secret'
   skip: true
   skip_reason: No read-only asset; mount readability and write protection require runtime verification
-
-# ─── docker-sandboxes-network-credentials ─────────────────────────────────────
-
-- eval: docker-sandboxes-network-credentials
-  prompt: "Prompt 1: giving an agent a credential safely"
-  skip: true
-  skip_reason: No credential asset; sentinel injection and egress separation require manual evaluation
-
-- eval: docker-sandboxes-network-credentials
-  prompt: "Prompt 2: private registry image, sandbox-wide vs. one sandbox"
-  skip: true
-  skip_reason: No registry asset; storage and removal scopes require the manual runbook
-
-- eval: docker-sandboxes-network-credentials
-  prompt: "Prompt 3: network policy precedence"
-  skip: true
-  skip_reason: No policy asset; effective deny precedence requires runtime verification
-
-- eval: docker-sandboxes-network-credentials
-  prompt: "Prompt 4: tempted to reset policy to fix one bad rule"
-  skip: true
-  skip_reason: No policy-removal asset; reset warnings and scoped removal require manual evaluation
-
-- eval: docker-sandboxes-network-credentials
-  prompt: "Prompt 5: OAuth passthrough and a leaked token"
-  skip: true
-  skip_reason: No OAuth asset; passthrough and leaked-token risks require the manual source check
-
-# These assert test-fixture hygiene, not runtime behavior or agent responses.
 - eval: docker-sandboxes-lifecycle
-  prompt: "Verification snippet safety (static checks)"
+  prompt: Verification snippet safety (static checks)
   asset: evals/docker-sandboxes-lifecycle.md
   checks:
-    - id: sl-disposable-clone
-      description: Clone verification uses the disposable repository and shell agent
-      type: file_match
-      pattern: '^sbx .* create --clone .* shell "\$REPO"$'
-    - id: sl-detached-cwd
-      description: Omitted-path verification runs detached from the disposable repository
-      type: file_match
-      pattern: '^\(cd "\$REPO" && sbx .* run .* -d shell\)$'
-    - id: sl-disposable-resume
-      description: Stop and resume verification mounts only the disposable repository
-      type: file_match
-      pattern: '^sbx .* run --name eval-resume -d shell "\$REPO"$'
-    - id: sl-no-provider-run
-      description: Verification does not launch a provider agent interactively
-      type: file_must_not_match
-      pattern: '^sbx .* (create|run) .*\b(claude|codex|devin)\b'
-    - id: sl-fetch-scoped
-      description: Clone fetch is scoped to the disposable repository
-      type: file_match
-      pattern: '^git -C "\$REPO" fetch sandbox-eval-clone$'
-
+  - id: sl-disposable-clone
+    description: Clone verification uses the disposable repository and shell agent
+    type: file_match
+    pattern: ^sbx .* create --clone .* shell "\$REPO"$
+  - id: sl-detached-cwd
+    description: Omitted-path verification runs detached from the disposable repository
+    type: file_match
+    pattern: ^\(cd "\$REPO" && sbx .* run .* -d shell\)$
+  - id: sl-disposable-resume
+    description: Stop and resume verification mounts only the disposable repository
+    type: file_match
+    pattern: ^sbx .* run --name eval-resume -d shell "\$REPO"$
+  - id: sl-no-provider-run
+    description: Verification does not launch a provider agent interactively
+    type: file_must_not_match
+    pattern: ^sbx .* (create|run) .*\b(claude|codex|devin)\b
+  - id: sl-fetch-scoped
+    description: Clone fetch is scoped to the disposable repository
+    type: file_match
+    pattern: ^git -C "\$REPO" fetch sandbox-eval-clone$
+- eval: docker-sandboxes-lifecycle
+  prompt: 'Prompt 8: detached exec is unsupported'
+  skip: true
+  skip_reason: No exec asset; the rejection message and the foreground contrast need a disposable sandbox and a built sbx v0.46.0
+- eval: docker-sandboxes-lifecycle
+  prompt: 'Prompt 9: prune by stop age without surprises'
+  skip: true
+  skip_reason: No prune asset; stop-time cutoff, unknown-stop exclusion, and rejected input need stopped sandboxes in a disposable app
+- eval: docker-sandboxes-lifecycle
+  prompt: 'Prompt 10: choose a shared skills mode when creating a sandbox'
+  skip: true
+  skip_reason: No skills asset; flag validation and reattach rejection need a disposable app, and mounts need a supported agent with authentication
+- eval: docker-sandboxes-lifecycle
+  prompt: 'Prompt 11: size a sandbox'
+  skip: true
+  skip_reason: No sizing asset; the reattach rejection needs a disposable sandbox and the Linux arm64 cap needs that platform
 - eval: docker-sandboxes-network-credentials
-  prompt: "Verification credential safety (static checks)"
+  prompt: 'Prompt 1: giving an agent a credential safely'
+  skip: true
+  skip_reason: No credential asset; sentinel injection and egress separation require manual evaluation
+- eval: docker-sandboxes-network-credentials
+  prompt: 'Prompt 2: private registry image, sandbox-wide vs. one sandbox'
+  skip: true
+  skip_reason: No registry asset; storage and removal scopes require the manual runbook
+- eval: docker-sandboxes-network-credentials
+  prompt: 'Prompt 3: network policy precedence'
+  skip: true
+  skip_reason: No policy asset; effective deny precedence requires runtime verification
+- eval: docker-sandboxes-network-credentials
+  prompt: 'Prompt 4: tempted to reset policy to fix one bad rule'
+  skip: true
+  skip_reason: No policy-removal asset; reset warnings and scoped removal require manual evaluation
+- eval: docker-sandboxes-network-credentials
+  prompt: 'Prompt 5: OAuth passthrough and a leaked token'
+  skip: true
+  skip_reason: No OAuth asset; passthrough and leaked-token risks require the manual source check
+- eval: docker-sandboxes-network-credentials
+  prompt: Verification credential safety (static checks)
   assets:
     eval: evals/docker-sandboxes-network-credentials.md
     integration: skills/docker-sandboxes-network-credentials/checks/verification.md
   checks:
-    - id: sn-dummy-service-token
-      description: Service credential verification uses a throwaway token
-      type: file_match
-      asset_key: eval
-      pattern: "^printf 'throwaway-token' \\| sbx .* secret set github$"
-    - id: sn-dummy-registry-token
-      description: Registry verification uses a throwaway token
-      type: file_match
-      asset_key: eval
-      pattern: "^printf 'throwaway-token' \\| sbx .* --registry ghcr.io --password-stdin$"
-    - id: sn-no-production-token
-      description: Eval does not read live GitHub credentials
-      type: file_must_not_match
-      asset_key: eval
-      pattern: 'gh auth token|\$(\{)?(GH_TOKEN|GITHUB_TOKEN|ANTHROPIC_API_KEY)\b'
-    - id: sn-integration-no-production-token
-      description: Integration runbook does not read live GitHub credentials
-      type: file_must_not_match
-      asset_key: integration
-      pattern: 'gh auth token|\$(\{)?(GH_TOKEN|GITHUB_TOKEN)\b'
-    - id: sn-sentinel-assertion
-      description: Runbook checks the shell agent sentinel rather than printing secrets
-      type: file_match
-      asset_key: integration
-      pattern: 'exec policy-check sh -c.*test "\$ANTHROPIC_API_KEY" = proxy-managed'
-
-# ─── docker-destructive-guardrails ───────────────────────────────────────────
-
+  - id: sn-dummy-service-token
+    description: Service credential verification uses a throwaway token
+    type: file_match
+    asset_key: eval
+    pattern: ^printf 'throwaway-token' \| sbx .* secret set github$
+  - id: sn-dummy-registry-token
+    description: Registry verification uses a throwaway token
+    type: file_match
+    asset_key: eval
+    pattern: ^printf 'throwaway-token' \| sbx .* --registry ghcr.io --password-stdin$
+  - id: sn-no-production-token
+    description: Eval does not read live GitHub credentials
+    type: file_must_not_match
+    asset_key: eval
+    pattern: gh auth token|\$(\{)?(GH_TOKEN|GITHUB_TOKEN|ANTHROPIC_API_KEY)\b
+  - id: sn-integration-no-production-token
+    description: Integration runbook does not read live GitHub credentials
+    type: file_must_not_match
+    asset_key: integration
+    pattern: gh auth token|\$(\{)?(GH_TOKEN|GITHUB_TOKEN)\b
+  - id: sn-sentinel-assertion
+    description: Runbook checks the shell agent sentinel rather than printing secrets
+    type: file_match
+    asset_key: integration
+    pattern: exec policy-check sh -c.*test "\$ANTHROPIC_API_KEY" = proxy-managed
+  - id: sn-masked-preview-fixture
+    description: Runbook asserts the 20-character synthetic fixture renders as a masked preview (text hygiene only)
+    type: file_match
+    asset_key: integration
+    pattern: throwa\*{10}alue
+  - id: sn-runbook-no-reset-command
+    description: Runbook never contains an executable policy reset command line
+    type: file_must_not_match
+    asset_key: integration
+    pattern: ^\s*sbx .*policy reset
+  - id: sn-runbook-no-host-helper
+    description: Runbook never registers a --command or --ref host helper source
+    type: file_must_not_match
+    asset_key: integration
+    pattern: ^\s*(printf .*\| )?sbx .*secret set(-custom)? .*--(command|ref)\b
+- eval: docker-sandboxes-network-credentials
+  prompt: 'Prompt 6: dynamic secret from a host helper'
+  skip: true
+  skip_reason: Helper isolation, refresh caching and trust boundaries need manual reasoning against help text; executing a host helper is out of scope and unsafe
+- eval: docker-sandboxes-network-credentials
+  prompt: 'Prompt 7: what `sbx secret ls` reveals'
+  skip: true
+  skip_reason: Masked-preview output needs a disposable daemon and credential store; the static group only checks fixture text, not listing output
+- eval: docker-sandboxes-network-credentials
+  prompt: 'Prompt 8: removing credentials and rules safely'
+  skip: true
+  skip_reason: Confirmation, missing-target and revocation-retry behavior need a disposable daemon; hidden custom-mode flags are internal and not exercised
+- eval: docker-sandboxes-network-credentials
+  prompt: 'Prompt 9: UDP, protocols, governance and rule filters'
+  skip: true
+  skip_reason: UDP needs experimental settings changes and governed-local behavior needs an organization policy; neither can run statically
+- eval: docker-sandboxes-network-credentials
+  prompt: 'Prompt 10: importing host variables and OAuth precedence'
+  skip: true
+  skip_reason: Import routing and OAuth shadowing need a credential store with an OAuth token; no offline asset exercises them
+- eval: docker-sandboxes-network-credentials
+  prompt: 'Prompt 11: registry scope swap and cross-host auth endpoint'
+  skip: true
+  skip_reason: Competing registry scopes and cross-host token exchange need a disposable registry; listing alone proves no pull
+- eval: docker-sandboxes-network-credentials
+  prompt: 'Prompt 12: third-party kit cannot authenticate unattended'
+  skip: true
+  skip_reason: Binding approval needs an interactive third-party kit run and a credential prompt; no offline asset exercises it
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 1: checked-in reproducible environment'
+  skip: true
+  skip_reason: No fixtures-clone asset; host initialization and approval require manual evaluation
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 2: my agent keeps editing its own environment file'
+  skip: true
+  skip_reason: No subdirectory-protection asset; mount rename behavior requires runtime verification
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 3: preRemove hook fails, teardown blocked?'
+  skip: true
+  skip_reason: No teardown asset; warning-only failure and destroy-plan drift require manual verification
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 4: quick sanity check with no credentials on hand'
+  asset: skills/docker-sandboxes-env/assets/sbxenv.yaml
+  checks:
+  - id: se-schema
+    description: Environment schema version is the string "1"
+    type: yaml_value_equals
+    key: schemaVersion
+    value: '1'
+  - id: se-agent
+    description: Minimal environment uses the credential-free shell agent
+    type: yaml_value_equals
+    key: agent
+    value: shell
+  - id: se-workspace
+    description: File is located at the workspace mount root
+    type: yaml_value_equals
+    key: workspace
+    value: .
+  - id: se-no-secrets
+    description: Minimal environment declares no service secrets
+    type: yaml_key_absent
+    key: secrets
+  - id: se-no-registries
+    description: Minimal environment declares no registry credentials
+    type: yaml_key_absent
+    key: registries
+  - id: se-no-bindings
+    description: Minimal environment changes no global credential bindings
+    type: yaml_key_absent
+    key: bindings
+  - id: se-no-hooks
+    description: Minimal environment runs no host lifecycle commands
+    type: yaml_key_absent
+    key: lifecycle
+  - id: se-no-writable-env
+    description: Minimal environment retains default environment-file protection
+    type: yaml_key_absent
+    key: sandboxOptions.writableEnvFiles
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 5: literal secrets in plan output'
+  skip: true
+  skip_reason: No literal-secret asset; plan and state redaction require a manual source check
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 6: seed fixtures once after creation'
+  skip: true
+  skip_reason: No postCreate asset; hook ordering and rerun behavior require the manual runbook
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 7: non-interactive CI approval'
+  skip: true
+  skip_reason: No CI asset; non-interactive approval and untrusted-input refusal require manual evaluation
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 8: team base plus personal overlay'
+  skip: true
+  skip_reason: Merged-requirement and kit-coalescing answers need an agent response check; the plan-only runbook fixtures are unexecuted and no static asset proves them
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 9: environment arguments and precedence'
+  skip: true
+  skip_reason: Argument rejection and precedence are command behavior; the plan-only runbook step is unexecuted and no static asset proves it
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 10: credential helper stops working after an upgrade'
+  skip: true
+  skip_reason: Helper working directory and trust boundaries need manual reasoning against help text; executing a host helper is out of scope and unsafe
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 11: snapshot or refresh for a rotating token'
+  skip: true
+  skip_reason: Snapshot rejections are load-time behavior; the plan-only runbook step is unexecuted and the static group checks fixture hygiene only
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 12: remembering approval and turning it off'
+  skip: true
+  skip_reason: Setting changes alter machine-wide state; only a read-only get is in the runbook and it is unexecuted
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 13: edit the file, then re-run'
+  skip: true
+  skip_reason: Creation-only versus attach-time changes need a disposable runtime; no asset exercises a recreation and none may run automatically
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 14: what does env rm actually delete'
+  skip: true
+  skip_reason: Destroy-plan scope and binding pruning touch credential stores; expected answers are checked manually against source and nothing is run
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 15: create failed halfway'
+  skip: true
+  skip_reason: Residue and recovery need a disposable daemon; the runbook fixture has no credentials and proves only sandbox residue when run
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 16: a sandbox with my environment''s name already exists'
+  skip: true
+  skip_reason: Foreign-name refusal needs a disposable sandbox built outside sbx env; the runbook step is unexecuted
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 17: local kit path and clone mode'
+  skip: true
+  skip_reason: Kit anchoring and clone scope are answer checks against loader source; no kit or repository fixture is provided
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 18: MCP servers, ports and hardware options'
+  skip: true
+  skip_reason: MCP, port and hardware behavior needs a daemon, a registry and host hardware; expected answers are checked manually
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 19: sharing the file with a cloud sandbox'
+  skip: true
+  skip_reason: Cloud limits need a cloud account and endpoint; answers are checked manually against help text and no cloud workflow is authored
+- eval: docker-sandboxes-env
+  prompt: 'Prompt 20: Verification fixture safety (static checks)'
+  assets:
+    eval: evals/docker-sandboxes-env.md
+    integration: skills/docker-sandboxes-env/checks/verification.md
+  checks:
+  - id: se-rb-app-suffix
+    description: Runbook builds a short APP suffix from a timestamp and PID (text hygiene only)
+    type: file_match
+    asset_key: integration
+    pattern: ^APP="\$\(printf .e-%s-%s. "\$\(date \+%s\)" "\$\$"\)"
+  - id: se-rb-app-length-guard
+    description: Runbook checks the APP suffix length before continuing
+    type: file_match
+    asset_key: integration
+    pattern: \$\{#APP\}" -le 20
+  - id: se-rb-work-guard
+    description: Runbook tolerates a failed mktemp and guards on a non-empty directory
+    type: file_match
+    asset_key: integration
+    pattern: ^WORK=\$\(mktemp -d\) \|\| WORK=""$
+  - id: se-rb-marker
+    description: Runbook creates a marker file that cleanup requires
+    type: file_match
+    asset_key: integration
+    pattern: touch "\$WORK/\.env-skill-check"
+  - id: se-rb-cleanup-guarded
+    description: Runbook has no recursive delete at column zero (text hygiene only, not control-flow proof)
+    type: file_must_not_match
+    asset_key: integration
+    pattern: ^rm -rf
+  - id: se-rb-cleanup-marker
+    description: Runbook's indented scratch delete is chained after the daemon stop (text hygiene only)
+    type: file_match
+    asset_key: integration
+    pattern: ^  rm -rf -- "\$WORK" \|\|$
+  - id: se-rb-marker-guard-block
+    description: Runbook blocks open with the marker-file guard (text hygiene only)
+    type: file_match
+    asset_key: integration
+    pattern: ^if \[ -f "\$WORK/\.env-skill-check" \]; then$
+  - id: se-rb-app-on-every-sbx
+    description: Every runbook sbx command uses the isolated app name
+    type: file_must_not_match
+    asset_key: integration
+    pattern: ^\s*sbx (?!--app-name "\$APP")
+  - id: se-rb-no-global-cleanup
+    description: Runbook runs no global prune, reset or bulk secret removal
+    type: file_must_not_match
+    asset_key: integration
+    pattern: ^\s*sbx .*(prune|policy reset|secret rm --all|\breset\b)
+  - id: se-rb-dummy-values
+    description: Every literal value in a fixture is a dummy value
+    type: file_must_not_match
+    asset_key: integration
+    pattern: '^\s+value: (?!dummy-)'
+  - id: se-rb-no-production-token
+    description: Runbook does not read live credentials
+    type: file_must_not_match
+    asset_key: integration
+    pattern: gh auth token|\$(\{)?(GH_TOKEN|GITHUB_TOKEN|ANTHROPIC_API_KEY)\b
+  - id: se-eval-no-production-token
+    description: Eval does not read live credentials
+    type: file_must_not_match
+    asset_key: eval
+    pattern: gh auth token|\$(\{)?(GH_TOKEN|GITHUB_TOKEN|ANTHROPIC_API_KEY)\b
+  - id: se-rb-credcmd-plan-only
+    description: Runbook never creates or runs the credential-command fixture
+    type: file_must_not_match
+    asset_key: integration
+    pattern: ^\s*sbx .* env (create|run)\b.*credcmd
+  - id: se-rb-marker-stdout
+    description: Runbook hook prints a constant marker with a fixed printf format
+    type: file_match
+    asset_key: integration
+    pattern: 'command: printf .%s\\n. initialize-ran$'
+  - id: se-rb-hook-no-redirect
+    description: Runbook fixture commands contain no shell redirection characters (text hygiene only)
+    type: file_must_not_match
+    asset_key: integration
+    pattern: 'command: .*[<>]'
+  - id: se-rb-exec-no-detach
+    description: Runbook never passes a detach flag to env exec, before or after the path (text hygiene only)
+    type: file_must_not_match
+    asset_key: integration
+    pattern: env exec (.* )?(-d|--detach)\b
+  - id: se-rb-exec-no-nested-shell
+    description: Runbook env exec probes use no nested shell redirection
+    type: file_must_not_match
+    asset_key: integration
+    pattern: env exec .*sh -c
+  - id: se-rb-foreign-cleanup-named
+    description: Runbook removes the foreign-name fixture by its exact name
+    type: file_match
+    asset_key: integration
+    pattern: ^  sbx --app-name "\$APP" rm --force env-check-foreign &&$
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 1: adding a tool to an existing agent'
+  asset: skills/docker-sandboxes-kits/assets/spec-mixin.yaml
+  checks:
+  - id: sk-mixin-schema
+    description: Mixin kit schema version is the string "2"
+    type: yaml_value_equals
+    key: schemaVersion
+    value: '2'
+  - id: sk-mixin-kind
+    description: Extension asset declares the mixin kind
+    type: yaml_value_equals
+    key: kind
+    value: mixin
+  - id: sk-mixin-no-sandbox
+    description: Mixin does not declare a forbidden sandbox block
+    type: yaml_key_absent
+    key: sandbox
+  - id: sk-mixin-no-extends
+    description: Mixin does not declare forbidden inheritance
+    type: yaml_key_absent
+    key: extends
+  - id: sk-mixin-no-mixins
+    description: Mixin does not compose other mixins
+    type: yaml_key_absent
+    key: mixins
+  - id: sk-mixin-no-credentials
+    description: Example mixin avoids duplicate base-agent credential definitions
+    type: yaml_key_absent
+    key: credentials
+  - id: sk-mixin-network
+    description: Example mixin declares its required egress
+    type: yaml_value_equals
+    key: permissions.network.allow
+    value:
+    - registry.npmjs.org
+  - id: sk-mixin-env
+    description: Mixin variable used by the runbook is a string
+    type: yaml_value_equals
+    key: environment.variables.MY_MIXIN
+    value: '1'
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 2: a minimal kit that should just work'
+  asset: skills/docker-sandboxes-kits/assets/spec-sandbox.yaml
+  checks:
+  - id: sk-sandbox-schema
+    description: Sandbox kit schema version is the string "2"
+    type: yaml_value_equals
+    key: schemaVersion
+    value: '2'
+  - id: sk-sandbox-kind
+    description: Sandbox asset declares the sandbox kind
+    type: yaml_value_equals
+    key: kind
+    value: sandbox
+  - id: sk-sandbox-parent
+    description: Sandbox kit inherits the built-in shell agent
+    type: yaml_value_equals
+    key: extends
+    value: shell
+  - id: sk-no-invented-image
+    description: Sandbox kit does not override the inherited image
+    type: yaml_key_absent
+    key: sandbox.image
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 3: mixin fails when composed, even though it validated'
+  skip: true
+  skip_reason: No duplicate-credential asset; schema validation versus composition requires a runtime check
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 4: credential domain not allow-listed, and additive policy'
+  skip: true
+  skip_reason: No credential-policy asset; effective egress requires composition and a policy check
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 5: publishing and trusting a kit'
+  skip: true
+  skip_reason: No signed asset; the manual snippet generates ephemeral keys and verifies tamper rejection
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 6: CIDR and multi-label network rules'
+  skip: true
+  skip_reason: No runtime-matcher asset; CIDR and domain precedence require the manual source check
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 7: validate accepts my typo, and rejects an OCI reference'
+  assets:
+    skill: skills/docker-sandboxes-kits/SKILL.md
+    fields: skills/docker-sandboxes-kits/references/spec-v2-fields.md
+  checks:
+  - id: sk-v2-strict-not-blanket
+    description: SKILL.md states strict decoding is not a typo guarantee (text hygiene only; no runtime load)
+    type: file_match
+    asset_key: skill
+    pattern: not a typo guarantee
+  - id: sk-v2-no-blanket-strict-claim
+    description: SKILL.md drops the blanket claim that a validated kit has no silent typos
+    type: file_must_not_match
+    asset_key: skill
+    pattern: a kit that validates has no silent typos
+  - id: sk-v2-decoding-strictness-section
+    description: Field reference keeps a decoding strictness section naming KnownFields (text hygiene only)
+    type: file_match
+    asset_key: fields
+    pattern: KnownFields\(true\)
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 8: inspect shows `extends` but no image, or an image but no `extends`'
+  assets:
+    commands: skills/docker-sandboxes-kits/references/kit-distribution-commands.md
+    runbook: skills/docker-sandboxes-kits/checks/verification.md
+  checks:
+  - id: sk-v2-inspect-not-unconditional
+    description: Runbook drops the unconditional no-parent-resolution inspect claim
+    type: file_must_not_match
+    asset_key: runbook
+    pattern: it does not resolve the parent
+  - id: sk-v2-inspect-vouched-exception
+    description: Command reference names the signature-vouched exception to inspect output (text hygiene only)
+    type: file_match
+    asset_key: commands
+    pattern: signature-vouched
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 9: `kit add` refuses my mixin'
+  assets:
+    skill: skills/docker-sandboxes-kits/SKILL.md
+    fields: skills/docker-sandboxes-kits/references/spec-v2-fields.md
+    commands: skills/docker-sandboxes-kits/references/kit-distribution-commands.md
+    runbook: skills/docker-sandboxes-kits/checks/verification.md
+    eval: evals/docker-sandboxes-kits.md
+  checks:
+  - id: sk-v2-add-refusal-deny
+    description: Command reference lists network deny among refused add shapes (text hygiene only)
+    type: file_match
+    asset_key: commands
+    pattern: permissions\.network\.deny
+  - id: sk-v2-add-refusal-volumes
+    description: Command reference lists volumes as refused by add (text hygiene only)
+    type: file_match
+    asset_key: commands
+    pattern: does not yet pre-create
+  - id: sk-v2-add-not-skip-skill
+    description: SKILL.md drops the stale claim that add skips volume changes
+    type: file_must_not_match
+    asset_key: skill
+    pattern: skips volume changes
+  - id: sk-v2-add-not-skip-fields
+    description: Field reference drops the stale claim that add skips volume changes
+    type: file_must_not_match
+    asset_key: fields
+    pattern: skips volume changes
+  - id: sk-v2-app-name-hidden-runbook
+    description: Runbook labels --app-name hidden, internal and not a confinement boundary (text hygiene only)
+    type: file_match
+    asset_key: runbook
+    pattern: hidden persistent root flag
+  - id: sk-v2-app-name-hidden-eval
+    description: Eval preamble labels --app-name hidden and internal (text hygiene only)
+    type: file_match
+    asset_key: eval
+    pattern: hidden internal flag
+  - id: sk-v2-runbook-no-publish-or-reset
+    description: Runbook never contains push, sign, builder, reset or secret commands
+    type: file_must_not_match
+    asset_key: runbook
+    pattern: kit (push|sign|builder)|policy reset|secret (rm|set)
+  - id: sk-v2-no-port-tcp-default
+    description: Field reference drops the stale claim that an omitted port protocol means tcp
+    type: file_must_not_match
+    asset_key: fields
+    pattern: \(-> tcp\)
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 10: startup hook races the agent'
+  assets:
+    skill: skills/docker-sandboxes-kits/SKILL.md
+  checks:
+  - id: sk-v2-startup-not-gating
+    description: SKILL.md states startup does not gate the agent entrypoint (text hygiene only)
+    type: file_match
+    asset_key: skill
+    pattern: does not gate
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 11: kit allow is inactive under governance'
+  assets:
+    skill: skills/docker-sandboxes-kits/SKILL.md
+    fields: skills/docker-sandboxes-kits/references/spec-v2-fields.md
+    eval: evals/docker-sandboxes-kits.md
+  checks:
+  - id: sk-v2-first-decisive
+    description: SKILL.md states domain-then-CIDR first-decisive evaluation (text hygiene only)
+    type: file_match
+    asset_key: skill
+    pattern: first-decisive
+  - id: sk-v2-first-decisive-fields
+    description: Field reference states first-decisive evaluation (text hygiene only)
+    type: file_match
+    asset_key: fields
+    pattern: first-decisive
+  - id: sk-v2-no-universal-deny-wins
+    description: Eval keeps the must-not against cross-identifier deny-wins (text hygiene only)
+    type: file_match
+    asset_key: eval
+    pattern: deny wins across the domain and CIDR identifiers
+  - id: sk-v2-governance-intent
+    description: SKILL.md says a kit allow is not an administrator bypass (text hygiene only)
+    type: file_match
+    asset_key: skill
+    pattern: not an administrator bypass
+  - id: sk-v2-no-both-pending-attribution
+    description: SKILL.md does not attribute the pending labels to SPEC-v2 and kits-v2 together
+    type: file_must_not_match
+    asset_key: skill
+    pattern: kits-v2 and SPEC-v2 still call
+  - id: sk-v2-no-both-pending-attribution-eval
+    description: Eval does not attribute the pending labels to SPEC-v2 and kits-v2 together
+    type: file_must_not_match
+    asset_key: eval
+    pattern: kits-v2 and SPEC-v2 still label
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 12: remote `extends` and in-spec `mixins:`'
+  assets:
+    skill: skills/docker-sandboxes-kits/SKILL.md
+  checks:
+  - id: sk-v2-extends-builtin-only
+    description: SKILL.md states extends resolves embedded built-in agents only (text hygiene only)
+    type: file_match
+    asset_key: skill
+    pattern: embedded built-in agent names
+  - id: sk-v2-mixins-not-composed
+    description: SKILL.md states in-spec mixins are not composed (text hygiene only)
+    type: file_match
+    asset_key: skill
+    pattern: not composed
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 13: requiring signed kits'
+  assets:
+    commands: skills/docker-sandboxes-kits/references/kit-distribution-commands.md
+  checks:
+  - id: sk-v2-trust-order
+    description: Command reference orders trusted signers before requiring signatures (text hygiene only)
+    type: file_match
+    asset_key: commands
+    pattern: Configure .kit\.trustedSigners. before enabling
+  - id: sk-v2-private-keyless-tsa
+    description: Command reference states private keyless signing needs a timestamp authority (text hygiene only)
+    type: file_match
+    asset_key: commands
+    pattern: timestamp authority
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 14: v3 workload mixin on a v2 kit'
+  assets:
+    skill: skills/docker-sandboxes-kits/SKILL.md
+    fields: skills/docker-sandboxes-kits/references/spec-v2-fields.md
+    commands: skills/docker-sandboxes-kits/references/kit-distribution-commands.md
+    sources: skills/docker-sandboxes-kits/references/sources.md
+    runbook: skills/docker-sandboxes-kits/checks/verification.md
+    eval: evals/docker-sandboxes-kits.md
+  checks:
+  - id: sk-v2-no-stale-provenance-skill
+    description: SKILL.md carries no superseded source or installed-build provenance (text hygiene only)
+    type: file_must_not_match
+    asset_key: skill
+    pattern: df5c96ba|0\.42\.0-503|951b7f6d7
+  - id: sk-v2-no-stale-provenance-fields
+    description: Field reference carries no superseded provenance (text hygiene only)
+    type: file_must_not_match
+    asset_key: fields
+    pattern: df5c96ba|0\.42\.0-503|951b7f6d7
+  - id: sk-v2-no-stale-provenance-commands
+    description: Command reference carries no superseded provenance (text hygiene only)
+    type: file_must_not_match
+    asset_key: commands
+    pattern: df5c96ba|0\.42\.0-503|951b7f6d7
+  - id: sk-v2-no-stale-provenance-sources
+    description: Sources carry no superseded provenance (text hygiene only)
+    type: file_must_not_match
+    asset_key: sources
+    pattern: df5c96ba|0\.42\.0-503|951b7f6d7
+  - id: sk-v2-no-stale-provenance-runbook
+    description: Runbook carries no superseded provenance (text hygiene only)
+    type: file_must_not_match
+    asset_key: runbook
+    pattern: df5c96ba|0\.42\.0-503|951b7f6d7
+  - id: sk-v2-release-pin-sources
+    description: Sources record the v0.46.0 tag commit (text hygiene only)
+    type: file_match
+    asset_key: sources
+    pattern: 991967dc90ce0d9a440cd1df1bdf3e395c5a2693
+  - id: sk-v2-release-pin-skill
+    description: SKILL.md compatibility names the v0.46.0 tag commit (text hygiene only)
+    type: file_match
+    asset_key: skill
+    pattern: sbx v0\.46\.0 \(docker/sandboxes 991967dc90ce0d9a440cd1df1bdf3e395c5a2693\)
+  - id: sk-v2-no-time-relative
+    description: SKILL.md avoids time-relative wording
+    type: file_must_not_match
+    asset_key: skill
+    pattern: recently|currently|this release|as of now|at present|newly
+  - id: sk-v2-no-builder-ownership
+    description: SKILL.md does not take ownership of the kit builder
+    type: file_must_not_match
+    asset_key: skill
+    pattern: kit builder
+  - id: sk-v2-eval-no-echoed-secret
+    description: Eval never pipes echoed credential variables
+    type: file_must_not_match
+    asset_key: eval
+    pattern: echo .*(TOKEN|SECRET|API_KEY)
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 15: `kit add` succeeded but warned'
+  skip: true
+  skip_reason: The record-not-saved and mount-replay warnings come from a daemon swap that cannot be triggered safely offline; behavior is cited source only
+- eval: docker-sandboxes-kits
+  prompt: 'Prompt 16: removing a mixin that was added'
+  skip: true
+  skip_reason: Needs a disposable running sandbox; removal is recreation with explicit user consent and no offline asset can show the decline
 - eval: docker-destructive-guardrails
-  prompt: "Prompt 1: Disk cleanup request"
+  prompt: 'Prompt 1: Disk cleanup request'
   asset: skills/docker-destructive-guardrails/SKILL.md
   checks:
-    - id: ddg-system-prune-mentioned
-      description: SKILL.md mentions `docker system prune`
-      type: file_match
-      pattern: "docker system prune"
-
-    - id: ddg-confirmation-required
-      description: SKILL.md requires explicit confirmation before destructive commands
-      type: file_match
-      pattern: "explicit confirmation"
-
-    - id: ddg-mentions-compose-patterns
-      description: SKILL.md mentions docker-compose-patterns
-      type: file_match
-      pattern: "docker-compose-patterns"
-
+  - id: ddg-system-prune-mentioned
+    description: SKILL.md mentions `docker system prune`
+    type: file_match
+    pattern: docker system prune
+  - id: ddg-confirmation-required
+    description: SKILL.md requires explicit confirmation before destructive commands
+    type: file_match
+    pattern: explicit confirmation
+  - id: ddg-mentions-compose-patterns
+    description: SKILL.md mentions docker-compose-patterns
+    type: file_match
+    pattern: docker-compose-patterns
 - eval: docker-destructive-guardrails
-  prompt: "Prompt 2: Force-remove stuck containers"
+  prompt: 'Prompt 2: Force-remove stuck containers'
   asset: skills/docker-destructive-guardrails/SKILL.md
   checks:
-    - id: ddg-rm-f-guidance
-      description: SKILL.md core guidance covers `docker rm -f`
-      type: file_match
-      pattern: "docker rm -f"
-
-    - id: ddg-targeted-rm-alternative
-      description: SKILL.md recommends a targeted docker rm instead of a blanket sweep
-      type: file_match
-      pattern: "docker rm <"
-
+  - id: ddg-rm-f-guidance
+    description: SKILL.md core guidance covers `docker rm -f`
+    type: file_match
+    pattern: docker rm -f
+  - id: ddg-targeted-rm-alternative
+    description: SKILL.md recommends a targeted docker rm instead of a blanket sweep
+    type: file_match
+    pattern: docker rm <
 - eval: docker-destructive-guardrails
-  prompt: "Prompt 3: Cross-product overview request"
+  prompt: 'Prompt 3: Cross-product overview request'
   assets:
     index: skills/docker-destructive-guardrails/references/cross-skill-destructive-command-index.md
     ref: skills/docker-destructive-guardrails/references/docker-cli-destructive-commands.md
   checks:
-    - id: ddg-index-mentions-compose-patterns
-      description: Cross-skill index mentions docker-compose-patterns
-      type: file_match
-      asset_key: index
-      pattern: "docker-compose-patterns"
-
-    - id: ddg-index-pending-note
-      description: Cross-skill index notes Docker Desktop guardrails are pending
-      type: file_match
-      asset_key: index
-      pattern: "pending"
-
-    - id: ddg-index-sbx-owned-by-sandboxes-lifecycle
-      description: Cross-skill index attributes sbx destructive commands to docker-sandboxes-lifecycle, not a pending placeholder
-      type: file_match
-      asset_key: index
-      pattern: "sbx.*docker-sandboxes-lifecycle"
-
-    - id: ddg-index-rm-plain
-      description: Cross-skill index lists plain `docker rm` as its own row, distinct from `docker rm -f`
-      type: file_match
-      asset_key: index
-      pattern: "\\| `docker rm` \\|"
-
-    - id: ddg-index-container-prune
-      description: Cross-skill index mentions `docker container prune`
-      type: file_match
-      asset_key: index
-      pattern: "docker container prune"
-
-    - id: ddg-index-kill
-      description: Cross-skill index mentions `docker kill`
-      type: file_match
-      asset_key: index
-      pattern: "docker kill"
-
-    - id: ddg-index-rmi
-      description: Cross-skill index mentions `docker rmi`/`docker image rm`
-      type: file_match
-      asset_key: index
-      pattern: "docker rmi|docker image rm"
-
-    - id: ddg-index-network-rm
-      description: Cross-skill index lists `docker network rm` as its own row, distinct from `docker network prune`
-      type: file_match
-      asset_key: index
-      pattern: "\\| `docker network rm` \\|"
-
-    - id: ddg-index-buildx-rm
-      description: Cross-skill index mentions `docker buildx rm`
-      type: file_match
-      asset_key: index
-      pattern: "docker buildx rm"
-
-    - id: ddg-index-volume-standalone-owner
-      description: Cross-skill index attributes standalone `docker volume rm`/`docker volume prune` to docker-destructive-guardrails (not just docker-compose-patterns)
-      type: file_match
-      asset_key: index
-      pattern: "docker volume.*docker-destructive-guardrails"
-
-    - id: ddg-network-rm-f-narrow
-      description: Reference doc documents `docker network rm -f`'s narrow behavior (suppresses "not found" error only, does not force removal of an in-use network)
-      type: file_match
-      asset_key: ref
-      pattern: "network rm -f"
-
-    - id: ddg-context-rm-f-forces
-      description: Reference doc documents `docker context rm -f` as genuinely forcing removal of an in-use context, distinct from `docker network rm -f`
-      type: file_match
-      asset_key: ref
-      pattern: "context rm -f"
-
-    - id: ddg-rmi-mentioned-ref
-      description: Reference doc has a breakdown for `docker rmi`/`docker image rm`
-      type: file_match
-      asset_key: ref
-      pattern: "docker rmi|docker image rm"
-
-    - id: ddg-buildx-rm-mentioned-ref
-      description: Reference doc has a breakdown for `docker buildx rm`
-      type: file_match
-      asset_key: ref
-      pattern: "docker buildx rm"
-
-    - id: ddg-image-prune-a-mentioned-ref
-      description: Reference doc has a breakdown for `docker image prune -a`
-      type: file_match
-      asset_key: ref
-      pattern: "docker image prune -a"
-
-    - id: ddg-network-prune-mentioned-ref
-      description: Reference doc has a breakdown for `docker network prune`
-      type: file_match
-      asset_key: ref
-      pattern: "docker network prune"
-
-    - id: ddg-builder-prune-mentioned-ref
-      description: Reference doc has a breakdown for `docker builder prune`
-      type: file_match
-      asset_key: ref
-      pattern: "docker builder prune"
-
+  - id: ddg-index-mentions-compose-patterns
+    description: Cross-skill index mentions docker-compose-patterns
+    type: file_match
+    asset_key: index
+    pattern: docker-compose-patterns
+  - id: ddg-index-pending-note
+    description: Cross-skill index notes Docker Desktop guardrails are pending
+    type: file_match
+    asset_key: index
+    pattern: pending
+  - id: ddg-index-sbx-owned-by-sandboxes-lifecycle
+    description: Cross-skill index attributes sbx destructive commands to docker-sandboxes-lifecycle, not a pending placeholder
+    type: file_match
+    asset_key: index
+    pattern: sbx.*docker-sandboxes-lifecycle
+  - id: ddg-index-rm-plain
+    description: Cross-skill index lists plain `docker rm` as its own row, distinct from `docker rm -f`
+    type: file_match
+    asset_key: index
+    pattern: \| `docker rm` \|
+  - id: ddg-index-container-prune
+    description: Cross-skill index mentions `docker container prune`
+    type: file_match
+    asset_key: index
+    pattern: docker container prune
+  - id: ddg-index-kill
+    description: Cross-skill index mentions `docker kill`
+    type: file_match
+    asset_key: index
+    pattern: docker kill
+  - id: ddg-index-rmi
+    description: Cross-skill index mentions `docker rmi`/`docker image rm`
+    type: file_match
+    asset_key: index
+    pattern: docker rmi|docker image rm
+  - id: ddg-index-network-rm
+    description: Cross-skill index lists `docker network rm` as its own row, distinct from `docker network prune`
+    type: file_match
+    asset_key: index
+    pattern: \| `docker network rm` \|
+  - id: ddg-index-buildx-rm
+    description: Cross-skill index mentions `docker buildx rm`
+    type: file_match
+    asset_key: index
+    pattern: docker buildx rm
+  - id: ddg-index-volume-standalone-owner
+    description: Cross-skill index attributes standalone `docker volume rm`/`docker volume prune` to docker-destructive-guardrails (not just docker-compose-patterns)
+    type: file_match
+    asset_key: index
+    pattern: docker volume.*docker-destructive-guardrails
+  - id: ddg-network-rm-f-narrow
+    description: Reference doc documents `docker network rm -f`'s narrow behavior (suppresses "not found" error only, does not force removal of an in-use network)
+    type: file_match
+    asset_key: ref
+    pattern: network rm -f
+  - id: ddg-context-rm-f-forces
+    description: Reference doc documents `docker context rm -f` as genuinely forcing removal of an in-use context, distinct from `docker network rm -f`
+    type: file_match
+    asset_key: ref
+    pattern: context rm -f
+  - id: ddg-rmi-mentioned-ref
+    description: Reference doc has a breakdown for `docker rmi`/`docker image rm`
+    type: file_match
+    asset_key: ref
+    pattern: docker rmi|docker image rm
+  - id: ddg-buildx-rm-mentioned-ref
+    description: Reference doc has a breakdown for `docker buildx rm`
+    type: file_match
+    asset_key: ref
+    pattern: docker buildx rm
+  - id: ddg-image-prune-a-mentioned-ref
+    description: Reference doc has a breakdown for `docker image prune -a`
+    type: file_match
+    asset_key: ref
+    pattern: docker image prune -a
+  - id: ddg-network-prune-mentioned-ref
+    description: Reference doc has a breakdown for `docker network prune`
+    type: file_match
+    asset_key: ref
+    pattern: docker network prune
+  - id: ddg-builder-prune-mentioned-ref
+    description: Reference doc has a breakdown for `docker builder prune`
+    type: file_match
+    asset_key: ref
+    pattern: docker builder prune
 - eval: docker-destructive-guardrails
-  prompt: "Prompt 4: Clean up your own test container (Tier 1)"
+  prompt: 'Prompt 4: Clean up your own test container (Tier 1)'
   asset: skills/docker-destructive-guardrails/SKILL.md
   checks:
-    - id: ddg-tier1-heading
-      description: SKILL.md documents a Tier 1 section for low-friction, state-and-proceed container cleanup
-      type: file_match
-      pattern: "^### Tier 1"
-
+  - id: ddg-tier1-heading
+    description: SKILL.md documents a Tier 1 section for low-friction, state-and-proceed container cleanup
+    type: file_match
+    pattern: ^### Tier 1
 - eval: docker-destructive-guardrails
-  prompt: "Prompt 5: Force-kill a container you didn't create (Tier 2)"
+  prompt: 'Prompt 5: Force-kill a container you didn''t create (Tier 2)'
   asset: skills/docker-destructive-guardrails/SKILL.md
   checks:
-    - id: ddg-tier2-heading
-      description: SKILL.md documents a Tier 2 section requiring explicit confirmation
-      type: file_match
-      pattern: "^### Tier 2"
-
-    - id: ddg-kill-tier2-in-skill
-      description: SKILL.md's core guidance covers `docker kill` as always Tier 2
-      type: file_match
-      pattern: "docker kill"
-
-    - id: ddg-kill-not-listed-under-tier1
-      description: SKILL.md must NOT mention `docker kill` between the Tier 1 and Tier 2 headings (coarse guard against it being misplaced as a Tier 1 example)
-      type: file_must_not_match
-      pattern: "### Tier 1[\\s\\S]*?docker kill[\\s\\S]*?### Tier 2"
-
-    - id: ddg-container-prune-tier2-in-skill
-      description: SKILL.md's core guidance covers `docker container prune` as Tier 2, since it always sweeps every stopped container on the host rather than one identified container
-      type: file_match
-      pattern: "docker container prune"
-
-    - id: ddg-container-prune-not-listed-under-tier1
-      description: SKILL.md must NOT mention `docker container prune` between the Tier 1 and Tier 2 headings (coarse guard against it being misplaced as a Tier 1 example)
-      type: file_must_not_match
-      pattern: "### Tier 1[\\s\\S]*?docker container prune[\\s\\S]*?### Tier 2"
-
+  - id: ddg-tier2-heading
+    description: SKILL.md documents a Tier 2 section requiring explicit confirmation
+    type: file_match
+    pattern: ^### Tier 2
+  - id: ddg-kill-tier2-in-skill
+    description: SKILL.md's core guidance covers `docker kill` as always Tier 2
+    type: file_match
+    pattern: docker kill
+  - id: ddg-kill-not-listed-under-tier1
+    description: SKILL.md must NOT mention `docker kill` between the Tier 1 and Tier 2 headings (coarse guard against it being misplaced as a Tier 1 example)
+    type: file_must_not_match
+    pattern: '### Tier 1[\s\S]*?docker kill[\s\S]*?### Tier 2'
+  - id: ddg-container-prune-tier2-in-skill
+    description: SKILL.md's core guidance covers `docker container prune` as Tier 2, since it always sweeps every stopped container on the host rather than one identified container
+    type: file_match
+    pattern: docker container prune
+  - id: ddg-container-prune-not-listed-under-tier1
+    description: SKILL.md must NOT mention `docker container prune` between the Tier 1 and Tier 2 headings (coarse guard against it being misplaced as a Tier 1 example)
+    type: file_must_not_match
+    pattern: '### Tier 1[\s\S]*?docker container prune[\s\S]*?### Tier 2'
 - eval: docker-destructive-guardrails
-  prompt: "Prompt 6: Unscoped removal of all containers"
+  prompt: 'Prompt 6: Unscoped removal of all containers'
   asset: skills/docker-destructive-guardrails/SKILL.md
   checks:
-    - id: ddg-unscoped-sweep-term
-      description: SKILL.md names an unscoped sweep across containers as a Tier 2 case regardless of container state
-      type: file_match
-      pattern: "(?i)unscoped"
-
+  - id: ddg-unscoped-sweep-term
+    description: SKILL.md names an unscoped sweep across containers as a Tier 2 case regardless of container state
+    type: file_match
+    pattern: (?i)unscoped
 - eval: docker-destructive-guardrails
-  prompt: "Prompt 7: Standalone volume deletion outside Compose"
+  prompt: 'Prompt 7: Standalone volume deletion outside Compose'
   assets:
     skill: skills/docker-destructive-guardrails/SKILL.md
     ref: skills/docker-destructive-guardrails/references/docker-cli-destructive-commands.md
   checks:
-    - id: ddg-standalone-term
-      description: SKILL.md documents a standalone (non-Compose) case for volume deletion
-      type: file_match
-      asset_key: skill
-      pattern: "(?i)standalone"
-
-    - id: ddg-volume-rm-in-guardrails-ref
-      description: Reference doc (this skill, not docker-compose-patterns) has its own heading/breakdown for standalone `docker volume rm`, not just an incidental mention
-      type: file_match
-      asset_key: ref
-      pattern: "^## .*docker volume rm"
-
-    - id: ddg-volume-prune-in-guardrails-ref
-      description: Reference doc (this skill, not docker-compose-patterns) has its own heading/breakdown for standalone `docker volume prune`, not just an incidental mention
-      type: file_match
-      asset_key: ref
-      pattern: "^## .*docker volume prune"
-
+  - id: ddg-standalone-term
+    description: SKILL.md documents a standalone (non-Compose) case for volume deletion
+    type: file_match
+    asset_key: skill
+    pattern: (?i)standalone
+  - id: ddg-volume-rm-in-guardrails-ref
+    description: Reference doc (this skill, not docker-compose-patterns) has its own heading/breakdown for standalone `docker volume rm`, not just an incidental mention
+    type: file_match
+    asset_key: ref
+    pattern: ^## .*docker volume rm
+  - id: ddg-volume-prune-in-guardrails-ref
+    description: Reference doc (this skill, not docker-compose-patterns) has its own heading/breakdown for standalone `docker volume prune`, not just an incidental mention
+    type: file_match
+    asset_key: ref
+    pattern: ^## .*docker volume prune
 - eval: docker-destructive-guardrails
-  prompt: "Prompt 8: Stop a container that isn't yours"
+  prompt: 'Prompt 8: Stop a container that isn''t yours'
   asset: skills/docker-destructive-guardrails/SKILL.md
   checks:
-    - id: ddg-stop-documented
-      description: SKILL.md documents `docker stop` explicitly instead of leaving it unaddressed
-      type: file_match
-      pattern: "docker stop"
-
-    - id: ddg-stop-reversible
-      description: SKILL.md notes `docker stop` is reversible via `docker start`, distinct from the removal tiers
-      type: file_match
-      pattern: "docker start"
-
+  - id: ddg-stop-documented
+    description: SKILL.md documents `docker stop` explicitly instead of leaving it unaddressed
+    type: file_match
+    pattern: docker stop
+  - id: ddg-stop-reversible
+    description: SKILL.md notes `docker stop` is reversible via `docker start`, distinct from the removal tiers
+    type: file_match
+    pattern: docker start
 - eval: docker-destructive-guardrails
-  prompt: "Skill config safety (static checks)"
+  prompt: Skill config safety (static checks)
   asset: skills/docker-destructive-guardrails/agents/openai.yaml
   checks:
-    - id: ddg-implicit-invocation-enabled
-      description: agents/openai.yaml keeps implicit invocation enabled, so the skill still triggers without being named explicitly
-      type: yaml_value_equals
-      key: policy.allow_implicit_invocation
-      value: true
+  - id: ddg-implicit-invocation-enabled
+    description: agents/openai.yaml keeps implicit invocation enabled, so the skill still triggers without being named explicitly
+    type: yaml_value_equals
+    key: policy.allow_implicit_invocation
+    value: true
+- eval: docker-agent-run
+  prompt: 'Prompt 5: Host hooks and shared skills trust boundary'
+  assets:
+    skill: skills/docker-agent-run/SKILL.md
+    ref: skills/docker-agent-run/references/safety-and-sandbox.md
+  checks:
+  - id: dar-shared-skills-trust
+    description: Warn about cross-sandbox consumption of writable shared skills
+    type: file_match
+    asset_key: skill
+    pattern: Writable shared skills[\s\S]*?other sandboxes
+  - id: dar-host-hooks-trust
+    description: Review Git hooks outside git diff before host execution
+    type: file_match
+    asset_key: ref
+    pattern: Git hooks[\s\S]*?`git diff`[\s\S]*?executing them on the host
+  - id: dar-stdio-host-exception
+    description: Retain stdio MCP host-process exception
+    type: file_match
+    asset_key: skill
+    pattern: stdio MCP[\s\S]*?host process
+  - id: dar-live-workspace-warning
+    description: Retain default direct-mode host-change warning
+    type: file_match
+    asset_key: ref
+    pattern: changes are live on the host in direct mode \(the default\)
+  - id: dar-broad-allowlist-warning
+    description: Retain broad default allowlist warning
+    type: file_match
+    asset_key: ref
+    pattern: default network allowlist includes broad wildcards[\s\S]*?googleapis
+  - id: dar-raw-credential-boundary
+    description: Retain credential injection boundary
+    type: file_match
+    asset_key: ref
+    pattern: raw values never enter the VM
+- eval: docker-destructive-guardrails
+  prompt: 'Prompt 9: Standalone sbx destructive scope and ownership'
+  asset: skills/docker-destructive-guardrails/references/cross-skill-destructive-command-index.md
+  checks:
+  - id: ddg-env-removal-owner
+    description: Index environment removal under env with credential/binding scope
+    type: file_match
+    pattern: sbx env rm[^\n]*sandbox-scoped credentials[^\n]*prune-bindings[^\n]*docker-sandboxes-env
+  - id: ddg-policy-reset-owner
+    description: Index local policy reset and daemon/sandbox stop scope
+    type: file_match
+    pattern: sbx policy reset[^\n]*stops the daemon[^\n]*docker-sandboxes-network-credentials
+  - id: ddg-template-gap-deferred
+    description: Keep template removal explicitly unowned
+    type: file_match
+    pattern: sbx template rm` remains an unowned coverage gap
+  - id: ddg-builder-workflow-deferred
+    description: Keep builder/cache/history workflows deferred without an owner
+    type: file_match
+    pattern: Builder,[\s\S]*?cache, and history workflows[\s\S]*?deferred and have no owner[\s\S]*?Do not delegate them to the v2 kits skill
+- eval: docker-agent-run
+  prompt: 'Prompt 1: Unattended CI run'
+  asset: skills/docker-agent-run/SKILL.md
+  checks:
+  - id: dar-inherited-ci-restricted
+    description: Bind inherited wrapper prompt to documented guidance
+    type: file_match
+    pattern: restricted
+- eval: docker-agent-run
+  prompt: 'Prompt 2: Sandboxed run hits a network policy error'
+  asset: skills/docker-agent-run/SKILL.md
+  checks:
+  - id: dar-inherited-network-wrapper
+    description: Bind inherited wrapper prompt to documented guidance
+    type: file_match
+    pattern: docker agent sandbox allow
+- eval: docker-agent-run
+  prompt: 'Prompt 3: Reusable shortcut for a registry agent'
+  asset: skills/docker-agent-run/SKILL.md
+  checks:
+  - id: dar-inherited-alias-wrapper
+    description: Bind inherited wrapper prompt to documented guidance
+    type: file_match
+    pattern: docker agent alias add
+- eval: docker-agent-run
+  prompt: 'Prompt 4: Project config versus default alias'
+  asset: skills/docker-agent-run/SKILL.md
+  checks:
+  - id: dar-inherited-config-discovery
+    description: Bind inherited wrapper prompt to documented guidance
+    type: file_match
+    pattern: docker-agent.yaml[\s\S]*?docker-agent.yml[\s\S]*?docker-agent.hcl

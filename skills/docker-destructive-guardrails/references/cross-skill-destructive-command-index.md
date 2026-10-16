@@ -21,8 +21,26 @@ A single-page index of destructive or irreversible Docker commands documented ac
 | `docker volume rm` / `docker volume prune` (a Compose project's volumes) | Volume data, directly | `docker-compose-patterns` |
 | `docker compose rm -v` | Anonymous volumes attached to removed containers | `docker-compose-patterns` |
 | `sbx rm` / `sbx prune` | Sandbox containers, Git worktrees, state, and sandbox-scoped secrets; for a clone-mode sandbox, any unfetched commits too | `docker-sandboxes-lifecycle` |
+| `sbx env rm [PATH...]` | Deletes the environment sandbox, its sandbox-scoped credentials and clone data; `--prune-bindings` additionally deletes each declared service's complete global binding entry, including domains added elsewhere; this may change consent for other sandboxes. Host workspace data remains. Review the destroy plan and confirm the exact scope | `docker-sandboxes-env` |
+| `sbx policy reset` | Deletes the local policy store, stops the daemon and running sandboxes; not a targeted rule repair. Review losses and get explicit confirmation; do not default to `--force` | `docker-sandboxes-network-credentials` |
 | Docker Desktop destructive commands | Pending — see PR #14, not yet merged. Do not assume content until that skill ships. | *pending* |
 
 ## Notes
 
 - This table is a routing aid, not a replacement for the owning skill's detail. Read the owning skill (`references/docker-cli-destructive-commands.md` in this skill, or the equivalent reference in `docker-compose-patterns`) before advising on or running any of these commands.
+
+## Standalone sbx evidence and gaps
+
+These index additions were checked against sbx v0.46.0 frozen help and
+Docker Sandboxes docs: [environment files](https://docs.docker.com/ai/sandboxes/configuration/environment-files/)
+and [policy reference](https://docs.docker.com/reference/cli/sbx/policy/).
+The frozen `sbx env rm` and `sbx policy reset` help supply syntax and loss scope.
+Only environment removal and local policy reset are added here. Builder,
+cache, and history workflows (including `sbx kit builder rm` and
+`sbx kit builder history rm`) are deferred and have no owner in this update.
+Do not delegate them to the v2 kits skill or treat them as routine cleanup.
+
+`sbx template rm` remains an unowned coverage gap; template authoring/removal
+and full builder administration are deferred. Do not silently assign template
+cleanup to lifecycle or generic Docker guardrails, or propose force deletion
+as routine troubleshooting. Docker Desktop's pending owner is unchanged.

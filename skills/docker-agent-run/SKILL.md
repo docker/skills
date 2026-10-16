@@ -60,8 +60,13 @@ Do not use this skill when:
 - `--sandbox` runs the agent inside an isolated microVM managed by the `sbx`
   CLI (a separate prerequisite — install and configure it first). All shell,
   filesystem, and process activity started by built-in toolsets happens
-  inside the VM; only the working directory (and, unless `--no-kit`, a
-  staged "kit" of skills/prompt files) is mounted in. **Exception:** a local
+  inside the VM. Shared host resources include the working directory and,
+  unless `--no-kit`, staged skills/prompt files; supported agents may also
+  mount the configured shared skills store. Writable shared skills can affect
+  other sandboxes using that store: review them as cross-sandbox trusted
+  inputs. Review workspace scripts, configs, and Git hooks (including `.git/`,
+  which `git diff` does not show) before executing them on the host; VM
+  isolation does not make host execution safe. **Exception:** a local
   stdio MCP server declared on the agent runs as a host process **outside**
   the sandbox VM — treat any such MCP server as a trusted host integration,
   not a sandboxed one.

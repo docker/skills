@@ -18,7 +18,8 @@ Flag names, defaults, and what each flag deletes change occasionally between Doc
 
 ## 2. Cross-skill index rows match each linked skill's actual guardrail content
 
-For every row in `references/cross-skill-destructive-command-index.md` whose owning skill is not this one (currently `docker-compose-patterns` and `docker-sandboxes-lifecycle`), re-read that skill's actual destructive-command guidance and confirm:
+For every row in `references/cross-skill-destructive-command-index.md` whose owning skill is not this one (currently `docker-compose-patterns`, `docker-sandboxes-lifecycle`,
+`docker-sandboxes-env`, and `docker-sandboxes-network-credentials`), re-read that skill's actual destructive-command guidance and confirm:
 
 - The command names in the index row still match what the owning skill documents (no renamed flags, no removed commands).
 

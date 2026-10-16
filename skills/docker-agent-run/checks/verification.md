@@ -36,3 +36,14 @@ docker agent alias list --json
 Pass: the alias's `path`, `model`, `safety`, and `sandbox`/`yolo` fields
 match what you configured. Fail: missing or wrong fields — recreate the
 alias with `docker agent alias add <name> <path> [flags]`.
+
+## 5. Host and cross-sandbox trust boundaries (manual answer review)
+
+Ask whether a sandboxed agent's edited Git hooks or writable shared skills
+are safe to execute or trust on the host. Pass: the answer requires review
+of host-executable workspace changes, explicitly checks `.git/` outside
+`git diff`, warns about other sandboxes consuming writable shared skills,
+and retains the local stdio MCP host-process exception. Fail: it treats
+VM isolation as host-execution safety or claims only the workspace and
+staged kit can be shared. Do not execute untrusted hooks or change skills
+permissions to run this check.

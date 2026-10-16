@@ -1,6 +1,6 @@
 schema: v1
 id: docker-destructive-guardrails
-version: 0.1.0
+version: 0.2.0
 title: Docker Destructive Command Guardrails
 description: Cross-product policy for confirming irreversible or destructive Docker operations before running them.
 owns:

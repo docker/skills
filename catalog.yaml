@@ -131,22 +131,22 @@ skills:
   - id: docker-sandboxes-lifecycle
     product: docker-sandboxes
     path: skills/docker-sandboxes-lifecycle
-    version: 0.1.0
+    version: 0.2.0
     status: stable
   - id: docker-sandboxes-network-credentials
     product: docker-sandboxes
     path: skills/docker-sandboxes-network-credentials
-    version: 0.1.0
+    version: 0.2.0
     status: stable
   - id: docker-sandboxes-env
     product: docker-sandboxes
     path: skills/docker-sandboxes-env
-    version: 0.1.0
+    version: 0.2.0
     status: experimental
   - id: docker-sandboxes-kits
     product: docker-sandboxes
     path: skills/docker-sandboxes-kits
-    version: 0.1.0
+    version: 0.2.0
     status: experimental
   - id: docker-agent-config
     product: docker-agent
@@ -156,7 +156,7 @@ skills:
   - id: docker-agent-run
     product: docker-agent
     path: skills/docker-agent-run
-    version: 0.1.2
+    version: 0.1.3
     status: stable
   - id: docker-agent-deploy
     product: docker-agent
@@ -166,5 +166,5 @@ skills:
   - id: docker-destructive-guardrails
     product: all
     path: skills/docker-destructive-guardrails
-    version: 0.1.0
+    version: 0.2.0
     status: stable

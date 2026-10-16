@@ -93,6 +93,29 @@ filename precedence. This is a manual reasoning check, not a live agent run.
 
 ---
 
+## Prompt 5: Host hooks and shared skills trust boundary
+
+**Prompt to agent:**
+
+> My `docker agent run --sandbox` session edited Git hooks and a writable
+> shared skills store. Is it safe to run those hooks on my host and trust the
+> skills in another sandbox because the edits happened inside a VM?
+
+### Expected behaviors
+- [ ] Does not treat VM isolation as permission to execute edited hooks on
+      the host. Requires review of scripts/configs and `.git/` hooks; notes
+      that `git diff` does not show those hooks.
+- [ ] Warns that writable shared skills affect other sandboxes using the store.
+- [ ] Retains local stdio MCP servers as trusted host processes outside the VM.
+- [ ] Does not invent standalone `sbx` flags for the Docker Agent wrapper.
+
+### Verification (manual answer review only)
+Read `checks/verification.md` section 5 and compare the answer with the
+security-page provenance in `references/sources.md`. Do not execute hooks,
+change shared-skills settings, or start a live sandbox for this check.
+
+---
+
 ## Should not trigger
 - "Create a standalone sbx sandbox with a private Git clone." → `docker-sandboxes-lifecycle`
 - "Set a per-sandbox rule with sbx policy deny network." → `docker-sandboxes-network-credentials`
