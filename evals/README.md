@@ -15,6 +15,11 @@ replace, the manual evaluations below. Sandbox integration procedures live
 in each skill's `checks/verification.md` and require disposable resources.
 Record the CLI version, agent/model, and observed results when running them.
 
+## Live evaluations
+
+[LIVE.md](LIVE.md) describes the local, manually started live evaluations that run agents
+in `sbx` sandboxes against the specs in `evals/specs/` and compare arms with and without a skill.
+
 ## Runbooks
 
 One runbook per catalogued skill. The table is generated from [`catalog.yaml`](../catalog.yaml) by `task catalog`.

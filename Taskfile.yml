@@ -40,6 +40,12 @@ tasks:
     cmds:
       - docker run --rm -e RELEASE_VERSION -v "{{.ROOT_DIR}}:/work" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d sh -c 'pip install -q --require-hashes -r scripts/requirements.txt && python3 scripts/prepare_release.py "$RELEASE_VERSION"'
 
+  eval:live:
+    desc: Live skill evaluations in sbx sandboxes (local, manual, calls model APIs; see evals/LIVE.md)
+    cmds:
+      - test -x .venv/bin/python || (python3 -m venv .venv && .venv/bin/pip install -q --require-hashes -r scripts/requirements.txt)
+      - .venv/bin/python scripts/eval_live.py {{.CLI_ARGS}}
+
   links:
     desc: Check local Markdown links and heading anchors
     cmds:

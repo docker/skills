@@ -57,3 +57,5 @@ tests
 **/.DS_Store
 Dockerfile
 .dockerignore
+evals/results
+evals/golden

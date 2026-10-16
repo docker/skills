@@ -58,3 +58,6 @@ tmp/
 temp/
 *.tmp
 *.swp
+
+# Live eval results (evals/LIVE.md)
+evals/results/

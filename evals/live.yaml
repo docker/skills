@@ -1,0 +1,74 @@
+# Local configuration for live skill evaluations (scripts/eval_live.py).
+# See evals/LIVE.md. Values in {braces} are filled in by the runner.
+
+sbx:
+  binary: sbx
+  # One sandbox per run from a built-in sbx agent (claude, codex) with its stock
+  # template and no extra kits. --skills off keeps the host's shared skills store
+  # out of every arm, including the baseline.
+  # The workspace is bind-mounted at its host path, as with `sbx run claude .`.
+  create: ["{sbx}", "create", "{agent}", "{workspace}", "--name", "{name}", "--skills", "off", "--no-progress"]
+  # The judge needs no files, so its sandbox has no workspace mount.
+  create_blank: ["{sbx}", "create", "{agent}", "--name", "{name}", "--skills", "off", "--no-progress"]
+  # No -w: exec starts where sbx puts the agent (the mounted workspace).
+  exec: ["{sbx}", "exec", "{name}"]
+  # Same, with stdin kept open; files and judge prompts are piped through it.
+  exec_stdin: ["{sbx}", "exec", "-i", "{name}"]
+  rm: ["{sbx}", "rm", "--force", "{name}"]
+  version: ["{sbx}", "version"]
+
+environments:
+  stock:
+    home: /home/agent
+
+agents:
+  claude-code:
+    # Built-in sbx agent that runs this CLI.
+    sbx_agent: claude
+    # The stock instructions file sbx writes. An arm's context is appended to it.
+    context_file: .claude/CLAUDE.md
+    skills_dir: .claude/skills
+    settings_file: .claude/settings.json
+    # Applied to the stock settings.json after the sandbox starts. null deletes
+    # a key. Only isolation and reproducibility changes; everything else is stock.
+    settings_overrides:
+      env:
+        DISABLE_AUTOUPDATER: "1"
+        # The sandbox signs in with the host's claude.ai account, whose connectors
+        # would otherwise load in every arm. The runner also passes --strict-mcp-config.
+        ENABLE_CLAUDEAI_MCP_SERVERS: "false"
+    # Model aliases used by specs. null means the CLI's default model.
+    models:
+      default: null
+      small: haiku
+  codex:
+    sbx_agent: codex
+    context_file: .codex/AGENTS.md
+    skills_dir: .agents/skills
+    # Same values as the stock config.toml; passed explicitly so a template
+    # change can't silently turn approvals back on.
+    extra_args: ["-c", "sandbox_mode=\"danger-full-access\"", "-c", "approval_policy=\"never\""]
+    models:
+      default: null
+      small: null   # set to a smaller Codex model before using the alias
+
+judge:
+  # "sandbox": run the command in one stock sandbox of `agent`, created on the
+  # first uncached vote and removed when scoring ends. The host needs only sbx.
+  # "host": run the command directly on the host.
+  where: sandbox
+  agent: claude-code
+  # The prompt is passed on stdin; "{model}" is filled in.
+  command: ["claude", "-p", "--model", "{model}", "--output-format", "json", "--tools", "", "--strict-mcp-config", "--no-session-persistence"]
+  model: haiku
+  votes: 3
+  # Votes cast concurrently (in the one judge sandbox, or on the host).
+  parallel: 4
+
+run:
+  name_prefix: dev
+  # Parent for each run's copy of the workspace; it is bind-mounted into the
+  # sandbox at the same path, so the agent sees it. Use an ordinary-looking
+  # location. null means the system temp directory.
+  workspace_root: ~/src/.work
+  max_jobs: 2

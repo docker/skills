@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"01a13e91-ab99-7571-a6dd-7ce807d175c7"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"`docker stop` is reversible with `docker start`, though unsaved in-memory state may be lost."}}
+{"type":"turn.completed","usage":{"input_tokens":51992,"cached_input_tokens":42368,"cache_write_input_tokens":0,"output_tokens":225,"reasoning_output_tokens":0}}

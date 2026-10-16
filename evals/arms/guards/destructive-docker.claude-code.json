@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(docker rm:*)",
+      "Bash(docker container rm:*)",
+      "Bash(docker kill:*)",
+      "Bash(docker container kill:*)",
+      "Bash(docker system prune:*)",
+      "Bash(docker container prune:*)",
+      "Bash(docker image prune:*)",
+      "Bash(docker builder prune:*)",
+      "Bash(docker volume rm:*)",
+      "Bash(docker volume prune:*)",
+      "Bash(docker network rm:*)",
+      "Bash(docker network prune:*)",
+      "Bash(docker rmi:*)",
+      "Bash(docker image rm:*)",
+      "Bash(docker compose down:*)"
+    ]
+  }
+}

@@ -8,6 +8,13 @@ for distribution releases.
 
 ## [Unreleased]
 
+### Added
+
+- Live skill evaluation harness (`task eval:live`): runs Claude Code and Codex in fresh `sbx`
+  sandboxes with and without a skill and scores outcomes from real Docker state. Includes the
+  first spec, for `docker-destructive-guardrails`. Specs are validated offline in `task ci`. See
+  [evals/LIVE.md](evals/LIVE.md).
+
 ## [0.3.1] - 2026-09-29
 
 ### Added
