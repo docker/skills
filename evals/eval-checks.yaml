@@ -1150,20 +1150,20 @@
       asset_key: sources
       pattern: 'was not supplied. No mapping is given here'
     - id: sk3-p6-sources-public-evidence
-      description: Sources list v3 claims that need public evidence
+      description: Sources distinguish untested scope and remaining review questions
       type: file_match
       asset_key: sources
-      pattern: 'v3 claims that need public evidence before publication'
+      pattern: 'Remaining scope limits and review questions'
     - id: sk3-p6-sources-commit
       description: Sources record the pinned v3 source commit
       type: file_match
       asset_key: sources
       pattern: '4d932451613f8df89c8468e2bb7c5286882897ca'
-    - id: sk3-p6-sources-path-gap
-      description: Sources admit the in-repository source paths were not supplied
+    - id: sk3-p6-sources-pinned-paths
+      description: Sources link the confirmed authoring skill and recipes at the pinned commit
       type: file_match
       asset_key: sources
-      pattern: 'Their paths\s+inside that repository were not supplied'
+      pattern: '4d932451613f8df89c8468e2bb7c5286882897ca/skills/create-kit-v3/RECIPES\.md'
 
 - eval: docker-sandboxes-kits
   prompt: "Prompt 7: proving an overlay works when composed"
@@ -1172,7 +1172,7 @@
     - id: sk3-p7-compose-run
       description: Recipes compose the overlay onto a workload with a detached named sandbox
       type: file_match
-      pattern: '^sbx run \./<workload> --kit \./<kit> --detached --name t \.$'
+      pattern: '^sbx run \./<workload> --kit \./<kit> --detach --name t \.$'
     - id: sk3-p7-exec
       description: Recipes run the tool with sbx exec
       type: file_match

@@ -131,8 +131,9 @@ varies, keep the rest exact and vary only that part:
 
 - **`docker buildx`**: nothing to install for the frontend; BuildKit pulls
   `docker/sandbox-kit:3` from the `# syntax=` line. It was pulled successfully
-  in the recorded 2026-11-02 run; that does not establish anonymous
-  availability or a pinning policy. Consider pinning the recorded digest.
+  in the recorded 2026-11-02 run; PR CI also confirmed anonymous manifest
+  availability and amd64/arm64 entries. This does not test anonymous layer
+  downloads or establish a pinning policy. Consider pinning the recorded digest.
 - **`sbx`**: install the stable CLI from Docker Docs, and see the
   `docker/sbx-releases` repository for releases. The source says current
   releases support Kits v3 in local and cloud mode and gives no minimum

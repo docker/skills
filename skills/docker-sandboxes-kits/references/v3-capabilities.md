@@ -2,8 +2,8 @@
 
 Adapted from the `create-kit-v3` skill in docker/sandbox-kit-spec at
 `4d932451613f8df89c8468e2bb7c5286882897ca`. Claims here rest on that source
-and were not re-run against a live `sbx`; see [sources.md](sources.md) for
-provenance and the claims that still need public evidence. Section numbers
+and the pinned public spec. Only the bundled egress example was exercised
+on a live `sbx`; see [sources.md](sources.md) for the cross-check and limits. Section numbers
 (§) refer to SPEC-v3 as cited by the source.
 
 The source describes the schema-3 grammar as unfinished, and says that where

@@ -26,8 +26,9 @@ The source is a `<kit>.yaml` whose first line is
 Scope and guardrails:
 
 - **Legacy v2 `spec.yaml` kits (`schemaVersion: "2"`, `kind: sandbox`) are
-  not covered here.** They are being retired, so this skill neither authors
-  nor debugs them. If the user has one, say so and offer to write the v3
+  not covered here.** This is the skill's routing boundary, not a claim that
+  v2 has been deprecated or removed. This skill neither authors nor debugs
+  them. If the user has one, say so and offer to write the v3
   equivalent as a new descriptor (see "Migrating from v2").
 - **`sbx kit validate` is not a conformance check.** The v0.50.1 code supplies
   a v3 builder to both normal `validate` and `inspect`. Both need an

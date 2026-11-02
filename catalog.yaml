@@ -146,7 +146,7 @@ skills:
   - id: docker-sandboxes-kits
     product: docker-sandboxes
     path: skills/docker-sandboxes-kits
-    version: 1.0.1
+    version: 1.0.2
     status: experimental
   - id: docker-agent-config
     product: docker-agent

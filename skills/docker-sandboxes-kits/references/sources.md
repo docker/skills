@@ -2,12 +2,16 @@
 
 ## v3 track: docker/sandbox-kit-spec at 4d932451613f8df89c8468e2bb7c5286882897ca
 
-Adapted, not copied, from two files supplied by the operator from
-docker/sandbox-kit-spec at commit `4d932451613f8df89c8468e2bb7c5286882897ca`
-(repository marked not private at capture). The files were supplied as
-`SKILL.md` (frontmatter `name: create-kit-v3`) and `RECIPES.md`. Their paths
-inside that repository were not supplied and are not asserted here; the
-operator should confirm them before publishing.
+Adapted, not copied, from the operator-supplied authoring skill and recipes.
+Their paths and content were confirmed through the GitHub contents API on
+2026-11-02 at the pinned commit:
+
+- [create-kit-v3/SKILL.md](https://github.com/docker/sandbox-kit-spec/blob/4d932451613f8df89c8468e2bb7c5286882897ca/skills/create-kit-v3/SKILL.md)
+- [create-kit-v3/RECIPES.md](https://github.com/docker/sandbox-kit-spec/blob/4d932451613f8df89c8468e2bb7c5286882897ca/skills/create-kit-v3/RECIPES.md)
+
+These sources establish authoring guidance, not support in every sbx release.
+The source's blanket rejection claim about `sbx kit validate` is contradicted
+by the recorded v0.50.1 tests and is corrected in this skill.
 
 Where each part went:
 
@@ -34,17 +38,34 @@ Changes made while adapting (not source behavior):
   skill and its `FIELD-MAPPING.md`) were removed or marked unavailable, since
   they are not part of this catalog and were not supplied.
 
-Links the source cites (not fetched or re-verified here; they point at a
-moving `main` branch, so treat them as pointers, not pinned evidence):
+## Public specification cross-check
 
-- `https://github.com/docker/sandbox-kit-spec/blob/main/docs/spec/SPEC-v3.md`
-  (§3 authoring forms, §5 provides/requires, §6 args, §7 capabilities,
-  §9.3 index annotations, §9.6 derived provides, §12 platform floor)
-- `https://github.com/docker/sandbox-kit-spec/tree/main/docs/spec/capabilities/com.docker.sandbox`
-  (per-capability pages, normative per the source)
-- `https://github.com/docker/sandbox-kit-spec/tree/main/examples`
-- `https://docs.docker.com/ai/sandboxes/install/` and
-  `https://github.com/docker/sbx-releases` for installing `sbx`
+Fetched and read these pinned public pages on 2026-11-02:
+
+- [SPEC-v3](https://github.com/docker/sandbox-kit-spec/blob/4d932451613f8df89c8468e2bb7c5286882897ca/docs/spec/SPEC-v3.md): §3 companion-pair authoring;
+  §7 typed requests, optionality and unknown types; §10 staged descriptors,
+  additive image-config merging, PATH appending, overlay ownership and link
+  checks; §12 the platform floor. These are specification contracts, not
+  proof that every recipe base or runtime implements them.
+- [network-policy@1](https://github.com/docker/sandbox-kit-spec/blob/4d932451613f8df89c8468e2bb7c5286882897ca/docs/spec/capabilities/com.docker.sandbox/network-policy@1.md)
+  and [network-policy@2](https://github.com/docker/sandbox-kit-spec/blob/4d932451613f8df89c8468e2bb7c5286882897ca/docs/spec/capabilities/com.docker.sandbox/network-policy@2.md):
+  phase-scoped policy, mutually exclusive versions within one descriptor,
+  bounded request shapes, deny precedence and fail-closed runtime duties.
+- [agent-context@2](https://github.com/docker/sandbox-kit-spec/blob/4d932451613f8df89c8468e2bb7c5286882897ca/docs/spec/capabilities/com.docker.sandbox/agent-context@2.md):
+  inline content, profiles, selected-version exclusivity and runtime surfacing.
+  The page explicitly requires consumers to advertise @2 support before
+  accepting required requests; schema version 3 alone is insufficient.
+- [dockerd@1](https://github.com/docker/sandbox-kit-spec/blob/4d932451613f8df89c8468e2bb7c5286882897ca/docs/spec/capabilities/com.docker.sandbox/dockerd@1.md):
+  `autoStart`, privilege/storage surface and runtime refusal.
+- [host-mount@1](https://github.com/docker/sandbox-kit-spec/blob/4d932451613f8df89c8468e2bb7c5286882897ca/docs/spec/capabilities/com.docker.sandbox/host-mount@1.md):
+  runtime-owned host location, shared storage identity and persistence.
+
+The pinned authoring skill also states that its grammar is unfinished and
+implementation wins on disagreement. This verifies that attribution, not
+that every implementation behavior conforms to the specification. The other
+capability summaries remain source-derived guidance; consult the
+[pinned capability directory](https://github.com/docker/sandbox-kit-spec/tree/4d932451613f8df89c8468e2bb7c5286882897ca/docs/spec/capabilities/com.docker.sandbox)
+before using a type. Runtime support must still be checked on the target host.
 
 ## Removal of the legacy v2 track
 
@@ -59,39 +80,38 @@ skill gives no date and cites no source for it.
 The earlier evidence is in the Git history of this repository, not in this
 skill. Nothing in the v3 sources was used to restate, confirm, or extend it.
 
-## v3 claims that need public evidence before publication
+## Remaining scope limits and review questions
 
-The source is an internal-style authoring skill. A public consumer cannot
-independently verify these from this repository; each should be confirmed
-against a public spec page, release note, or registry before the skill is
-published:
+The tested example is not a certification of the whole skill:
 
-1. Which release/load paths accept v3 source inspection, and which `sbx`
-   release first supports Kits v3 in local and cloud mode. Authenticated
-   inspect/validate and corrected local composition passed on `v0.50.1`;
-   this establishes a tested release, not the minimum version or cloud support.
-2. The capability type names, versions, and config shapes
-   (`com.docker.sandbox/...@N`), including `network-policy@1` and `@2`
-   exclusivity, `agent-context@2`, `dockerd@1`, and `host-mount@1`.
-3. The `docker/sandbox-kit:3` BuildKit frontend image: that it is publicly
-   anonymously pullable, and whether it should be pinned. Pulling succeeded
-   with this machine's existing Docker configuration; no anonymous test ran.
-4. The `dhi.io/sbx-templates:*` and `dhi.io/debian-base:*` base images named
-   in the recipes, and the claim that they carry the platform floor (bash,
-   sh, curl, git, CA store, `agent` user at uid 1000). The offline image
-   inventory counts these references; its live checker does not verify
-   `dhi.io`.
-5. The `overlay-home-ownership` and `overlay-links-resolve` rules on a
-   substantive overlay. Pinned installation and `validate --layout` passed
-   for the declaration-only asset; this does not exercise tool content.
-6. The runtime behaviors stated about composition: env merge, first-writer
-   ownership, `PATH` appending, volume and host-mount retention, and
-   `sbx run ... -- args` being agent arguments.
-7. The source's statement that where docs and the Go implementation disagree
-   the code wins, which cannot be checked from the supplied files.
-8. The `SBX_KIT_BUILDER` and `BUILDX_BUILDER` selectors and the in-sandbox
-   paths `/usr/share/sandbox/kit/<kit>/` and `/var/log/sbx-kit-startup.log`.
-9. That v2 `spec.yaml` kits are being retired (operator-stated, no source).
+1. `sbx v0.50.1` is a tested local release, not the first supporting release
+   or evidence for cloud support. Do not infer capability support from the
+   schema version; required `agent-context@2` failed on that release.
+2. The capability table describes source/spec contracts. Only the egress
+   example was exercised at runtime. Optional context delivery, bounded
+   network security, credentials, privileged grants and other capabilities
+   were not tested. A reviewer should check any broader claims against the
+   pinned specification, not extrapolate from the HTTP 200 result.
+3. PR image check run `41481808170` performed anonymous manifest/platform
+   checks: 14 occurrences passed, one local CLI-output tag was misclassified,
+   and `dhi.io/debian-base:trixie-dev` was not checked. The real references
+   that passed were `docker/sandbox-kit:3`, `docker/dockerfile:1`, and the
+   pinned `docker.io/sbx/shell-docker-image` index used by the runtime test.
+   This establishes anonymous manifest availability with amd64/arm64 entries
+   at check time, not full anonymous layer downloads or future tag stability.
+   After correcting case-sensitive Compose-key detection, the full local
+   `task images:check` passed: 66 occurrences, 21 unique references, 65 ok,
+   zero errors/warnings, and the one unsupported-registry notice.
+4. The illustrative `dhi.io` recipe bases and tool downloads are not verified.
+   Inspect and pin a suitable base before using them; the platform floor is a
+   spec requirement, not a verified property of every named image.
+5. Tool-bearing overlays, env/file ownership interactions, volumes, host mounts,
+   startup-log behavior, publishing and signing were not run. Source-backed
+   recipes are templates that require their own build, TCK and runtime tests.
+6. `BUILDX_BUILDER` and the in-sandbox descriptor path were exercised.
+   `SBX_KIT_BUILDER` overrides were source-reviewed only.
+7. No public v2 retirement policy was established. Excluding v2 is a routing
+   decision for this skill, not a product deprecation/removal announcement.
 
 ## Conflicts and gaps
 

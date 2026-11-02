@@ -202,7 +202,8 @@ real push in an eval.
 
 ### Must not
 - [ ] Must NOT invent a field-by-field mapping.
-- [ ] Must NOT claim `sbx kit validate` confirms the migrated v3 kit.
+- [ ] Must NOT treat `sbx kit validate` as conformance or runtime proof for
+      the migrated kit.
 - [ ] Must NOT route to `migrate-kit-to-v3` as if it were installed here.
 
 ### Verification
@@ -220,7 +221,7 @@ Static text check against the skill's "Migrating from v2" guidance and
 
 ### Expected behaviors
 - [ ] Composes the built overlay onto a real workload with
-      `sbx run ./<workload> --kit ./<kit> --detached --name <sandbox> .` and
+      `sbx run ./<workload> --kit ./<kit> --detach --name <sandbox> .` and
       runs the tool with `sbx exec <sandbox> <tool> --version`.
 - [ ] Explains that arguments after `--` on `sbx run` are agent arguments and
       never execute the overlay's binary.

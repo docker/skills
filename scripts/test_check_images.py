@@ -34,6 +34,21 @@ class InventoryTests(unittest.TestCase):
         self.assertEqual([(x.line, x.image) for x in found], [(5, "postgres:17"), (9, "nginx:1.27"), (10, "redis")])
         self.assertEqual([x.image for x in inventory.extract("skills/s/assets/compose.yaml", "services:\n  db:\n    image: redis:7\n")], ["redis:7"])
 
+    def test_cli_image_label_is_not_a_compose_key(self):
+        text = ("```text\nSANDBOX\n  Image: sbx-kit-src:kit-probe-6f3084bb320f\n"
+                "  IMAGE: another-local:1\n```\n"
+                "```yaml\nservices:\n  db:\n    image: postgres:17\n```\n")
+        self.assertEqual([(o.line, o.image) for o in inventory.extract("skills/s/checks/results.md", text)],
+                         [(9, "postgres:17")])
+
+    def test_plain_text_examples_still_inventory_real_image_syntax(self):
+        text = ("```text\nimage: redis:7\nFROM alpine:3.20\n"
+                "# syntax=docker/dockerfile:1\n```\n")
+        self.assertEqual([o.image for o in inventory.extract("evals/example.md", text)],
+                         ["redis:7", "alpine:3.20", "docker/dockerfile:1"])
+        self.assertEqual([o.image for o in inventory.extract("skills/s/assets/compose.yaml",
+                         "image: redis:7\nImage: local-only:1\n")], ["redis:7"])
+
     def test_bare_eval_images_and_non_pulled_names(self):
         path = "evals/docker-compose-patterns.md"
         content = (inventory.ROOT / path).read_text(encoding="utf-8")

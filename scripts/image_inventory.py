@@ -15,7 +15,8 @@ IMAGE = re.compile(r"^(?:[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-
 FROM = re.compile(r"^FROM\s+(?:(?:--platform=\S+)\s+)?(\S+)(?:\s+AS\s+(\S+))?\s*(?:#.*)?$", re.I)
 SYNTAX = re.compile(r"^#\s*syntax\s*=\s*(\S+)", re.I)
 COPY = re.compile(r"^COPY\s+.*?--from=(\S+)", re.I)
-COMPOSE = re.compile(r"^image:\s*['\"]?([^\s'\"#]+)", re.I)
+# Compose keys are case-sensitive; CLI output such as "Image:" is not YAML config.
+COMPOSE = re.compile(r"^image:\s*['\"]?([^\s'\"#]+)")
 FENCE = re.compile(r"^\s*(`{3,}|~{3,})([^`~]*)$")
 # Only named public registries have a live verifier. Other references are still inventoried.
 FICTIONAL = {"myapp", "example", "app", "your-image", "your-app"}

@@ -20,9 +20,16 @@ for distribution releases.
   (`https://ai-backend-service.docker.com/mcp`) for Claude Code, Codex, Cursor,
   GitHub Copilot CLI, and Gemini CLI installations.
 
+### Fixed
+
+- Image inventory now matches the case-sensitive Compose `image:` key rather
+  than treating recorded CLI `Image:` labels as public image references.
+  Regression tests retain scanning of real image syntax in plain-text examples.
+
 ### Changed
 
-- `docker-sandboxes-kits` 1.0.1 records live build/layout verification (19
+- `docker-sandboxes-kits` 1.0.2 adds pinned public source/spec links, separates
+  untested runtime scope from verified claims, and records live build/layout verification (19
   conformance checks passed), strict-decoding rejection, and scoped cleanup.
   Source review of `sbx v0.50.1` confirms normal inspect and validate configure
   a v3 builder; offline rejection is intentional and is not an auth workaround.
@@ -32,13 +39,14 @@ for distribution releases.
   original failures, the workload-name workaround and scoped cleanup.
 
 - `docker-sandboxes-kits` (experimental) now covers v3 kit descriptors only and
-  is versioned 1.0.1, including the major routing change and verification fixes. It teaches the v3 workflow
+  is versioned 1.0.2, including the major routing change and verification fixes. It teaches the v3 workflow
   (`# syntax=docker/sandbox-kit:3`, workload or mixin, typed capabilities,
   `docker buildx`, `kit-tck`, `sbx kit inspect`, publishing and signing), with
   recipes, a complete declaration-only mixin asset, and a v3 verification
   runbook. The earlier legacy v2 `spec.yaml` (`schemaVersion: "2"`) guidance,
-  assets, and `sbx kit` command references were removed because v2 is being
-  retired; the skill now offers a new v3 descriptor instead. `sbx kit validate`
+  assets, and `sbx kit` command references were removed as a routing decision;
+  this is not a product deprecation announcement. The skill offers a new v3
+  descriptor instead. `sbx kit validate`
   is not a substitute for conformance or runtime verification. Its evaluation
   runbook and checks cover v3 only, and its
   provenance lists the v3 claims that still need public evidence. The

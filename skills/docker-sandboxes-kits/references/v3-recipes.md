@@ -208,7 +208,7 @@ exactly the ones that do not resolve.
 that performs an actual composition, so it is the check that counts:
 
 ```sh
-sbx run ./<workload> --kit ./<kit> --detached --name t .
+sbx run ./<workload> --kit ./<kit> --detach --name t .
 sbx exec t tool --version
 ```
 
