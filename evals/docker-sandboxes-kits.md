@@ -229,6 +229,8 @@ Static text check against the skill's "Migrating from v2" guidance and
       tells them apart.
 - [ ] If it offers the faster `COPY --from` shortcut, says it discards the
       overlay's image config, so `ENV` and `PATH` are absent.
+- [ ] If auditing layer owners, follows manifest-referenced layers and fails
+      on missing, corrupt or unsupported layers instead of hiding tar errors.
 - [ ] Treats removing the test sandbox and any local test images as
       destructive: confirm first, name only what was created.
 

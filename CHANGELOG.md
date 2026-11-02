@@ -22,13 +22,18 @@ for distribution releases.
 
 ### Fixed
 
+- Kit verification examples preserve the parent working directory, compare
+  complete tool versions literally, audit only manifest-referenced layers
+  without hiding read failures, and remove a test builder only after this
+  session successfully created it. Regression tests exercise these failure paths.
+
 - Image inventory now matches the case-sensitive Compose `image:` key rather
   than treating recorded CLI `Image:` labels as public image references.
   Regression tests retain scanning of real image syntax in plain-text examples.
 
 ### Changed
 
-- `docker-sandboxes-kits` 1.0.2 adds pinned public source/spec links, separates
+- `docker-sandboxes-kits` 1.0.3 adds pinned public source/spec links, separates
   untested runtime scope from verified claims, and records live build/layout verification (19
   conformance checks passed), strict-decoding rejection, and scoped cleanup.
   Source review of `sbx v0.50.1` confirms normal inspect and validate configure
@@ -39,7 +44,7 @@ for distribution releases.
   original failures, the workload-name workaround and scoped cleanup.
 
 - `docker-sandboxes-kits` (experimental) now covers v3 kit descriptors only and
-  is versioned 1.0.2, including the major routing change and verification fixes. It teaches the v3 workflow
+  is versioned 1.0.3, including the major routing change and verification fixes. It teaches the v3 workflow
   (`# syntax=docker/sandbox-kit:3`, workload or mixin, typed capabilities,
   `docker buildx`, `kit-tck`, `sbx kit inspect`, publishing and signing), with
   recipes, a complete declaration-only mixin asset, and a v3 verification

@@ -1,6 +1,6 @@
 schema: v1
 id: docker-sandboxes-kits
-version: 1.0.2
+version: 1.0.3
 title: 'Docker Sandboxes: Kits (v3 descriptors)'
 description: Author, verify, publish, and compose sandbox kits with the v3 descriptor (workload/mixin, capabilities, buildx, kit-tck).
 owns:

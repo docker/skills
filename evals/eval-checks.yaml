@@ -942,7 +942,7 @@
       description: Verification runbook removes only its own uniquely named builder
       type: file_match
       asset_key: verification
-      pattern: '^docker buildx rm "\$BUILDER"$'
+      pattern: 'if \[ "\$\{BUILDER_CREATED:-false\}" = true \]; then\s+if docker buildx rm "\$BUILDER"; then'
     - id: sk3-p3-runbook-no-unscoped-prune
       description: Verification runbook forbids unscoped prune as cleanup
       type: file_match
@@ -1194,13 +1194,13 @@
       type: file_match
       pattern: 'transfers the overlay.s \*\*files and nothing else\*\*'
     - id: sk3-p7-owner-audit
-      description: Recipes count layer owners with numeric owner output
+      description: Recipes audit referenced OCI layers with the bundled fail-closed script
       type: file_match
-      pattern: 'tar --numeric-owner -tvf'
-    - id: sk3-p7-awk-warning
-      description: Recipes warn not to simplify the owner-audit awk
+      pattern: 'audit-layer-owners\.py'
+    - id: sk3-p7-layer-read-failure
+      description: Recipes fail on unreadable layers rather than emitting partial owner counts
       type: file_match
-      pattern: 'The awk is doing real work'
+      pattern: 'fails on missing, corrupt, unreadable or unsupported-compression layers'
     - id: sk3-p7-cleanup-destructive
       description: Recipes treat removing the test sandbox as destructive
       type: file_match

@@ -197,14 +197,15 @@ docker buildx create --name kit-builder --driver docker-container --bootstrap
 ```
 
 ```sh
+# Run from the parent of <kit> and <workload>; subshells preserve that directory.
 # 1. validate — the descriptor is checked before content is built. cacheonly
 #    drops the EXPORT, not the build: once valid, the whole recipe still solves.
-cd <kit> && docker buildx build --builder kit-builder . \
-  -f <kit>.yaml --output type=cacheonly
+(cd <kit> && docker buildx build --builder kit-builder . \
+  -f <kit>.yaml --output type=cacheonly)
 
 # 2. build, exporting a layout so kit-tck can judge it without a registry
-docker buildx build --builder kit-builder . -f <kit>.yaml -t <kit>:<version> \
-  --output type=oci,dest=/tmp/<kit>-layout,tar=false
+(cd <kit> && docker buildx build --builder kit-builder . -f <kit>.yaml -t <kit>:<version> \
+  --output type=oci,dest=/tmp/<kit>-layout,tar=false)
 
 # 3. conformance — the tag alone, not <kit>:<version>
 kit-tck validate --layout /tmp/<kit>-layout <version>
@@ -315,3 +316,4 @@ additional reference and say that it came from outside this catalog.
 - `checks/verification.md` — a manually exercised v3 runbook (inspect, buildx descriptor check, `kit-tck`, strict decoding, daemon-backed validation versus offline rejection, optional composition, scoped cleanup). It uses isolated names and no registry publishing or signing.
 - `checks/runtime-results.md` — 2026-11-02 commands, output, versions, pass/fail results, and the source-inspection limitation.
 - `checks/authenticated-results.md` — authenticated A2/A6/A7, original failures, descriptor correction, successful runtime checks and cleanup.
+- `scripts/audit-layer-owners.py` — fail-closed numeric ownership inventory of manifest-referenced OCI layers (Python 3.11+; uncompressed/gzip layers).

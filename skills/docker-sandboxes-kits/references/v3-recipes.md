@@ -34,7 +34,8 @@ RUN set -eux; \
       -o /usr/local/bin/tool; \
     chmod 0755 /usr/local/bin/tool; \
     # The pin is a claim about content: make the build enforce it.
-    tool --version | grep -q "${TOOL_VERSION}"
+    reported=$(tool --version); \
+    test "$reported" = "tool ${TOOL_VERSION}"
 
 # The runtime contract lives in the image config, not the descriptor.
 ENV IS_SANDBOX=1
@@ -45,6 +46,12 @@ WORKDIR /home/agent/workspace
 # the agent to run unprompted inside the sandbox.
 ENTRYPOINT ["tool"]
 ```
+
+The version assertion assumes the tool prints exactly `tool VERSION` on
+stdout and exits successfully. Adapt that complete literal format to the
+real CLI (or use its machine-readable version field); never use a substring
+or regex match. A command failure, extra suffix, or different version must
+fail the build.
 
 `ENTRYPOINT` plus `CMD` is the headless argv. Use `CMD` only for default
 *arguments* to the entrypoint's binary; a `CMD` that repeats the binary
@@ -184,25 +191,25 @@ passes, because it is staying out of the home entirely. The same run warns
 under `overlay-links-resolve` for every symlink the overlay's own layers do
 not resolve; see the composition shortcut below for why that is a warning.
 
-What it does not judge is **every other owner**. Count those out of the layer:
+What it does not judge is **every other owner**. Use the bundled audit,
+resolving `SKILL_DIR` to this installed skill's directory (Python 3.11+):
 
 ```sh
-for b in /tmp/layout/blobs/sha256/*; do tar --numeric-owner -tvf "$b" 2>/dev/null; done \
-  | awk '{print ($2 ~ /\//) ? $2 : $3"/"$4}' | sort | uniq -c | sort -rn
+python3 "$SKILL_DIR/scripts/audit-layer-owners.py" /tmp/layout <version>
 ```
 
-Every count should be `0/0` or `1000/1000`. It collapses the listing to
-owners, so it finds a foreign uid and nothing else, which is why the
-directory levels are `kit-tck`'s job and not this pipeline's.
+The audit follows the selected tag through OCI indexes/manifests and reads
+only referenced filesystem layers, not arbitrary config/manifest JSON blobs.
+It checks blob digests, lists numeric uid/gid pairs without extracting files,
+and fails on missing, corrupt, unreadable or unsupported-compression layers.
+It emits counts only after every selected layer has been read successfully.
+Uncompressed and gzip layers are supported; re-export with gzip if the audit
+rejects zstd or another compression format. Buildx attestation manifests are
+explicitly excluded by their `vnd.docker.reference.type` annotation.
 
-**The awk is doing real work, so do not simplify it.** GNU tar prints owner
-and group joined in field 2 (`0/0`); bsdtar splits them across fields 3 and
-4. A pipeline written for one prints the other's size and date: on Linux, a
-bare `$3":"$4` reports `0:2026-09-21` for every entry, matches none of the
-values above, and reads as a clean audit while checking nothing.
-`--numeric-owner` matters too: without it a uid that resolves to a name in
-the build image is reported by name, and the foreign uids this catches are
-exactly the ones that do not resolve.
+Every count should be `0/0` or `1000/1000`; other owners produce a nonzero
+exit status. This is an owner inventory, not a merged-filesystem proof.
+Directory-level ownership and symlink semantics remain `kit-tck`'s job.
 
 **Compose it for real and run the tool.** The assembler is the only thing
 that performs an actual composition, so it is the check that counts:

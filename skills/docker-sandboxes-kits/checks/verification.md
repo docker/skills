@@ -27,15 +27,28 @@ on the binary. `kit-tck version` alone may print only `dev`.
 ## A1. Set up scratch resources
 
 ```bash
-APP="k-$(date +%s)-$$"        # fresh suffix, at most 20 characters
-BUILDER="kit-eval-$$"         # unique name; the cleanup removes only this builder
+RUN_ID=$(python3 -c 'import uuid; print(uuid.uuid4().hex)')
+APP="k-${RUN_ID:0:18}"        # fresh suffix, at most 20 characters
+BUILDER="kit-eval-$RUN_ID"
+BUILDER_CREATED=false
 WORK=$(mktemp -d /tmp/kit-v3.XXXXXX)
 WORK=$(cd "$WORK" && pwd -P)  # short canonical path for macOS runtime sockets
 mkdir "$WORK/extra-egress" "$WORK/workspace"
 cp assets/v3-mixin-egress.yaml "$WORK/extra-egress/extra-egress.yaml"
-docker buildx create --name "$BUILDER" --driver docker-container --bootstrap
-export BUILDX_BUILDER="$BUILDER"  # also select it for sbx source builds
+if docker buildx create --name "$BUILDER" --driver docker-container; then
+  BUILDER_CREATED=true
+  export BUILDX_BUILDER="$BUILDER"  # also select it for sbx source builds
+  docker buildx inspect --builder "$BUILDER" --bootstrap
+else
+  printf '%s\n' 'Builder creation failed; stop here and perform A8 without removing that name.' >&2
+fi
 ```
+Continue only if create and bootstrap both succeeded. Creation and bootstrap
+are separate so a bootstrap failure still leaves ownership recorded for A8.
+A failed create never grants permission to remove that name, even if a builder
+with it exists. Keep `BUILDER_CREATED` in this shell; do not recreate it by
+checking whether the builder exists.
+
 The v3 asset is a companion-pair kit by stem: `extra-egress/extra-egress.yaml`
 with no `.dockerfile`, because it is declaration-only. Before A2, have the
 operator sign in with this same `$APP` and initialize only its network policy:
@@ -152,7 +165,11 @@ run the tool with `sbx exec` (not as an argument after `--` on `sbx run`).
 ```bash
 sbx --app-name "$APP" rm --force kit-v3-check   # only if A7 was run
 sbx --app-name "$APP" daemon stop               # if any daemon-backed step ran
-docker buildx rm "$BUILDER"
+if [ "${BUILDER_CREATED:-false}" = true ]; then
+  if docker buildx rm "$BUILDER"; then
+    BUILDER_CREATED=false
+  fi
+fi
 rm -rf "$WORK"
 ```
 Normal A2/A6 may start a daemon even without A7. After confirming it stopped,
