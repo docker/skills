@@ -1,9 +1,9 @@
 ---
 name: docker-sandboxes-kits
 description: >-
-  Use this skill when authoring, verifying, publishing, or composing a Docker Sandboxes kit, even if the user just says they want to "add a tool to a sandbox agent", "package a CLI or agent as a kit", "publish a kit to a registry", or "give a mixin its own credentials and network access". Covers the v3 kit descriptor (`# syntax=docker/sandbox-kit:3`, `kind: workload` or `mixin`, typed capabilities, provides/requires, content recipes), building with docker buildx, checking with kit-tck and `sbx kit inspect`, composing onto a workload, and publishing and signing. Legacy v2 `spec.yaml` kits are not covered; `sbx kit validate` does not accept a v3 source kit.
+  Use this skill when authoring, verifying, publishing, or composing a Docker Sandboxes kit, even if the user just says they want to "add a tool to a sandbox agent", "package a CLI or agent as a kit", "publish a kit to a registry", or "give a mixin its own credentials and network access". Covers the v3 kit descriptor (`# syntax=docker/sandbox-kit:3`, `kind: workload` or `mixin`, typed capabilities, provides/requires, content recipes), building with docker buildx, checking with kit-tck and `sbx kit inspect`, composing onto a workload, and publishing and signing. Legacy v2 `spec.yaml` kits are not covered; `sbx kit validate` is not a substitute for kit-tck conformance and runtime checks.
 license: Apache-2.0
-compatibility: Experimental. Needs docker buildx, kit-tck, and an sbx release with Kits v3 support (adapted from docker/sandbox-kit-spec at 4d932451613f8df89c8468e2bb7c5286882897ca; not re-run against a live sbx). Not the legacy docker sandbox wrapper. See references/sources.md.
+compatibility: Experimental. Needs docker buildx, kit-tck, and an sbx release with Kits v3 support (adapted from docker/sandbox-kit-spec at 4d932451613f8df89c8468e2bb7c5286882897ca; build/conformance tested 2026-11-02; authenticated inspect/validate and composition tested on sbx v0.50.1 with optional agent-context@2). Not the legacy docker sandbox wrapper. See references/sources.md.
 ---
 
 # Docker Sandboxes: Kits (v3 descriptors)
@@ -29,9 +29,11 @@ Scope and guardrails:
   not covered here.** They are being retired, so this skill neither authors
   nor debugs them. If the user has one, say so and offer to write the v3
   equivalent as a new descriptor (see "Migrating from v2").
-- **`sbx kit validate` is not a v3 check.** The v3 source says it does not
-  accept a v3 source kit, while `sbx kit inspect` does. Never run it on a v3
-  descriptor and report the outcome as validation.
+- **`sbx kit validate` is not a conformance check.** The v0.50.1 code supplies
+  a v3 builder to both normal `validate` and `inspect`. Both need an
+  authenticated daemon; `--offline` deliberately omits the builder and
+  rejects v3 source kits. A normal validate success is therefore allowed,
+  but does not replace `kit-tck` or real runtime composition.
 - Do not carry v2 vocabulary into v3: `name`, `sandbox:`,
   `permissions.network`, `credentials:`, `setup.*`, and `--kit-arg` are not v3
   fields, and v2 composition rules (additive allow lists, duplicate-service
@@ -115,8 +117,12 @@ The default form is a companion pair found by filename stem: `<kit>/<kit>.yaml`
 decoding is **strict**: an unrecognized key is an error, deliberately, because
 a silently ignored misspelling would be a policy silently absent.
 
-- `assets/v3-mixin-egress.yaml` is a complete declaration-only mixin. It has
-  not been executed; build and check it before relying on it.
+- `assets/v3-mixin-egress.yaml` is a complete declaration-only mixin. Its
+  build and all 19 layout conformance checks passed on 2026-11-02; runtime
+  composition initially failed on v0.50.1 because `agent-context@2` was
+  required. The explanatory note is now optional; the network request remains
+  required. Corrected composition and npm HTTPS access passed under the test
+  host policy. See `checks/authenticated-results.md` for scope and limits.
 - `references/v3-capabilities.md` has the annotated descriptor skeleton, the
   other authoring forms, and every capability type with its common mistakes.
 
@@ -205,9 +211,21 @@ kit-tck validate --layout /tmp/<kit>-layout <version>
 # 4. run it, no registry needed
 sbx run ./<kit> .                          # a workload
 sbx run ./<workload> --kit ./<kit> .       # a mixin, composed
-sbx kit inspect ./<kit>                    # resolved declarations
+sbx kit inspect ./<kit>                    # requires authenticated daemon; see below
 ```
 
+- `--app-name` isolates the Docker login store as well as daemon state.
+  Sign in explicitly to the test app before normal source inspection.
+  `--offline` is not an auth workaround for v3 sources: it deliberately
+  disables the builder to keep the command daemon-free. The observed
+  offline rejection is expected, not evidence that normal inspect is broken.
+- v0.50.1 inspection shows a legacy-shaped summary, not the raw descriptor.
+  Use `kit-tck inspect --descriptor --layout <layout> <tag>` to read the typed
+  requests. Do not copy `sbx kit inspect --format json` output as v3 YAML.
+- v0.50.1 supports v3 kits but not `agent-context@2` at composition time.
+  Only mark this request optional when its guidance is nonessential, as in
+  the egress asset; otherwise use a host with explicit support. Successful
+  inspection/validation does not prove required capability availability.
 - **A build is not proof the kit works.** For a mixin, compose the built
   overlay onto a real workload and run the tool with `sbx exec <sandbox> <tool>
   --version`. Arguments after `--` on `sbx run` are agent arguments, so they
@@ -259,8 +277,8 @@ skill does not map fields; do not guess one. For a request to convert a v2
 `spec.yaml`: confirm the installed `sbx` can read v3, keep the v2 kit only as
 a reference for intent, and write the v3 kit as a new descriptor using the
 sections above. Check it with the v3 workflow (buildx, `kit-tck`, a real
-composition), never with `sbx kit validate`. If the `migrate-kit-to-v3` skill
-or its mapping is available in the user's environment, use it as an
+composition); do not substitute `sbx kit validate` for those checks. If the
+`migrate-kit-to-v3` skill or its mapping is available in the user's environment, use it as an
 additional reference and say that it came from outside this catalog.
 
 ## Related skills
@@ -289,8 +307,10 @@ additional reference and say that it came from outside this catalog.
 ## Assets
 
 - `assets/v3-mixin-egress.yaml` — a complete declaration-only v3 mixin
-  (`schemaVersion: "3"`) with a network-policy request and agent context.
+  (`schemaVersion: "3"`) with a required network-policy request and optional explanatory agent context.
 
 ## Checks
 
-- `checks/verification.md` — an unexecuted v3 runbook (inspect, buildx descriptor check, `kit-tck`, strict decoding, `sbx kit validate` is not a v3 check, optional composition, scoped cleanup). It uses isolated names and no registry publishing or signing.
+- `checks/verification.md` — a manually exercised v3 runbook (inspect, buildx descriptor check, `kit-tck`, strict decoding, daemon-backed validation versus offline rejection, optional composition, scoped cleanup). It uses isolated names and no registry publishing or signing.
+- `checks/runtime-results.md` — 2026-11-02 commands, output, versions, pass/fail results, and the source-inspection limitation.
+- `checks/authenticated-results.md` — authenticated A2/A6/A7, original failures, descriptor correction, successful runtime checks and cleanup.

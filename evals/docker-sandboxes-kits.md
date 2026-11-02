@@ -95,24 +95,27 @@ overlay, export an OCI layout, and run `kit-tck validate --layout`.
 > `sbx kit validate ./my-kit` enough to know the kit is valid?
 
 ### Expected behaviors
-- [ ] Says no: the v3 source states `sbx kit validate` does not accept a v3
-      source kit.
+- [ ] Says no: normal `sbx kit validate` can build/load a v3 source, but is
+      not a substitute for conformance and runtime checks.
 - [ ] Gives the v3 workflow: a `docker buildx build ... --output
       type=cacheonly` descriptor check with a named container builder, an OCI
       layout export judged by `kit-tck validate --layout <tag>` (tag alone),
-      `sbx kit inspect`, and a real composition.
+      release-dependent `sbx kit inspect`, and a real composition.
+- [ ] Notes that `sbx v0.50.1` offline inspect also rejects the source with
+      "no kit builder configured" by design; authenticate the isolated app
+      for normal inspect/validate. Sign-in failure alone is inconclusive.
 - [ ] Says a successful build is not proof the kit works.
 - [ ] Explains why a container builder is used (the `docker` driver with the
       classic image store can drop manifest annotations).
 
 ### Must not
-- [ ] Must NOT report `sbx kit validate` output as validation of the v3
-      descriptor.
+- [ ] Must NOT report `sbx kit validate` output as full kit conformance or
+      proof that required capabilities can be selected at runtime.
 - [ ] Must NOT claim `kit-tck` alone proves the kit works at runtime.
 
 ### Verification
 Steps A2-A6 of `checks/verification.md`, including the check that
-`sbx kit validate` does not succeed on the v3 asset.
+normal `sbx kit validate` can accept the source while `--offline` rejects it.
 
 ---
 

@@ -1,8 +1,8 @@
 # syntax=docker/sandbox-kit:3
 # Complete declaration-only v3 mixin. Save it as <kit>/<kit>.yaml (for example
 # extra-egress/extra-egress.yaml). It ships no content, so it needs no companion
-# <kit>.dockerfile. Unexecuted example: build it with a container builder and
-# judge the result with kit-tck before relying on it (see checks/verification.md).
+# <kit>.dockerfile. Build, conformance and runtime connectivity tested on sbx v0.50.1.
+# Recheck on your tools before relying on it (see checks/verification.md).
 schemaVersion: "3"
 kind: mixin
 displayName: Extra egress
@@ -13,5 +13,7 @@ capabilities:
       runtime:
         allow: [registry.npmjs.org]
   - type: com.docker.sandbox/agent-context@2
+    # Explanatory only: older hosts may omit this note, but not the network request.
+    optional: true
     config:
       content: This kit requests runtime egress to registry.npmjs.org. The host decides whether the request is granted.

@@ -759,6 +759,11 @@
       type: file_match
       asset_key: v3mixin
       pattern: 'type: com\.docker\.sandbox/agent-context@2'
+    - id: sk3-p1-asset-context-optional
+      description: Explanatory agent context degrades on hosts without agent-context@2
+      type: file_match
+      asset_key: v3mixin
+      pattern: 'type: com\.docker\.sandbox/agent-context@2\s+(?:#[^\n]*\n\s*)?optional: true'
     - id: sk3-p1-asset-least-privilege
       description: v3 asset requests no widening capability
       type: file_must_not_match
@@ -874,15 +879,15 @@
     verification: skills/docker-sandboxes-kits/checks/verification.md
   checks:
     - id: sk3-p3-validate-not-v3-check
-      description: SKILL.md states sbx kit validate is not a v3 check
+      description: SKILL.md distinguishes CLI validation from conformance
       type: file_match
       asset_key: skill
-      pattern: '`sbx kit validate` is not a v3 check'
-    - id: sk3-p3-validate-not-accepted
-      description: SKILL.md says sbx kit validate does not accept a v3 source kit
+      pattern: '`sbx kit validate` is not a conformance check'
+    - id: sk3-p3-offline-rejects-source
+      description: SKILL.md explains the offline builder limitation
       type: file_match
       asset_key: skill
-      pattern: 'does not accept a v3 source kit'
+      pattern: '`--offline` deliberately omits the builder'
     - id: sk3-p3-cacheonly
       description: SKILL.md gives the buildx cacheonly descriptor check
       type: file_match
@@ -919,10 +924,10 @@
       asset_key: verification
       pattern: '^# Verification runbook for v3 kits'
     - id: sk3-p3-runbook-not-v3-check
-      description: Verification runbook confirms sbx kit validate is not a v3 check
+      description: Verification runbook compares normal validation and offline rejection
       type: file_match
       asset_key: verification
-      pattern: '^## A6\. Confirm `sbx kit validate` is not a v3 check'
+      pattern: '^## A6\. Compare daemon-backed validation with offline rejection'
     - id: sk3-p3-runbook-tck
       description: Verification runbook judges an exported layout with kit-tck
       type: file_match

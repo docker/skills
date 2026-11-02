@@ -1,8 +1,10 @@
 # Publishing and signing a v3 kit
 
 Adapted from the `create-kit-v3` skill in docker/sandbox-kit-spec at
-`4d932451613f8df89c8468e2bb7c5286882897ca`; not re-run against a registry or
-a live `sbx`. See [sources.md](sources.md) for provenance and limits. Do not
+`4d932451613f8df89c8468e2bb7c5286882897ca`; publishing and signing have not
+been re-run. Local build/conformance and source-load attempts are recorded in
+[the authenticated results](../checks/authenticated-results.md). See [sources.md](sources.md)
+for provenance and limits. Do not
 use `sbx kit push` or `sbx kit sign` for a v3 kit; publishing and signing
 here use `docker buildx` and `cosign`.
 
@@ -128,24 +130,32 @@ varies, keep the rest exact and vary only that part:
 ## Tooling notes
 
 - **`docker buildx`**: nothing to install for the frontend; BuildKit pulls
-  `docker/sandbox-kit:3` from the `# syntax=` line. That image's public
-  availability and pinning policy are not verified here; consider whether to
-  pin it by digest in your own kits.
+  `docker/sandbox-kit:3` from the `# syntax=` line. It was pulled successfully
+  in the recorded 2026-11-02 run; that does not establish anonymous
+  availability or a pinning policy. Consider pinning the recorded digest.
 - **`sbx`**: install the stable CLI from Docker Docs, and see the
   `docker/sbx-releases` repository for releases. The source says current
   releases support Kits v3 in local and cloud mode and gives no minimum
-  version. `sbx kit validate` does **not** accept a v3 source kit;
-  `sbx kit inspect` does.
+  version. On tested `sbx v0.50.1`, both `kit validate --offline` and
+  `kit inspect --offline` reject the supplied v3 source mixin with "no kit
+  builder configured". This is intentional: offline omits the builder.
+  Normal inspect and validate supply it and require an authenticated daemon.
 - **`kit-tck`**: the source installs it with
   `go install github.com/docker/sandbox-kit-spec/v3/cmd/kit-tck@latest`.
   `@latest` floats, so install a pinned release tag or commit instead and
-  record it, in the same way you would pin any build tool.
+  record it, in the same way you would pin any build tool. A pinned `go install`
+  may still print `dev` for `kit-tck version`; record `go version -m` on the
+  installed binary to retain the actual module revision.
 - **`cosign`**: only if you sign.
 - **Local builds**: recipe-based local source builds use host Docker Buildx
   when Docker is available, otherwise the shared builder sandbox. The host
   builder needs OCI export support. Select the named builder with
   `BUILDX_BUILDER=kit-builder sbx kit inspect ./<kit>`, or use
   `SBX_KIT_BUILDER=sandbox` to require the sandbox backend and
-  `SBX_KIT_BUILDER=host` to require the host backend. Declaration-only mixins
-  need neither. Sandbox builder status, history, and removal describe only
-  that backend; removing it does not clear host-builder caches.
+  `SBX_KIT_BUILDER=host` to require the host backend. `BUILDX_BUILDER` was
+  exercised in the authenticated run; the `SBX_KIT_BUILDER` overrides were not. Do not infer that a declaration-only mixin
+  bypasses the daemon requirement: both offline source commands intentionally
+  omit the builder. Also, v0.50.1 uses Buildx even for declaration-only sources;
+  the in-process synthesis optimization exists in the inspected checkout,
+  not that release. Sandbox builder status, history and removal describe
+  only that backend; removing it does not clear host-builder caches.
