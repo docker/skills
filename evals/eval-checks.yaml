@@ -706,91 +706,551 @@
 
 # ─── docker-sandboxes-kits ──────────────────────────────────────────────────
 
+# v3 prompts (1-7) assert checked-in v3 assets and skill text, not live model behavior,
+# a live sbx, or a real build. Legacy v2 spec.yaml kits are out of scope.
+
 - eval: docker-sandboxes-kits
-  prompt: "Prompt 1: adding a tool to an existing agent"
-  # Partial asset coverage: portable mixin structure, not the Postgres MCP setup.
-  asset: skills/docker-sandboxes-kits/assets/spec-mixin.yaml
+  prompt: "Prompt 1: a new kit for a CLI (mixin vs workload, version pin)"
+  assets:
+    v3mixin: skills/docker-sandboxes-kits/assets/v3-mixin-egress.yaml
+    skill: skills/docker-sandboxes-kits/SKILL.md
+    caps: skills/docker-sandboxes-kits/references/v3-capabilities.md
+    recipes: skills/docker-sandboxes-kits/references/v3-recipes.md
   checks:
-    - id: sk-mixin-schema
-      description: Mixin kit schema version is the string "2"
+    - id: sk3-p1-asset-first-line
+      description: v3 asset starts with the sandbox-kit frontend syntax line
+      type: file_match
+      asset_key: v3mixin
+      pattern: '\A# syntax=docker/sandbox-kit:3$'
+    - id: sk3-p1-asset-schema
+      description: v3 asset schema version is the string "3"
       type: yaml_value_equals
+      asset_key: v3mixin
       key: schemaVersion
-      value: "2"
-    - id: sk-mixin-kind
-      description: Extension asset declares the mixin kind
+      value: "3"
+    - id: sk3-p1-asset-kind
+      description: v3 asset is a mixin
       type: yaml_value_equals
+      asset_key: v3mixin
       key: kind
       value: mixin
-    - id: sk-mixin-no-sandbox
-      description: Mixin does not declare a forbidden sandbox block
+    - id: sk3-p1-asset-no-requires
+      description: Declaration-only mixin requires nothing from the composition
       type: yaml_key_absent
+      asset_key: v3mixin
+      key: requires
+    - id: sk3-p1-asset-no-v2-permissions
+      description: v3 asset does not use the v2 permissions block
+      type: yaml_key_absent
+      asset_key: v3mixin
+      key: permissions
+    - id: sk3-p1-asset-no-v2-sandbox
+      description: v3 asset does not use the v2 sandbox block
+      type: yaml_key_absent
+      asset_key: v3mixin
       key: sandbox
-    - id: sk-mixin-no-extends
-      description: Mixin does not declare forbidden inheritance
-      type: yaml_key_absent
-      key: extends
-    - id: sk-mixin-no-mixins
-      description: Mixin does not compose other mixins
-      type: yaml_key_absent
-      key: mixins
-    - id: sk-mixin-no-credentials
-      description: Example mixin avoids duplicate base-agent credential definitions
-      type: yaml_key_absent
-      key: credentials
-    - id: sk-mixin-network
-      description: Example mixin declares its required egress
-      type: yaml_value_equals
-      key: permissions.network.allow
-      value: [registry.npmjs.org]
-    - id: sk-mixin-env
-      description: Mixin variable used by the runbook is a string
-      type: yaml_value_equals
-      key: environment.variables.MY_MIXIN
-      value: "1"
+    - id: sk3-p1-asset-network-runtime
+      description: v3 asset requests runtime egress with the phase-scoped network-policy capability
+      type: file_match
+      asset_key: v3mixin
+      pattern: 'type: com\.docker\.sandbox/network-policy@1\s+config:\s+runtime:\s+allow: \[registry\.npmjs\.org\]'
+    - id: sk3-p1-asset-agent-context
+      description: v3 asset uses inline agent-context@2 content
+      type: file_match
+      asset_key: v3mixin
+      pattern: 'type: com\.docker\.sandbox/agent-context@2'
+    - id: sk3-p1-asset-least-privilege
+      description: v3 asset requests no widening capability
+      type: file_must_not_match
+      asset_key: v3mixin
+      pattern: '(privileged|host-mount|host-port|ssh-agent|dockerd)@1'
+    - id: sk3-p1-asset-no-credential-values
+      description: v3 asset carries no credential values
+      type: file_must_not_match
+      asset_key: v3mixin
+      pattern: '(?i)\b(token|password|secret)\b'
+    - id: sk3-p1-skill-mixin-default
+      description: SKILL.md says most new kits should be mixins
+      type: file_match
+      asset_key: skill
+      pattern: 'Most\s+new\s+kits\s+should\s+be\s+mixins'
+    - id: sk3-p1-skill-pin-once
+      description: SKILL.md pins the tool version once and wires it through
+      type: file_match
+      asset_key: skill
+      pattern: 'Pin the tool once'
+    - id: sk3-p1-skill-build-enforces
+      description: SKILL.md makes the build enforce a pinned provide
+      type: file_match
+      asset_key: skill
+      pattern: 'make the build enforce it'
+    - id: sk3-p1-skill-no-platform-floor
+      description: SKILL.md says never to require the platform floor
+      type: file_match
+      asset_key: skill
+      pattern: 'Never\s+require\s+the\s+platform\s+floor'
+    - id: sk3-p1-skill-unfinished-grammar
+      description: SKILL.md identifies the schema-3 grammar as unfinished
+      type: file_match
+      asset_key: skill
+      pattern: 'schema-3\s+grammar\s+unfinished'
+    - id: sk3-p1-skill-no-deb-curl
+      description: SKILL.md does not recommend requiring deb/curl
+      type: file_must_not_match
+      asset_key: skill
+      pattern: 'requires:\s*\["deb/curl"\]'
+    - id: sk3-p1-caps-skeleton-buildarg
+      description: Descriptor skeleton wires the version arg to a build arg
+      type: file_match
+      asset_key: caps
+      pattern: 'buildArg: GH_VERSION'
+    - id: sk3-p1-caps-skeleton-provides
+      description: Descriptor skeleton derives provides from the version arg
+      type: file_match
+      asset_key: caps
+      pattern: 'provides: \["gh@\$\{\{ kit\.args\.version \}\}"\]'
+    - id: sk3-p1-caps-skeleton-fragment
+      description: Descriptor skeleton is labelled a fragment needing a companion recipe
+      type: file_match
+      asset_key: caps
+      pattern: 'This is a fragment, not a complete kit'
+    - id: sk3-p1-recipes-pin-claim
+      description: Recipe example makes the build enforce the version pin
+      type: file_match
+      asset_key: recipes
+      pattern: 'The pin is a claim about content: make the build enforce it'
 
 - eval: docker-sandboxes-kits
-  prompt: "Prompt 2: a minimal kit that should just work"
-  asset: skills/docker-sandboxes-kits/assets/spec-sandbox.yaml
+  prompt: "Prompt 2: mixin ownership of entrypoint and the agent's home"
+  assets:
+    skill: skills/docker-sandboxes-kits/SKILL.md
+    recipes: skills/docker-sandboxes-kits/references/v3-recipes.md
   checks:
-    - id: sk-sandbox-schema
-      description: Sandbox kit schema version is the string "2"
+    - id: sk3-p2-mixin-contract-fields
+      description: SKILL.md says a mixin cannot set ENTRYPOINT, CMD, USER or WORKDIR
+      type: file_match
+      asset_key: skill
+      pattern: 'A mixin cannot set `ENTRYPOINT`, `CMD`, `USER` or `WORKDIR`'
+    - id: sk3-p2-additive-fields
+      description: SKILL.md says env, labels, ports and volumes merge
+      type: file_match
+      asset_key: skill
+      pattern: 'additive\s+fields merge \(env, labels, ports, volumes\)'
+    - id: sk3-p2-chown-parent-trap
+      description: Recipes explain that COPY --chown owns every parent it creates
+      type: file_match
+      asset_key: recipes
+      pattern: 'BuildKit chowns every parent it creates'
+    - id: sk3-p2-chown-idiom
+      description: Recipes start the chown exactly at the agent home
+      type: file_match
+      asset_key: recipes
+      pattern: '&& chown -R 1000:1000 /out/home/agent$'
+    - id: sk3-p2-numeric-ids
+      description: Recipes require numeric ids because scratch has no passwd
+      type: file_match
+      asset_key: recipes
+      pattern: 'Numeric ids, because `scratch` carries no `/etc/passwd`'
+    - id: sk3-p2-tck-home-ownership
+      description: Recipes name the kit-tck overlay-home-ownership rule
+      type: file_match
+      asset_key: recipes
+      pattern: '`overlay-home-ownership`'
+    - id: sk3-p2-avoid-home
+      description: Recipes prefer /usr/local and /opt over the agent home
+      type: file_match
+      asset_key: recipes
+      pattern: 'Prefer `/usr/local` and `/opt`'
+    - id: sk3-p2-no-named-chown
+      description: Recipes do not chown to a user name
+      type: file_must_not_match
+      asset_key: recipes
+      pattern: 'chown(?: -R)? [A-Za-z_][A-Za-z0-9_-]*:'
+
+- eval: docker-sandboxes-kits
+  prompt: "Prompt 3: is `sbx kit validate` enough for a v3 kit?"
+  assets:
+    skill: skills/docker-sandboxes-kits/SKILL.md
+    verification: skills/docker-sandboxes-kits/checks/verification.md
+  checks:
+    - id: sk3-p3-validate-not-v3-check
+      description: SKILL.md states sbx kit validate is not a v3 check
+      type: file_match
+      asset_key: skill
+      pattern: '`sbx kit validate` is not a v3 check'
+    - id: sk3-p3-validate-not-accepted
+      description: SKILL.md says sbx kit validate does not accept a v3 source kit
+      type: file_match
+      asset_key: skill
+      pattern: 'does not accept a v3 source kit'
+    - id: sk3-p3-cacheonly
+      description: SKILL.md gives the buildx cacheonly descriptor check
+      type: file_match
+      asset_key: skill
+      pattern: '--output type=cacheonly'
+    - id: sk3-p3-tck-layout
+      description: SKILL.md gives the kit-tck layout check
+      type: file_match
+      asset_key: skill
+      pattern: 'kit-tck validate --layout /tmp/<kit>-layout <version>'
+    - id: sk3-p3-inspect
+      description: SKILL.md names sbx kit inspect as the v3-capable inspection command
+      type: file_match
+      asset_key: skill
+      pattern: 'sbx kit inspect ./<kit>'
+    - id: sk3-p3-container-builder
+      description: SKILL.md creates a named container-driver builder
+      type: file_match
+      asset_key: skill
+      pattern: 'docker buildx create --name kit-builder --driver docker-container --bootstrap'
+    - id: sk3-p3-build-not-proof
+      description: SKILL.md says a build is not proof the kit works
+      type: file_match
+      asset_key: skill
+      pattern: 'A build is not proof the kit works'
+    - id: sk3-p3-no-v2-validates-v3
+      description: SKILL.md never says a v2 command validates a v3 descriptor
+      type: file_must_not_match
+      asset_key: skill
+      pattern: '(?i)`sbx kit validate`[^\n]*\b(validates|confirms|proves)\b[^\n]*\bv3\b'
+    - id: sk3-p3-runbook-part-a
+      description: Verification runbook is a v3-only runbook
+      type: file_match
+      asset_key: verification
+      pattern: '^# Verification runbook for v3 kits'
+    - id: sk3-p3-runbook-not-v3-check
+      description: Verification runbook confirms sbx kit validate is not a v3 check
+      type: file_match
+      asset_key: verification
+      pattern: '^## A6\. Confirm `sbx kit validate` is not a v3 check'
+    - id: sk3-p3-runbook-tck
+      description: Verification runbook judges an exported layout with kit-tck
+      type: file_match
+      asset_key: verification
+      pattern: 'kit-tck validate --layout "\$WORK/layout" 0\.0\.0'
+    - id: sk3-p3-runbook-strict-decoding
+      description: Verification runbook checks strict decoding with a misspelled key
+      type: file_match
+      asset_key: verification
+      pattern: "replace\\('capabilities:', 'capabilites:', 1\\)"
+    - id: sk3-p3-runbook-scoped-cleanup
+      description: Verification runbook removes only its own uniquely named builder
+      type: file_match
+      asset_key: verification
+      pattern: '^docker buildx rm "\$BUILDER"$'
+    - id: sk3-p3-runbook-no-unscoped-prune
+      description: Verification runbook forbids unscoped prune as cleanup
+      type: file_match
+      asset_key: verification
+      pattern: 'do not substitute `docker buildx prune`'
+    - id: sk3-p3-runbook-no-publish
+      description: Verification runbook never pushes or signs
+      type: file_must_not_match
+      asset_key: verification
+      pattern: '--push\b|cosign (sign|verify)'
+
+- eval: docker-sandboxes-kits
+  prompt: "Prompt 4: capabilities for network, a token, and hook environment"
+  assets:
+    skill: skills/docker-sandboxes-kits/SKILL.md
+    caps: skills/docker-sandboxes-kits/references/v3-capabilities.md
+  checks:
+    - id: sk3-p4-phase-scoped
+      description: Capabilities reference says an absent network-policy phase grants nothing
+      type: file_match
+      asset_key: caps
+      pattern: 'an absent phase grants nothing'
+    - id: sk3-p4-exclusive-policies
+      description: Capabilities reference says network-policy@2 is exclusive with @1
+      type: file_match
+      asset_key: caps
+      pattern: 'Exclusive with `@1`'
+    - id: sk3-p4-verify-bound
+      description: Capabilities reference says to verify an enforced bound before relying on it
+      type: file_match
+      asset_key: caps
+      pattern: 'Verify the bound you rely on'
+    - id: sk3-p4-credential-optional
+      description: Capabilities reference makes credentials optional unless the kit cannot run unauthenticated
+      type: file_match
+      asset_key: caps
+      pattern: 'add `optional: true` unless the kit genuinely cannot run unauthenticated'
+    - id: sk3-p4-exact-domain
+      description: Capabilities reference says a wildcard does not satisfy a specific credential domain
+      type: file_match
+      asset_key: caps
+      pattern: '`\*\.example\.com` wildcard does not satisfy `api\.example\.com`'
+    - id: sk3-p4-hook-env-deny
+      description: Capabilities reference says hook environments are deny-by-default
+      type: file_match
+      asset_key: caps
+      pattern: 'Hook environments are \*\*deny-by-default\*\*'
+    - id: sk3-p4-proxy-vars
+      description: Capabilities reference names the proxy variables hooks need
+      type: file_match
+      asset_key: caps
+      pattern: '`HTTP_PROXY`/`HTTPS_PROXY`'
+    - id: sk3-p4-ssh-bounded
+      description: Capabilities reference bounds ssh-agent with unrestricted false
+      type: file_match
+      asset_key: caps
+      pattern: 'Set `unrestricted: false` to bound it'
+    - id: sk3-p4-no-speculative-privilege
+      description: Capabilities reference warns against speculative privileged declarations
+      type: file_match
+      asset_key: caps
+      pattern: 'Do not declare on speculation'
+    - id: sk3-p4-no-secret-values
+      description: Capabilities reference keeps secret values out of descriptors, args, and recipes
+      type: file_match
+      asset_key: caps
+      pattern: 'Do not put secret values in a descriptor, arg, or recipe'
+    - id: sk3-p4-skill-no-secret-values
+      description: SKILL.md keeps secret values out of descriptors, args, and recipes
+      type: file_match
+      asset_key: skill
+      pattern: 'Never\s+put\s+secret\s+values\s+in\s+a\s+descriptor,\s+arg,\s+or\s+recipe'
+    - id: sk3-p4-skill-phase-scoped
+      description: SKILL.md states network-policy@1 is phase-scoped
+      type: file_match
+      asset_key: skill
+      pattern: '`network-policy@1` is \*\*phase-scoped\*\*'
+    - id: sk3-p4-skill-widening
+      description: SKILL.md lists the widening capabilities not to declare on speculation
+      type: file_match
+      asset_key: skill
+      pattern: '`privileged@1`, `host-mount@1`, `host-port@1` and `dockerd@1` widen'
+
+- eval: docker-sandboxes-kits
+  prompt: "Prompt 5: publishing and signing a multi-platform v3 kit"
+  assets:
+    skill: skills/docker-sandboxes-kits/SKILL.md
+    publish: skills/docker-sandboxes-kits/references/v3-publish-and-sign.md
+  checks:
+    - id: sk3-p5-approval
+      description: Publish reference requires explicit approval of registry, repository, and tags
+      type: file_match
+      asset_key: publish
+      pattern: 'explicit\s+approval\s+for\s+the\s+exact\s+registry'
+    - id: sk3-p5-scratch-namespace
+      description: Publish reference recommends a scratch namespace for trials
+      type: file_match
+      asset_key: publish
+      pattern: 'use\s+a\s+scratch\s+namespace'
+    - id: sk3-p5-no-push-subcommand
+      description: Publish reference says publishing is the build with no kit push subcommand
+      type: file_match
+      asset_key: publish
+      pattern: 'no `kit push`\s+subcommand'
+    - id: sk3-p5-both-platforms
+      description: Publish reference pushes both platforms with minimal provenance in one build
+      type: file_match
+      asset_key: publish
+      pattern: '--platform linux/amd64,linux/arm64 --provenance=mode=min --push'
+    - id: sk3-p5-one-invocation
+      description: Publish reference says to push both platforms in one invocation
+      type: file_match
+      asset_key: publish
+      pattern: 'Push both platforms in one invocation'
+    - id: sk3-p5-validate-after-push
+      description: Publish reference validates the pushed reference with kit-tck
+      type: file_match
+      asset_key: publish
+      pattern: 'kit-tck validate <registry>/<kit>:<version>'
+    - id: sk3-p5-sign-digest
+      description: Publish reference signs the digest, never the tag
+      type: file_match
+      asset_key: publish
+      pattern: 'Sign the digest, never the tag'
+    - id: sk3-p5-recursive
+      description: Publish reference explains index-only signing and --recursive
+      type: file_match
+      asset_key: publish
+      pattern: 'Add `--recursive` to sign each discrete image'
+    - id: sk3-p5-full-identity
+      description: Publish reference pins the whole certificate identity
+      type: file_match
+      asset_key: publish
+      pattern: 'Name the whole identity, not a prefix of it'
+    - id: sk3-p5-pinned-kit-tck
+      description: Publish reference installs kit-tck from a pinned release rather than latest
+      type: file_match
+      asset_key: publish
+      pattern: 'install a pinned release tag or commit instead'
+    - id: sk3-p5-no-sbx-kit-push
+      description: Publish reference says not to use sbx kit push or sign for a v3 kit
+      type: file_match
+      asset_key: publish
+      pattern: 'Do not\s+use `sbx kit push` or `sbx kit sign` for a v3 kit'
+    - id: sk3-p5-skill-one-invocation
+      description: SKILL.md says to push both platforms in one invocation
+      type: file_match
+      asset_key: skill
+      pattern: 'Push both platforms in one invocation'
+    - id: sk3-p5-skill-whole-identity
+      description: SKILL.md pins the whole certificate identity, not an organization prefix
+      type: file_match
+      asset_key: skill
+      pattern: 'pin\s+the\s+whole\s+certificate\s+identity'
+    - id: sk3-p5-skill-approval
+      description: SKILL.md requires explicit approval before a registry push
+      type: file_match
+      asset_key: skill
+      pattern: 'Get\s+explicit\s+approval\s+for\s+the\s+exact\s+registry'
+
+- eval: docker-sandboxes-kits
+  prompt: "Prompt 6: an existing v2 kit and the migration skill"
+  assets:
+    skill: skills/docker-sandboxes-kits/SKILL.md
+    sources: skills/docker-sandboxes-kits/references/sources.md
+  checks:
+    - id: sk3-p6-v2-out-of-scope
+      description: SKILL.md says legacy v2 spec.yaml kits are not covered
+      type: file_match
+      asset_key: skill
+      pattern: 'are\s+not covered here'
+    - id: sk3-p6-offer-v3-rewrite
+      description: SKILL.md offers a new v3 descriptor instead of debugging the v2 kit
+      type: file_match
+      asset_key: skill
+      pattern: 'write the v3 kit as a new descriptor'
+    - id: sk3-p6-migrate-skill-unavailable
+      description: SKILL.md says the migration skill is not part of this catalog
+      type: file_match
+      asset_key: skill
+      pattern: 'not part of this catalog and may not be\s+installed'
+    - id: sk3-p6-no-invented-mapping
+      description: SKILL.md declines to invent a v2-to-v3 field mapping
+      type: file_match
+      asset_key: skill
+      pattern: 'does not map fields'
+    - id: sk3-p6-check-installed-sbx
+      description: SKILL.md says to check the installed sbx rather than assume format support
+      type: file_match
+      asset_key: skill
+      pattern: 'Check the installed `sbx`'
+    - id: sk3-p6-no-v2-authoring
+      description: SKILL.md gives no v2 authoring instructions
+      type: file_must_not_match
+      asset_key: skill
+      pattern: 'schemaVersion: "2"\s*\n\s*kind: (sandbox|mixin)'
+    - id: sk3-p6-sources-no-timeline
+      description: Sources record that v2 retirement is operator-stated with no source or timeline
+      type: file_match
+      asset_key: sources
+      pattern: 'gives no deprecation or removal timeline for v2'
+    - id: sk3-p6-sources-mapping-gap
+      description: Sources record that the field mapping was not supplied
+      type: file_match
+      asset_key: sources
+      pattern: 'was not supplied. No mapping is given here'
+    - id: sk3-p6-sources-public-evidence
+      description: Sources list v3 claims that need public evidence
+      type: file_match
+      asset_key: sources
+      pattern: 'v3 claims that need public evidence before publication'
+    - id: sk3-p6-sources-commit
+      description: Sources record the pinned v3 source commit
+      type: file_match
+      asset_key: sources
+      pattern: '4d932451613f8df89c8468e2bb7c5286882897ca'
+    - id: sk3-p6-sources-path-gap
+      description: Sources admit the in-repository source paths were not supplied
+      type: file_match
+      asset_key: sources
+      pattern: 'Their paths\s+inside that repository were not supplied'
+
+- eval: docker-sandboxes-kits
+  prompt: "Prompt 7: proving an overlay works when composed"
+  asset: skills/docker-sandboxes-kits/references/v3-recipes.md
+  checks:
+    - id: sk3-p7-compose-run
+      description: Recipes compose the overlay onto a workload with a detached named sandbox
+      type: file_match
+      pattern: '^sbx run \./<workload> --kit \./<kit> --detached --name t \.$'
+    - id: sk3-p7-exec
+      description: Recipes run the tool with sbx exec
+      type: file_match
+      pattern: '^sbx exec t tool --version$'
+    - id: sk3-p7-args-after-dashes
+      description: Recipes explain that arguments after -- are agent arguments
+      type: file_match
+      pattern: 'Arguments after `--` on `sbx run`\s+are \*\*agent\*\* arguments'
+    - id: sk3-p7-no-dashes-check
+      description: Recipes do not present sbx run with trailing tool arguments as the check
+      type: file_must_not_match
+      pattern: '^sbx run [^\n]* -- tool --version'
+    - id: sk3-p7-symlink-warning
+      description: Recipes explain kit-tck only warns about unresolved symlinks
+      type: file_match
+      pattern: '`overlay-links-resolve`'
+    - id: sk3-p7-shortcut-discards-config
+      description: Recipes say the COPY --from shortcut transfers files and nothing else
+      type: file_match
+      pattern: 'transfers the overlay.s \*\*files and nothing else\*\*'
+    - id: sk3-p7-owner-audit
+      description: Recipes count layer owners with numeric owner output
+      type: file_match
+      pattern: 'tar --numeric-owner -tvf'
+    - id: sk3-p7-awk-warning
+      description: Recipes warn not to simplify the owner-audit awk
+      type: file_match
+      pattern: 'The awk is doing real work'
+    - id: sk3-p7-cleanup-destructive
+      description: Recipes treat removing the test sandbox as destructive
+      type: file_match
+      pattern: 'removal is destructive, so\s+confirm'
+    - id: sk3-p7-local-images-destructive
+      description: Recipes route local test image removal through the guardrails skill
+      type: file_match
+      pattern: 'docker-destructive-guardrails'
+    - id: sk3-p7-links-resolve-to-skill
+      description: Recipes link to the skill's build-run-verify section, not a source-relative file
+      type: file_match
+      pattern: '\(\.\./SKILL\.md#v3-build-run-and-verify\)'
+    - id: sk3-p7-no-bypass-flag
+      description: Recipes do not copy a permission-bypass launch flag
+      type: file_must_not_match
+      pattern: 'dangerously-skip-permissions'
+
+- eval: docker-sandboxes-kits
+  prompt: "Routing metadata (static checks)"
+  assets:
+    skill_yaml: skills/docker-sandboxes-kits/skill.yaml
+    openai: skills/docker-sandboxes-kits/agents/openai.yaml
+    skill: skills/docker-sandboxes-kits/SKILL.md
+  checks:
+    - id: sk3-r-owns-v3
+      description: skill.yaml owns the v3 kit descriptor
+      type: file_match
+      asset_key: skill_yaml
+      pattern: '^  - kit-spec-v3$'
+    - id: sk3-r-no-v2-ownership
+      description: skill.yaml no longer owns the legacy v2 spec
+      type: file_must_not_match
+      asset_key: skill_yaml
+      pattern: '^  - (kit-spec-v2|spec\.yaml)$'
+    - id: sk3-r-delegates-lifecycle
+      description: skill.yaml still delegates sandbox lifecycle
+      type: file_match
+      asset_key: skill_yaml
+      pattern: '^  - docker-sandboxes-lifecycle$'
+    - id: sk3-r-no-migrate-delegate
+      description: skill.yaml does not delegate to the unavailable migration skill
+      type: file_must_not_match
+      asset_key: skill_yaml
+      pattern: '^  - migrate-kit-to-v3$'
+    - id: sk3-r-implicit-invocation
+      description: agents/openai.yaml keeps implicit invocation enabled
       type: yaml_value_equals
-      key: schemaVersion
-      value: "2"
-    - id: sk-sandbox-kind
-      description: Sandbox asset declares the sandbox kind
-      type: yaml_value_equals
-      key: kind
-      value: sandbox
-    - id: sk-sandbox-parent
-      description: Sandbox kit inherits the built-in shell agent
-      type: yaml_value_equals
-      key: extends
-      value: shell
-    - id: sk-no-invented-image
-      description: Sandbox kit does not override the inherited image
-      type: yaml_key_absent
-      key: sandbox.image
-
-- eval: docker-sandboxes-kits
-  prompt: "Prompt 3: mixin fails when composed, even though it validated"
-  skip: true
-  skip_reason: No duplicate-credential asset; schema validation versus composition requires a runtime check
-
-- eval: docker-sandboxes-kits
-  prompt: "Prompt 4: credential domain not allow-listed, and additive policy"
-  skip: true
-  skip_reason: No credential-policy asset; effective egress requires composition and a policy check
-
-- eval: docker-sandboxes-kits
-  prompt: "Prompt 5: publishing and trusting a kit"
-  skip: true
-  skip_reason: No signed asset; the manual snippet generates ephemeral keys and verifies tamper rejection
-
-- eval: docker-sandboxes-kits
-  prompt: "Prompt 6: CIDR and multi-label network rules"
-  skip: true
-  skip_reason: No runtime-matcher asset; CIDR and domain precedence require the manual source check
+      asset_key: openai
+      key: policy.allow_implicit_invocation
+      value: true
+    - id: sk3-r-description-v3-only
+      description: SKILL.md description scopes the skill to v3 and excludes legacy v2
+      type: file_match
+      asset_key: skill
+      pattern: 'Covers the v3 kit descriptor[\s\S]*Legacy v2 `spec.yaml` kits are not covered'
 
 # ─── docker-sandboxes-lifecycle ───────────────────────────────────────────────
 

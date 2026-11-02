@@ -20,6 +20,20 @@ for distribution releases.
   (`https://ai-backend-service.docker.com/mcp`) for Claude Code, Codex, Cursor,
   GitHub Copilot CLI, and Gemini CLI installations.
 
+### Changed
+
+- `docker-sandboxes-kits` (experimental) now covers v3 kit descriptors only and
+  is versioned 1.0.0 for the routing change. It teaches the v3 workflow
+  (`# syntax=docker/sandbox-kit:3`, workload or mixin, typed capabilities,
+  `docker buildx`, `kit-tck`, `sbx kit inspect`, publishing and signing), with
+  recipes, a complete declaration-only mixin asset, and a v3 verification
+  runbook. The earlier legacy v2 `spec.yaml` (`schemaVersion: "2"`) guidance,
+  assets, and `sbx kit` command references were removed because v2 is being
+  retired; the skill now offers a new v3 descriptor instead. `sbx kit validate`
+  is not a v3 check. Its evaluation runbook and checks cover v3 only, and its
+  provenance lists the v3 claims that still need public evidence. The
+  `migrate-kit-to-v3` skill named by the v3 source is not part of this catalog.
+
 ## [0.3.1] - 2026-09-29
 
 ### Added
