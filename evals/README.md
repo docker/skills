@@ -48,30 +48,46 @@ One runbook per catalogued skill. The table is generated from [`catalog.yaml`](.
 ## Live skill scenarios
 
 Scenarios in `skills/<skill-id>/evals/` automate a runbook-style prompt end
-to end. They test the skill against the real `sbx` CLI.
+to end. They test the skill against real CLI tools (e.g., `sbx` for Docker
+Sandboxes skills).
 
 [`scripts/skill_eval.py`](../scripts/skill_eval.py) runs each scenario in
 several steps:
 
-1. It creates a fresh directory with every repository skill under
+1. It creates a fresh directory with repository skills under
    `.claude/skills/` and the scenario's fixture files.
-2. It wraps `sbx` with a shim that logs every call.
-3. It runs `claude -p` with a narrow tool allowlist (`Skill`, `Bash(sbx:*)`,
-   read-only tools).
-4. It grades the transcript and the recorded `sbx` calls against the
+2. It runs `claude -p` with a narrow tool allowlist specified by the
+   scenario (e.g., `Skill`, `Bash(sbx:*)`, read-only tools).
+3. It extracts CLI calls from Bash tool invocations in the transcript.
+4. It grades the transcript and the recorded CLI calls against the
    scenario's expectations.
 
 Each scenario can check that:
 
 - the skill was loaded through the `Skill` tool;
-- the expected `sbx` calls happened in order, for example creating with the
+- the expected CLI calls happened in order, for example creating with the
   right mount and then running `exec`, `rm`, and `ls` on the same sandbox;
 - forbidden calls never happened;
-- the final sandbox state is correct;
 - the final answer contains the expected text.
 
+### Scenario format
+
+Scenarios are YAML files with these keys:
+
+- `id`, `skill`, `description`: metadata
+- `fixtures`: files to create in the agent's workspace
+- `prompt`: the user prompt (write naturally, without naming commands)
+- `limits`: max turns, budget, timeout
+- `tools.allowed`: additional tools beyond defaults (Skill, Read, Glob, Grep)
+- `cli`: configuration for parsing CLI calls (command name, how to extract
+  subcommands and target names, cleanup commands)
+- `expect.skill_invoked`: whether the skill must be loaded
+- `expect.steps`: ordered sequence of calls to match
+- `expect.forbid`: calls that must never appear
+- `expect.answer_contains`: text the final answer must include
+
 Run locally (requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code),
-`sbx` authenticated via `sbx login`, and optionally `ANTHROPIC_API_KEY`):
+the relevant CLI tools authenticated, and optionally `ANTHROPIC_API_KEY`):
 
 ```bash
 task eval:skills                                       # all scenarios
@@ -83,8 +99,8 @@ If `ANTHROPIC_API_KEY` is not set, the harness uses your normal Claude Code
 login (subscription). Use `--only-target-skill` to install only the skill
 under test.
 
-Artifacts go to `.skill-evals/`: the stream-json transcript, the `sbx` call
-log, and `report.json`.
+Artifacts go to `.skill-evals/`: the stream-json transcript and
+`report.json`.
 
 CI runs the `Live skill evals` workflow
 ([`.github/workflows/skill-evals.yml`](../.github/workflows/skill-evals.yml))
@@ -102,4 +118,5 @@ Offline `task ci` only runs the harness unit tests.
 To add a scenario, copy
 [`skills/docker-sandboxes-lifecycle/evals/mount-ls-delete.yaml`](../skills/docker-sandboxes-lifecycle/evals/mount-ls-delete.yaml).
 Write the prompt the way a user would, without naming the skill or the
-commands. Then express the expected behavior as `sbx` call steps.
+commands. Define the `cli` configuration for the tool you're testing, then
+express the expected behavior as call steps.

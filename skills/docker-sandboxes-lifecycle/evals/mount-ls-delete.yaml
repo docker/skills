@@ -27,36 +27,61 @@ limits:
   max_budget_usd: 1.00
   timeout_seconds: 600
 
+# Tool configuration for this scenario
+tools:
+  # Additional allowed tools beyond the defaults (Skill, Read, Glob, Grep)
+  allowed:
+    - "Bash(sbx:*)"
+    - "Bash(ls:*)"
+    - "Bash(cat:*)"
+    - "Bash(pwd)"
+
+# CLI tool to track in this scenario
+cli:
+  # The command prefix to extract from Bash calls
+  command: sbx
+  # How to parse the command into structured calls
+  # (subcommand is first non-flag arg after the command)
+  subcommand_index: 1
+  # How to extract the target name (e.g., sandbox name) from calls
+  name_flags: ["--name"]
+  name_positional_commands: ["exec", "stop", "rm", "cp", "ports"]
+  # Cleanup: list and remove resources created during the test
+  cleanup:
+    list: ["sbx", "ls", "-q"]
+    list_filter_prefix: "eval-"
+    remove: ["sbx", "rm", "--force"]
+
 expect:
   # The agent must load this skill through its Skill tool.
   skill_invoked: true
 
-  # Ordered `sbx` calls the agent must make. Each step matches the first
+  # Ordered CLI calls the agent must make. Each step matches the first
   # later recorded call satisfying every key. Keys:
-  #   subcommand        regex on the sbx subcommand
-  #   sandbox           sandbox name the call targeted ({name} uses a capture)
-  #   workspace_contains  paths that must appear in positional args
-  #   exec              regex on the command run by `sbx exec`
+  #   subcommand        regex on the CLI subcommand
+  #   name              target name the call used ({var} uses a capture)
+  #   args_contain      strings that must appear in positional args
+  #   args_match        regex on the full argument string
   #   flags             flags that must be present
-  #   capture           store the matched call's sandbox name for later steps
+  #   capture           store the matched call's target name for later steps
   steps:
     - description: creates a sandbox with ./notes as workspace
       subcommand: ^(create|run)$
-      workspace_contains: ["notes"]
+      args_contain: ["notes"]
       capture: box
     - description: lists sandboxes to confirm creation
       subcommand: ^ls$
     - description: lists the mounted directory from inside the sandbox
       subcommand: ^exec$
-      sandbox: "{box}"
-      exec: \b(ls|find|tree)\b
+      name: "{box}"
+      args_match: \b(ls|find|tree)\b
     - description: reads hello.txt content from inside the sandbox
       subcommand: ^exec$
-      sandbox: "{box}"
-      exec: \bcat\b.*hello
+      name: "{box}"
+      args_match: \bcat\b.*hello
     - description: removes the sandbox
       subcommand: ^rm$
-      sandbox: "{box}"
+      name: "{box}"
     - description: verifies the removal by listing sandboxes
       subcommand: ^ls$
 
@@ -69,10 +94,6 @@ expect:
       subcommand: ^prune$
     - description: no reset of all sandbox state
       subcommand: ^reset$
-
-  # Sandbox state after the run.
-  final:
-    sandbox_count: 0
 
   # Text the agent's final answer must contain.
   answer_contains: ["hello.txt", "todo.md", "hello from the host"]

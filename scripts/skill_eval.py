@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run live skill scenarios against Claude Code with the real sbx CLI.
+"""Run live skill scenarios against Claude Code.
 
 A scenario (skills/<skill-id>/evals/*.yaml) simulates a user prompt that
 should trigger a skill. The harness:
@@ -7,14 +7,13 @@ should trigger a skill. The harness:
 1. creates a fresh working directory containing the repository's skills under
    `.claude/skills/` plus the scenario's fixture files;
 2. runs Claude Code headlessly (`claude -p --output-format stream-json`) with
-   a narrow tool allowlist;
-3. extracts sbx calls from the Bash tool invocations in the transcript;
-4. grades the transcript and the sbx calls against the scenario's
-   expectations, cleans up sandboxes, writes artifacts, and exits nonzero on
+   the scenario's allowed tools;
+3. extracts CLI calls from the Bash tool invocations in the transcript;
+4. grades the transcript and the CLI calls against the scenario's
+   expectations, cleans up resources, writes artifacts, and exits nonzero on
    any failure.
 
 This calls a live model and needs ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN.
-It also needs the `sbx` CLI installed and authenticated (`sbx login`).
 It is intentionally not part of offline `task ci`.
 
 Usage:
@@ -47,10 +46,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = REPO_ROOT / "skills"
 DEFAULT_OUT = REPO_ROOT / ".skill-evals"
 
-ALLOWED_TOOLS = ["Skill", "Bash(sbx:*)", "Bash(ls:*)", "Bash(cat:*)", "Bash(pwd)", "Read", "Glob", "Grep"]
-DISALLOWED_TOOLS = ["WebFetch", "WebSearch", "Task", "Write", "Edit", "NotebookEdit"]
+# Default allowed tools; scenarios can add more via tools.allowed
+DEFAULT_ALLOWED_TOOLS = ["Skill", "Read", "Glob", "Grep"]
+DEFAULT_DISALLOWED_TOOLS = ["WebFetch", "WebSearch", "Task", "Write", "Edit", "NotebookEdit"]
 STRIPPED_ENV_PREFIXES = ("DOCKER_CLI_PLUGIN_",)
-STEP_KEYS = {"description", "subcommand", "exit", "sandbox", "workspace_contains", "exec", "flags", "capture"}
+STEP_KEYS = {"description", "subcommand", "name", "args_contain", "args_match", "flags", "capture"}
 DEFAULT_LIMITS = {"max_turns": 30, "max_budget_usd": 1.0, "timeout_seconds": 600}
 
 
@@ -61,6 +61,18 @@ class ScenarioError(Exception):
 # ─── scenarios ───────────────────────────────────────────────────────────────
 
 @dataclasses.dataclass
+class CLIConfig:
+    """Configuration for extracting and cleaning up CLI calls."""
+    command: str
+    subcommand_index: int = 1
+    name_flags: list[str] = dataclasses.field(default_factory=list)
+    name_positional_commands: list[str] = dataclasses.field(default_factory=list)
+    cleanup_list: list[str] = dataclasses.field(default_factory=list)
+    cleanup_filter_prefix: str = ""
+    cleanup_remove: list[str] = dataclasses.field(default_factory=list)
+
+
+@dataclasses.dataclass
 class Scenario:
     path: Path
     id: str
@@ -69,6 +81,8 @@ class Scenario:
     fixtures: dict[str, str]
     limits: dict[str, Any]
     expect: dict[str, Any]
+    allowed_tools: list[str]
+    cli: CLIConfig | None
 
     @property
     def key(self) -> str:
@@ -102,7 +116,27 @@ def load_scenario(path: Path) -> Scenario:
             if unknown:
                 raise ScenarioError(f"{path}: expect.{kind}[{index}] has unknown keys {sorted(unknown)}")
     limits = {**DEFAULT_LIMITS, **(data.get("limits") or {})}
-    return Scenario(path, str(data["id"]), skill, str(data["prompt"]), fixtures, limits, expect)
+    
+    # Tool configuration
+    tools_config = data.get("tools") or {}
+    allowed_tools = list(DEFAULT_ALLOWED_TOOLS) + (tools_config.get("allowed") or [])
+    
+    # CLI configuration
+    cli = None
+    cli_config = data.get("cli")
+    if cli_config:
+        cleanup = cli_config.get("cleanup") or {}
+        cli = CLIConfig(
+            command=cli_config.get("command", ""),
+            subcommand_index=cli_config.get("subcommand_index", 1),
+            name_flags=cli_config.get("name_flags") or [],
+            name_positional_commands=cli_config.get("name_positional_commands") or [],
+            cleanup_list=cleanup.get("list") or [],
+            cleanup_filter_prefix=cleanup.get("list_filter_prefix", ""),
+            cleanup_remove=cleanup.get("remove") or [],
+        )
+    
+    return Scenario(path, str(data["id"]), skill, str(data["prompt"]), fixtures, limits, expect, allowed_tools, cli)
 
 
 def discover(paths: list[str], skill: str | None) -> list[Scenario]:
@@ -151,27 +185,29 @@ class Transcript:
             names.append(str(name).split(":")[-1].lstrip("/"))
         return names
 
-    def sbx_calls(self) -> list[dict[str, Any]]:
-        """Extract sbx commands from Bash tool calls."""
+    def cli_calls(self, cli: CLIConfig) -> list[dict[str, Any]]:
+        """Extract CLI commands from Bash tool calls."""
+        if not cli or not cli.command:
+            return []
         calls = []
+        cmd = cli.command
         for tc in self.tool_calls:
             if tc.name != "Bash":
                 continue
             command = tc.input.get("command", "")
-            # Extract sbx commands from the shell command
-            # Handle both direct "sbx ..." and commands with redirections
+            # Extract CLI commands from the shell command
             for line in command.split("\n"):
                 line = line.strip()
                 # Remove trailing redirections for parsing
                 clean = re.sub(r'\s+2>&1.*$', '', line)
                 clean = re.sub(r'\s+>\s*/dev/null.*$', '', clean)
                 clean = re.sub(r'\s+2>/dev/null.*$', '', clean)
-                if clean.startswith("sbx "):
+                if clean.startswith(f"{cmd} ") or clean == cmd:
                     try:
                         argv = shlex.split(clean)
                     except ValueError:
                         argv = clean.split()
-                    calls.append(enrich_call({"argv": argv, "command": command}))
+                    calls.append(enrich_call({"argv": argv, "command": command}, cli))
         return calls
 
 
@@ -223,33 +259,39 @@ def parse_transcript(lines: Iterable[str]) -> Transcript:
     return Transcript(skills, [calls[i] for i in order], final or "", result)
 
 
-def enrich_call(call: dict[str, Any]) -> dict[str, Any]:
-    """Add subcommand, sandbox, and other parsed fields to a call."""
+def enrich_call(call: dict[str, Any], cli: CLIConfig) -> dict[str, Any]:
+    """Add subcommand, name, and other parsed fields to a call."""
     argv = call.get("argv") or []
-    # Skip 'sbx' and global flags to find subcommand
-    i = 1 if argv and argv[0] in ("sbx", "./sbx") else 0
+    # Skip command and global flags to find subcommand
+    i = cli.subcommand_index if len(argv) > cli.subcommand_index else 0
+    # Skip any leading flags
     while i < len(argv) and argv[i].startswith("-"):
-        if argv[i] in ("--app-name",) and i + 1 < len(argv):
+        # Handle flags with values
+        if i + 1 < len(argv) and not argv[i + 1].startswith("-"):
             i += 2
         else:
             i += 1
     call["subcommand"] = argv[i] if i < len(argv) else None
     call["positionals"] = argv[i + 1:] if i < len(argv) else []
     call["flags"] = {a: True for a in argv if a.startswith("-")}
-    # Extract sandbox name from positionals for relevant commands
-    if call["subcommand"] in ("exec", "stop", "rm", "cp", "ports"):
-        # First positional is usually the sandbox name
+    
+    # Extract target name based on CLI config
+    if call["subcommand"] in cli.name_positional_commands:
+        # First non-flag positional is the name
         pos = [p for p in call["positionals"] if not p.startswith("-")]
         if pos:
-            call["sandbox"] = pos[0]
-    elif call["subcommand"] in ("create", "run"):
-        # Look for --name flag
-        for j, arg in enumerate(argv):
-            if arg == "--name" and j + 1 < len(argv):
-                call["sandbox"] = argv[j + 1]
-                break
-            if arg.startswith("--name="):
-                call["sandbox"] = arg.split("=", 1)[1]
+            call["name"] = pos[0]
+    else:
+        # Look for name in flags
+        for flag in cli.name_flags:
+            for j, arg in enumerate(argv):
+                if arg == flag and j + 1 < len(argv):
+                    call["name"] = argv[j + 1]
+                    break
+                if arg.startswith(f"{flag}="):
+                    call["name"] = arg.split("=", 1)[1]
+                    break
+            if "name" in call:
                 break
     return call
 
@@ -281,33 +323,30 @@ def describe_call(call: dict[str, Any]) -> str:
             short.append("..." + arg[-40:])
         else:
             short.append(arg)
-    return f"sbx {' '.join(short[1:])}" if short else "sbx"
+    return " ".join(short)
 
 
 def match_step(step: dict[str, Any], call: dict[str, Any], variables: dict[str, str]) -> str | None:
     """Return None when `call` satisfies `step`, else the first mismatch."""
     if "subcommand" in step and not re.search(step["subcommand"], call.get("subcommand") or ""):
         return f"subcommand {call.get('subcommand')!r} !~ {step['subcommand']!r}"
-    if "sandbox" in step:
+    if "name" in step:
         try:
-            wanted = expand(step["sandbox"], variables)
+            wanted = expand(step["name"], variables)
         except KeyError as exc:
             return f"capture {exc} is not set"
-        if call.get("sandbox") != wanted:
-            return f"sandbox {call.get('sandbox')!r} != {wanted!r}"
-    if "workspace_contains" in step:
-        # Check that positional args contain the workspace path
+        if call.get("name") != wanted:
+            return f"name {call.get('name')!r} != {wanted!r}"
+    if "args_contain" in step:
         positionals = " ".join(call.get("positionals") or [])
-        for raw in step["workspace_contains"]:
+        for raw in step["args_contain"]:
             wanted = expand(raw, variables)
             if wanted not in positionals:
-                return f"workspace {wanted} not in positionals"
-    if "exec" in step:
-        positionals = call.get("positionals") or []
-        # For exec, command starts after sandbox name
-        command = " ".join(positionals[1:]) if len(positionals) > 1 else ""
-        if not command or not re.search(step["exec"], command):
-            return f"exec command {command!r} !~ {step['exec']!r}"
+                return f"args don't contain {wanted!r}"
+    if "args_match" in step:
+        positionals = " ".join(call.get("positionals") or [])
+        if not re.search(step["args_match"], positionals):
+            return f"args {positionals!r} !~ {step['args_match']!r}"
     if "flags" in step:
         missing = [f for f in step["flags"] if f not in (call.get("flags") or {})]
         if missing:
@@ -330,26 +369,20 @@ def grade_steps(steps: list[dict[str, Any]], calls: list[dict[str, Any]], variab
             if "subcommand" not in step or re.search(step["subcommand"], calls[position].get("subcommand") or ""):
                 misses.append(f"{describe_call(calls[position])}: {reason}")
         if found is None:
-            detail = "no matching sbx call"
+            detail = "no matching call"
             if misses:
                 detail += "; near misses: " + " | ".join(misses[:3])
             checks.append(Check(name, False, detail))
             continue
         call = calls[found]
         if step.get("capture"):
-            variables[step["capture"]] = call.get("sandbox") or ""
+            variables[step["capture"]] = call.get("name") or ""
         checks.append(Check(name, True, describe_call(call)))
         cursor = found + 1
     return checks
 
 
-def is_help(call: dict[str, Any]) -> bool:
-    argv = call.get("argv") or []
-    return "--help" in argv or "-h" in argv or call.get("subcommand") == "help"
-
-
-def grade(scenario: Scenario, transcript: Transcript, calls: list[dict[str, Any]],
-          sandbox_names: list[str], workspace: str) -> list[Check]:
+def grade(scenario: Scenario, transcript: Transcript, calls: list[dict[str, Any]], workspace: str) -> list[Check]:
     expect = scenario.expect
     variables = {"workspace": os.path.realpath(workspace)}
     checks: list[Check] = []
@@ -376,11 +409,6 @@ def grade(scenario: Scenario, transcript: Transcript, calls: list[dict[str, Any]
         checks.append(Check(f"forbidden: {rule.get('description', rule)}", not offenders,
                             "; ".join(describe_call(c) for c in offenders)))
 
-    final = expect.get("final") or {}
-    if "sandbox_count" in final:
-        checks.append(Check(f"final sandbox count is {final['sandbox_count']}",
-                            len(sandbox_names) == final["sandbox_count"], f"remaining: {sandbox_names or 'none'}"))
-
     answer = transcript.final_text.lower()
     for needle in expect.get("answer_contains") or []:
         checks.append(Check(f"answer mentions {needle!r}", needle.lower() in answer))
@@ -390,7 +418,7 @@ def grade(scenario: Scenario, transcript: Transcript, calls: list[dict[str, Any]
 
 # ─── running the agent ───────────────────────────────────────────────────────
 
-def prepare_workspace(scenario: Scenario, run_dir: Path, prefix: str, only_target_skill: bool) -> dict[str, Path]:
+def prepare_workspace(scenario: Scenario, run_dir: Path, only_target_skill: bool) -> dict[str, Path]:
     sandbox_root = Path(tempfile.mkdtemp(prefix=f"skill-eval-{scenario.id}-"))
     paths = {
         "root": sandbox_root,
@@ -411,22 +439,14 @@ def prepare_workspace(scenario: Scenario, run_dir: Path, prefix: str, only_targe
     return paths
 
 
-def find_sbx() -> str:
-    """Find the real sbx binary."""
-    sbx = shutil.which("sbx")
-    if not sbx:
-        raise ScenarioError("sbx CLI not found; install Docker Sandboxes and run 'sbx login'")
-    return sbx
-
-
 def agent_command(scenario: Scenario, args: argparse.Namespace, use_host_config: bool) -> list[str]:
     limits = scenario.limits
     command = [
         args.claude_bin, "-p", scenario.prompt,
         "--output-format", "stream-json", "--verbose",
         "--permission-mode", "dontAsk",
-        "--allowedTools", *ALLOWED_TOOLS,
-        "--disallowedTools", *DISALLOWED_TOOLS,
+        "--allowedTools", *scenario.allowed_tools,
+        "--disallowedTools", *DEFAULT_DISALLOWED_TOOLS,
         "--strict-mcp-config",
         "--no-session-persistence",
         "--max-turns", str(limits["max_turns"]),
@@ -460,32 +480,33 @@ def has_api_credentials() -> bool:
     return False
 
 
-def list_sandboxes(prefix: str) -> list[str]:
-    """List sandbox names that start with our prefix."""
+def cleanup_resources(scenario: Scenario, prefix: str) -> None:
+    """Clean up resources created during the test using scenario's CLI config."""
+    cli = scenario.cli
+    if not cli or not cli.cleanup_list or not cli.cleanup_remove:
+        return
     try:
-        result = subprocess.run(["sbx", "ls", "--json"], capture_output=True, text=True, timeout=30, check=False)
+        # List resources
+        result = subprocess.run(cli.cleanup_list, capture_output=True, text=True, timeout=30, check=False)
         if result.returncode != 0:
-            return []
-        sandboxes = json.loads(result.stdout)
-        return [s["name"] for s in sandboxes if s.get("name", "").startswith(prefix)]
-    except (json.JSONDecodeError, subprocess.TimeoutExpired, FileNotFoundError):
-        return []
-
-
-def cleanup_sandboxes(prefix: str) -> None:
-    """Remove all sandboxes created during this run."""
-    names = list_sandboxes(prefix)
-    if names:
-        subprocess.run(["sbx", "rm", "--force", *names], capture_output=True, timeout=60, check=False)
+            return
+        # Filter by prefix
+        names = [line.strip() for line in result.stdout.splitlines() 
+                 if line.strip().startswith(cli.cleanup_filter_prefix or prefix)]
+        # Remove matching resources
+        if names:
+            subprocess.run([*cli.cleanup_remove, *names], capture_output=True, timeout=60, check=False)
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
 
 
 def run_scenario(scenario: Scenario, args: argparse.Namespace, run_dir: Path, use_host_config: bool) -> list[Check]:
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate a unique prefix for sandbox names created in this run
+    # Generate a unique prefix for resources created in this run
     prefix = f"eval-{int(time.time())}-{os.getpid()}-"
 
-    paths = prepare_workspace(scenario, run_dir, prefix, args.only_target_skill)
+    paths = prepare_workspace(scenario, run_dir, args.only_target_skill)
     command = agent_command(scenario, args, use_host_config)
     meta = {
         "scenario": str(scenario.path.relative_to(REPO_ROOT)),
@@ -509,12 +530,8 @@ def run_scenario(scenario: Scenario, args: argparse.Namespace, run_dir: Path, us
     except FileNotFoundError as exc:
         raise ScenarioError(f"cannot start agent {args.claude_bin!r}: {exc}") from exc
 
-    # Get final sandbox state before cleanup
-    sandbox_names = list_sandboxes(prefix)
-    (run_dir / "sandboxes.json").write_text(json.dumps(sandbox_names, indent=2), encoding="utf-8")
-
-    # Clean up sandboxes
-    cleanup_sandboxes(prefix)
+    # Clean up resources
+    cleanup_resources(scenario, prefix)
 
     # Grade
     checks = regrade(run_dir)
@@ -529,11 +546,9 @@ def regrade(run_dir: Path) -> list[Check]:
     meta = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
     scenario = load_scenario(REPO_ROOT / meta["scenario"])
     transcript = parse_transcript((run_dir / "transcript.jsonl").read_text(encoding="utf-8").splitlines())
-    calls = transcript.sbx_calls()
-    sandbox_path = run_dir / "sandboxes.json"
-    sandbox_names = json.loads(sandbox_path.read_text(encoding="utf-8")) if sandbox_path.exists() else []
+    calls = transcript.cli_calls(scenario.cli) if scenario.cli else []
 
-    checks = grade(scenario, transcript, calls, sandbox_names, meta["workspace"])
+    checks = grade(scenario, transcript, calls, meta["workspace"])
     report = {
         **meta,
         "passed": all(c.passed for c in checks),
@@ -543,9 +558,8 @@ def regrade(run_dir: Path) -> list[Check]:
         "duration_ms": transcript.result.get("duration_ms"),
         "permission_denials": transcript.result.get("permission_denials"),
         "skills_invoked": transcript.invoked_skills(),
-        "sbx_calls": [describe_call(c) for c in calls],
+        "cli_calls": [describe_call(c) for c in calls],
         "final_answer": transcript.final_text[:2000],
-        "sandboxes_remaining": sandbox_names,
     }
     (run_dir / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     return checks
@@ -562,7 +576,7 @@ def print_report(label: str, run_dir: Path, checks: list[Check]) -> None:
         print(f"  {mark} {check.name}{detail}")
     report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
     print(f"  turns={report.get('num_turns')} cost=${report.get('cost_usd') or 0:.4f} skills={report.get('skills_invoked')}")
-    for call in report.get("sbx_calls") or []:
+    for call in report.get("cli_calls") or []:
         print(f"    {call}")
 
 
@@ -627,12 +641,6 @@ def main(argv: list[str] | None = None) -> int:
         if not shutil.which(args.claude_bin):
             print(f"skill-eval: {args.claude_bin!r} not found; install Claude Code (npm install -g @anthropic-ai/claude-code)",
                   file=sys.stderr)
-            return 2
-        # Check sbx is available and authenticated
-        find_sbx()
-        auth_check = subprocess.run(["sbx", "ls", "--json"], capture_output=True, text=True, timeout=30, check=False)
-        if auth_check.returncode != 0 or "not signed in" in auth_check.stderr.lower():
-            print(f"skill-eval: sbx is not authenticated; run 'sbx login' first", file=sys.stderr)
             return 2
 
         # Auto-enable host config if no API key is set (use subscription login)

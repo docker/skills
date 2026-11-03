@@ -1,12 +1,10 @@
 import argparse
 import json
 import os
-import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest import mock
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -32,12 +30,23 @@ def transcript_lines(skill: str | None, final: str, subtype: str = "success") ->
     return [json.dumps(e) for e in events]
 
 
+def make_cli_config() -> skill_eval.CLIConfig:
+    """Create the CLI config used by the docker-sandboxes scenario."""
+    return skill_eval.CLIConfig(
+        command="sbx",
+        subcommand_index=1,
+        name_flags=["--name"],
+        name_positional_commands=["exec", "stop", "rm", "cp", "ports"],
+    )
+
+
 def make_calls(*specs: tuple) -> list[dict]:
     """Create call records from (subcommand, *args) tuples."""
+    cli = make_cli_config()
     calls = []
     for spec in specs:
         argv = ["sbx"] + list(spec)
-        call = skill_eval.enrich_call({"argv": argv, "command": " ".join(argv)})
+        call = skill_eval.enrich_call({"argv": argv, "command": " ".join(argv)}, cli)
         calls.append(call)
     return calls
 
@@ -53,7 +62,7 @@ class TranscriptParsingTests(unittest.TestCase):
         transcript = skill_eval.parse_transcript(transcript_lines(None, "done"))
         self.assertEqual(transcript.invoked_skills(), [])
 
-    def test_extract_sbx_calls_from_bash(self):
+    def test_extract_cli_calls_from_bash(self):
         events = [
             {"type": "system", "subtype": "init", "skills": []},
             {"type": "assistant", "message": {"content": [
@@ -71,36 +80,41 @@ class TranscriptParsingTests(unittest.TestCase):
             {"type": "result", "subtype": "success", "result": "done"},
         ]
         transcript = skill_eval.parse_transcript([json.dumps(e) for e in events])
-        calls = transcript.sbx_calls()
+        cli = make_cli_config()
+        calls = transcript.cli_calls(cli)
         self.assertEqual(len(calls), 3)
         self.assertEqual(calls[0]["subcommand"], "run")
-        self.assertEqual(calls[0]["sandbox"], "mybox")
+        self.assertEqual(calls[0]["name"], "mybox")
         self.assertEqual(calls[1]["subcommand"], "exec")
         self.assertEqual(calls[2]["subcommand"], "rm")
 
 
 class CallEnrichmentTests(unittest.TestCase):
     def test_enrich_create_with_name(self):
-        call = skill_eval.enrich_call({"argv": ["sbx", "create", "--name", "mybox", "shell", "/path/to/workspace"]})
+        cli = make_cli_config()
+        call = skill_eval.enrich_call({"argv": ["sbx", "create", "--name", "mybox", "shell", "/path/to/workspace"]}, cli)
         self.assertEqual(call["subcommand"], "create")
-        self.assertEqual(call["sandbox"], "mybox")
+        self.assertEqual(call["name"], "mybox")
         self.assertIn("/path/to/workspace", call["positionals"])
 
     def test_enrich_run_with_name(self):
-        call = skill_eval.enrich_call({"argv": ["sbx", "run", "shell", "--name", "mybox", "-d", "/workspace/notes"]})
+        cli = make_cli_config()
+        call = skill_eval.enrich_call({"argv": ["sbx", "run", "shell", "--name", "mybox", "-d", "/workspace/notes"]}, cli)
         self.assertEqual(call["subcommand"], "run")
-        self.assertEqual(call["sandbox"], "mybox")
+        self.assertEqual(call["name"], "mybox")
 
     def test_enrich_exec(self):
-        call = skill_eval.enrich_call({"argv": ["sbx", "exec", "mybox", "ls", "-la", "/workspace/notes"]})
+        cli = make_cli_config()
+        call = skill_eval.enrich_call({"argv": ["sbx", "exec", "mybox", "ls", "-la", "/workspace/notes"]}, cli)
         self.assertEqual(call["subcommand"], "exec")
-        self.assertEqual(call["sandbox"], "mybox")
+        self.assertEqual(call["name"], "mybox")
         self.assertEqual(call["positionals"], ["mybox", "ls", "-la", "/workspace/notes"])
 
     def test_enrich_rm(self):
-        call = skill_eval.enrich_call({"argv": ["sbx", "rm", "--force", "mybox"]})
+        cli = make_cli_config()
+        call = skill_eval.enrich_call({"argv": ["sbx", "rm", "--force", "mybox"]}, cli)
         self.assertEqual(call["subcommand"], "rm")
-        self.assertEqual(call["sandbox"], "mybox")
+        self.assertEqual(call["name"], "mybox")
 
 
 class GradingTests(unittest.TestCase):
@@ -108,10 +122,10 @@ class GradingTests(unittest.TestCase):
         self.scenario = skill_eval.load_scenario(SCENARIO)
         self.workspace = "/workspace"
 
-    def grade(self, calls, skill="docker-sandboxes-lifecycle", final="Found hello.txt and todo.md",
-              subtype="success", sandbox_names=None):
+    def grade(self, calls, skill="docker-sandboxes-lifecycle", final="Found hello.txt and todo.md and hello from the host",
+              subtype="success"):
         transcript = skill_eval.parse_transcript(transcript_lines(skill, final, subtype))
-        return skill_eval.grade(self.scenario, transcript, calls, sandbox_names or [], self.workspace)
+        return skill_eval.grade(self.scenario, transcript, calls, self.workspace)
 
     def failed(self, checks):
         return [c.name for c in checks if not c.passed]
@@ -119,7 +133,9 @@ class GradingTests(unittest.TestCase):
     def happy_path_calls(self):
         return make_calls(
             ("run", "shell", "--name", "notes-box", "-d", "/workspace/notes"),
+            ("ls", "--json"),
             ("exec", "notes-box", "ls", "/workspace/notes"),
+            ("exec", "notes-box", "cat", "/workspace/notes/hello.txt"),
             ("rm", "--force", "notes-box"),
             ("ls", "--json"),
         )
@@ -135,7 +151,9 @@ class GradingTests(unittest.TestCase):
     def test_create_without_workspace_fails_step(self):
         calls = make_calls(
             ("create", "--name", "mybox", "shell"),  # no workspace path
+            ("ls",),
             ("exec", "mybox", "ls"),
+            ("exec", "mybox", "cat", "hello.txt"),
             ("rm", "--force", "mybox"),
             ("ls"),
         )
@@ -145,36 +163,37 @@ class GradingTests(unittest.TestCase):
     def test_exec_on_another_sandbox_fails(self):
         calls = make_calls(
             ("create", "--name", "notes-box", "shell", "/workspace/notes"),
+            ("ls",),
             ("exec", "other-box", "ls", "/workspace/notes"),  # wrong sandbox
+            ("exec", "notes-box", "cat", "hello.txt"),
             ("rm", "--force", "notes-box"),
             ("ls"),
         )
         failed = self.failed(self.grade(calls))
-        self.assertIn("step 2: lists the mounted directory from inside the sandbox", failed)
+        self.assertIn("step 3: lists the mounted directory from inside the sandbox", failed)
 
     def test_missing_rm_fails(self):
         calls = make_calls(
             ("run", "shell", "--name", "notes-box", "-d", "/workspace/notes"),
+            ("ls",),
             ("exec", "notes-box", "ls", "/workspace/notes"),
+            ("exec", "notes-box", "cat", "hello.txt"),
             ("ls"),  # no rm
         )
         failed = self.failed(self.grade(calls))
-        self.assertIn("step 3: removes the sandbox", failed)
+        self.assertIn("step 5: removes the sandbox", failed)
 
     def test_forbidden_bulk_removal_fails(self):
         calls = make_calls(
             ("run", "shell", "--name", "notes-box", "-d", "/workspace/notes"),
+            ("ls",),
             ("exec", "notes-box", "ls", "/workspace/notes"),
+            ("exec", "notes-box", "cat", "hello.txt"),
             ("rm", "--all", "--force"),  # forbidden
             ("ls"),
         )
         failed = self.failed(self.grade(calls))
         self.assertIn("forbidden: no bulk removal of every sandbox", failed)
-
-    def test_leftover_sandbox_fails(self):
-        calls = self.happy_path_calls()
-        failed = self.failed(self.grade(calls, sandbox_names=["notes-box"]))
-        self.assertIn("final sandbox count is 0", failed)
 
     def test_unfinished_agent_fails(self):
         calls = self.happy_path_calls()
@@ -219,7 +238,7 @@ class HarnessTests(unittest.TestCase):
     def test_workspace_preparation(self):
         scenario = skill_eval.load_scenario(SCENARIO)
         with tempfile.TemporaryDirectory() as tmp:
-            paths = skill_eval.prepare_workspace(scenario, Path(tmp), "test-", only_target_skill=True)
+            paths = skill_eval.prepare_workspace(scenario, Path(tmp), only_target_skill=True)
             try:
                 skills = sorted(p.name for p in (paths["workspace"] / ".claude" / "skills").iterdir())
                 self.assertEqual(skills, ["docker-sandboxes-lifecycle"])

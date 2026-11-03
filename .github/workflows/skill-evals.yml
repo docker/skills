@@ -1,7 +1,7 @@
 name: Live skill evals
 
-# Runs evals/scenarios/ with Claude Code against the real sbx CLI. Calls a
-# live model and needs Docker Sandboxes authentication, so it stays out of
+# Runs skills/*/evals/*.yaml with Claude Code against real CLIs. Calls a
+# live model and may need tool-specific authentication, so it stays out of
 # offline `task ci`.
 on:
   pull_request:
@@ -104,7 +104,7 @@ jobs:
           # Run in kvm group context
           sg kvm -c '.venv/bin/python scripts/skill_eval.py ${INPUT_SKILL:+--skill "$INPUT_SKILL"}'
 
-      - name: Upload transcripts and sbx call logs
+      - name: Upload transcripts and call logs
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
