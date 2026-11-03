@@ -2,226 +2,246 @@
 
 Skill under test: `skills/docker-sandboxes-kits/`
 
+The skill covers v3 kit descriptors only. Legacy v2 `spec.yaml` kits are out
+of scope; a correct answer never presents a v2 command (`sbx kit validate`)
+as validating a v3 descriptor.
+
 Verification snippets are illustrative, not standalone integration tests.
 Run them only against disposable resources with a fresh `APP` suffix (at
-most 20 characters) and an initialized isolated policy. Follow the skill's
-`checks/verification.md` for prerequisites and cleanup. Never substitute
-the default daemon or approve untrusted files just to execute an eval.
+most 20 characters) and a uniquely named builder. Follow the skill's
+`checks/verification.md` for prerequisites and cleanup. Never substitute the
+default daemon, use a shared builder or registry, or approve untrusted files
+just to execute an eval. The deterministic checks in `evals/eval-checks.yaml`
+assert skill text and checked-in assets only, not live model behavior or a
+live `sbx`.
 
 ---
 
-## Prompt 1: adding a tool to an existing agent
+## Prompt 1: a new kit for a CLI (mixin vs workload, version pin)
 
 **Prompt to agent:**
 
-> I want to add a Postgres MCP server as a reusable extra I can attach to
-> any claude sandbox, without rewriting the whole claude kit.
+> I want to package the `gh` CLI as a reusable Docker Sandboxes kit I can
+> attach to any agent. How should I structure it, and how do I pin the
+> version?
 
 ### Expected behaviors
-- [ ] Recommends a `kind: mixin` kit, not `kind: sandbox`.
-- [ ] States a mixin must not declare a `sandbox:`, `extends:`, or `mixins:`
-      block.
-- [ ] Shows or references a `setup.install` command to install the MCP
-      server tool.
-- [ ] Flags `sbx kit`/kit spec as experimental.
+- [ ] Recommends a v3 `kind: mixin` (it adds a tool to somebody else's
+      environment) and explains the workload-versus-mixin distinction.
+- [ ] Uses the companion-pair layout: `<kit>.yaml` whose first line is
+      `# syntax=docker/sandbox-kit:3`, plus a `<kit>.dockerfile` content
+      recipe.
+- [ ] Declares one build-phase `version` arg that drives the install, the
+      `provides` entry, and the top-level `version:`, and has the build
+      re-read the installed version and fail on a mismatch.
+- [ ] Declares no `requires` it does not need, and does not require the
+      platform floor (`curl`, `git`, `bash`).
+- [ ] Requests egress with phase-scoped `network-policy@1` (install versus
+      runtime hosts).
+- [ ] Identifies the skill as experimental and the schema-3 grammar as
+      unfinished.
 
 ### Must not
-- [ ] Must NOT recommend `kind: sandbox` with `extends: claude` for a
-      reusable, composable tool add-on (that duplicates the agent identity
-      rather than layering onto it).
-
-### Verification commands
-```bash
-sbx --app-name "$APP" kit validate ./mcp-postgres/
-```
-
----
-
-## Prompt 2: a minimal kit that should just work
-
-**Prompt to agent:**
-
-> Show me the smallest possible sandbox kit that actually resolves to a
-> real, runnable image, not a placeholder.
-
-### Expected behaviors
-- [ ] Recommends `extends: <built-in-agent>` (e.g. `extends: shell`) so the
-      kit inherits a real `sandbox.image` rather than inventing one.
-- [ ] Does not invent a fictional image reference (e.g.
-      `docker/sandbox-templates:myagent`) or a fictional install script
-      (e.g. `curl .../install.sh | bash` for a made-up service).
-
-### Must not
-- [ ] Must NOT present an invented image reference as if it were real and
-      pullable.
-
-### Verification commands
-```bash
-sbx --app-name "$APP" kit inspect ./my-shell-kit/ --json  # shows extends: shell; does not resolve the inherited image
-```
-
----
-
-## Prompt 3: mixin fails when composed, even though it validated
-
-**Prompt to agent:**
-
-> `sbx kit validate` says my mixin is fine, but `sbx create --kit` fails
-> when I try to add it to a shell sandbox. My mixin declares a `github`
-> credential. What's going on?
-
-### Expected behaviors
-- [ ] Explains `sbx kit validate` only checks the mixin's own schema, never
-      composition against a base agent.
-- [ ] Identifies that `shell` (and `docker-agent`, `opencode`) already
-      declare their own `service: github` credential, so composing a
-      second credential definition (e.g. its own `apiKey.name`) fails with
-      a duplicate-service error; additive routing-only entries can merge.
-- [ ] Recommends checking the target base agent's existing credentials
-      first in the pinned built-in `sandboxlib/agentkits/agents/shell/spec.yaml`
-      (`kit inspect` takes artifact references, not built-in names) before adding a same-service
-      credential in a mixin, or dropping the mixin's own credential if the
-      base agent already covers it.
-
-### Must not
-- [ ] Must NOT claim `sbx kit validate` passing means the mixin will
-      compose cleanly with any base agent.
-
-### Verification commands
-```bash
-sbx --app-name "$APP" kit validate ./my-github-mixin/                          # passes: schema only
-# WORK/workspace is the disposable directory from the kit runbook setup.
-sbx --app-name "$APP" create --kit ./my-github-mixin/ --name kit-dup-eval shell "$WORK/workspace"  # expect duplicate-service failure
-```
-
----
-
-## Prompt 4: credential domain not allow-listed, and additive policy
-
-**Prompt to agent:**
-
-> My mixin declares a credential that injects into api.example.com, but
-> requests there are still being blocked. Also — if I remove a host from my
-> mixin's allow list, does that block it?
-
-### Expected behaviors
-- [ ] Recommends declaring each required injection domain in the kit's
-      egress allow list, while distinguishing that declaration from effective
-      policy (which can also grant access globally or per sandbox).
-- [ ] States the engine does not auto-derive egress from a credential
-      declaration, and that `sbx kit validate` passing is not proof the
-      domain is reachable — validation only checks the kit's own
-      well-formedness, not composition-time policy.
-- [ ] States that `allow` lists are additive across composition, and that
-      removing a host from ONE kit's `allow` list does NOT by itself prove
-      that host is blocked — the base agent's own allow list, another
-      composed kit, or the global/per-sandbox network policy may still
-      permit it.
-- [ ] Recommends confirming the real effective decision with
-      `sbx policy check network --sandbox <name> <host>` against an actual
-      sandbox, not by reading one kit's YAML alone.
-
-### Must not
-- [ ] Must NOT claim declaring a credential automatically grants network
-      access to its inject domain.
-- [ ] Must NOT claim `sbx kit validate` succeeding proves the domain is
-      allow-listed at runtime.
-- [ ] Must NOT claim removing a host from one kit's `allow` list proves
-      that host is now blocked.
-
-### Verification commands
-```bash
-sbx --app-name "$APP" kit validate ./my-mixin/                                    # passes even if allow-list is missing/wrong: schema-only check
-sbx --app-name "$APP" create --kit ./my-mixin/ --name kit-policy-eval shell "$WORK/workspace"
-sbx --app-name "$APP" policy check network --sandbox kit-policy-eval api.example.com
-sbx --app-name "$APP" rm --force kit-policy-eval  # consented test cleanup
-```
-
----
-
-## Prompt 5: publishing and trusting a kit
-
-**Prompt to agent:**
-
-> I want to publish this kit to our internal OCI registry and make sure
-> nobody can silently swap in a malicious version later. Also, does `sbx
-> run --kit ghcr.io/org/my-kit:latest` already require a pinned digest?
-
-### Expected behaviors
-- [ ] Recommends `sbx kit push DIRECTORY REGISTRY/REPO:TAG --sign` for a
-      signed push, noting push always attaches an (unsigned unless `--sign`)
-      SLSA provenance attestation.
-- [ ] Recommends pinning any downstream reference to this kit by digest
-      (OCI) or commit SHA (git), as a best practice.
-- [ ] States the CLI's `--kit`/`sbx kit add` accepts unpinned tags/branches;
-      pinning is a recommendation. Does not confuse this with the format's
-      broader rules: this release resolves only built-in `extends` and
-      does not apply in-spec `mixins` at runtime.
-- [ ] Mentions `sbx kit verify` to check the signature before trusting a
-      pulled kit.
-
-### Must not
-- [ ] Must NOT claim an unsigned push has no provenance at all — it has
-      unsigned provenance, which is a different thing from none.
-- [ ] Must NOT claim `sbx run --kit ghcr.io/org/my-kit:latest` is rejected
-      by the CLI for using a mutable tag.
-
-### Verification commands
-```bash
-sbx --app-name "$APP" kit push --help
-# Run from the skill directory; all keys and artifacts stay in this scratch dir.
-(
-  set -eu
-  SIGN_WORK=$(mktemp -d)
-  trap 'rm -rf "$SIGN_WORK"' EXIT
-  umask 077
-  mkdir "$SIGN_WORK/kit"
-  cp assets/spec-mixin.yaml "$SIGN_WORK/kit/spec.yaml"
-  openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out "$SIGN_WORK/key.pem"
-  openssl pkey -in "$SIGN_WORK/key.pem" -pubout -out "$SIGN_WORK/key.pub"
-  sbx --app-name "$APP" kit sign --key "$SIGN_WORK/key.pem" "$SIGN_WORK/kit"
-  test -s "$SIGN_WORK/kit/kit.sig.bundle"
-  sbx --app-name "$APP" kit verify --key "$SIGN_WORK/key.pub" "$SIGN_WORK/kit"
-  printf '\n# tampered after signing\n' >> "$SIGN_WORK/kit/spec.yaml"
-  if sbx --app-name "$APP" kit verify --key "$SIGN_WORK/key.pub" "$SIGN_WORK/kit"; then
-    printf 'FAIL: tampered kit verified\n' >&2
-    exit 1
-  fi
-)
-```
-Requires OpenSSL and a standalone sbx build supporting key-based kit signing.
-Pass: signing writes a bundle, verification succeeds, and modifying the
-signed spec makes verification fail. Keys are ephemeral ECDSA P-256 PEMs,
-kept outside the kit with owner-only permissions. Key-based local signing
-and verification use no registry, OIDC login, or transparency log; this does
-not test OCI push/provenance or production keyless trust.
-
----
-
-## Prompt 6: CIDR and multi-label network rules
-
-**Prompt to agent:**
-
-> Are permissions.network entries like **.example.com and 10.0.0.0/8
-> actually enforced? Will a CIDR deny block an already-allowed hostname?
-
-### Expected behaviors
-- [ ] States that both multi-label `**.` patterns and CIDR prefixes are
-      enforced; `*.` matches one label, not multiple labels.
-- [ ] Explains that a decisive domain decision precedes CIDR evaluation,
-      so a hostname allow can bypass a CIDR deny for its resolved IP.
-- [ ] Recommends checking effective policy, not assuming YAML alone proves
-      a host is blocked. Uses exact ports rather than unsupported ranges.
-
-### Must not
-- [ ] Must NOT repeat the stale spec table's claim that CIDR and `**.` rules
-      are accepted but ignored.
-- [ ] Must NOT claim CIDR denies always override domain allows.
+- [ ] Must NOT author a `spec.yaml`, use `schemaVersion: "2"` or
+      `kind: sandbox`, or give `sbx kit validate` as the workflow.
+- [ ] Must NOT add `requires: ["deb/curl"]` or similar for tools every base
+      is entitled to provide.
+- [ ] Must NOT present an unverified download URL or checksum as verified.
 
 ### Verification
-Manual reasoning check against the runtime matcher and proxy references in
-`skills/docker-sandboxes-kits/references/sources.md`; the format document's
-old enforcement table is not authoritative for runtime behavior.
+Static: `assets/v3-mixin-egress.yaml` is the checked-in v3 example. For a
+live check, follow `checks/verification.md` (builder, `kit-tck`,
+`sbx kit inspect`) against a disposable builder.
+
+---
+
+## Prompt 2: mixin ownership of entrypoint and the agent's home
+
+**Prompt to agent:**
+
+> My mixin's Dockerfile sets `ENTRYPOINT` and `USER`, and it copies files with
+> `COPY --chown=1000:1000 tool /home/agent/tool`. A reviewer says both are
+> wrong. Why, and what should I do instead?
+
+### Expected behaviors
+- [ ] Explains that a mixin cannot set `ENTRYPOINT`, `CMD`, `USER` or
+      `WORKDIR` and have it take effect: the workload anchors the composition
+      and owns them, while additive fields (env, labels, ports, volumes)
+      merge.
+- [ ] Explains that `COPY --chown` makes BuildKit own every parent it creates,
+      so `/home` ends up owned by uid 1000 and is handed to the agent.
+- [ ] Recommends staging under `/out` and starting the chown exactly at the
+      agent's home (`chown -R 1000:1000 /out/home/agent`) with numeric ids,
+      or avoiding `/home/agent` and using `/usr/local` or `/opt`.
+- [ ] Mentions `kit-tck`'s `overlay-home-ownership` check.
+
+### Must not
+- [ ] Must NOT recommend `chown -R 1000:1000 /out` or a chown one level too
+      deep (`/out/home/agent/x`), both of which keep a wrong owner.
+- [ ] Must NOT use a user name in the chown (a `scratch` overlay has no
+      `/etc/passwd`).
+
+### Verification
+Static text check against `references/v3-recipes.md`. Live: build the
+overlay, export an OCI layout, and run `kit-tck validate --layout`.
+
+---
+
+## Prompt 3: is `sbx kit validate` enough for a v3 kit?
+
+**Prompt to agent:**
+
+> I wrote `my-kit.yaml` with `# syntax=docker/sandbox-kit:3`. Is
+> `sbx kit validate ./my-kit` enough to know the kit is valid?
+
+### Expected behaviors
+- [ ] Says no: normal `sbx kit validate` can build/load a v3 source, but is
+      not a substitute for conformance and runtime checks.
+- [ ] Gives the v3 workflow: a `docker buildx build ... --output
+      type=cacheonly` descriptor check with a named container builder, an OCI
+      layout export judged by `kit-tck validate --layout <tag>` (tag alone),
+      release-dependent `sbx kit inspect`, and a real composition.
+- [ ] Notes that `sbx v0.50.1` offline inspect also rejects the source with
+      "no kit builder configured" by design; authenticate the isolated app
+      for normal inspect/validate. Sign-in failure alone is inconclusive.
+- [ ] Says a successful build is not proof the kit works.
+- [ ] Explains why a container builder is used (the `docker` driver with the
+      classic image store can drop manifest annotations).
+
+### Must not
+- [ ] Must NOT report `sbx kit validate` output as full kit conformance or
+      proof that required capabilities can be selected at runtime.
+- [ ] Must NOT claim `kit-tck` alone proves the kit works at runtime.
+
+### Verification
+Steps A2-A6 of `checks/verification.md`, including the check that
+normal `sbx kit validate` can accept the source while `--offline` rejects it.
+
+---
+
+## Prompt 4: capabilities for network, a token, and hook environment
+
+**Prompt to agent:**
+
+> My v3 kit's install hook and the running agent both call `api.example.com`,
+> and the API needs a token. Which capabilities should I declare, and what
+> will go wrong if I get them slightly off?
+
+### Expected behaviors
+- [ ] Uses `network-policy@1` and puts the host in both `install` and
+      `runtime`, explaining that an absent phase grants nothing.
+- [ ] Uses `credential@1`, marks it `optional: true` unless the kit cannot run
+      unauthenticated, and says every `inject[].domain` must appear exactly in
+      each listed phase's allow list (a `*.example.com` wildcard does not
+      satisfy `api.example.com`).
+- [ ] Notes hook environments are deny-by-default, so `HTTP_PROXY` and
+      `HTTPS_PROXY` must be declared in `env:` for tools like `curl`, `pip`, or
+      `npm`.
+- [ ] Keeps the token out of the descriptor, args, and recipe, and avoids
+      `privileged@1` and an unrestricted `ssh-agent@1`.
+- [ ] If it mentions `network-policy@2`, says it is exclusive with `@1` and the
+      enforced bound should be verified on the target runtime.
+
+### Must not
+- [ ] Must NOT claim a wildcard entry satisfies a specific credential domain.
+- [ ] Must NOT put a token value in a descriptor or build arg.
+
+### Verification
+Static text check against `references/v3-capabilities.md` and the skill's
+core guidance.
+
+---
+
+## Prompt 5: publishing and signing a multi-platform v3 kit
+
+**Prompt to agent:**
+
+> How do I publish my v3 kit for amd64 and arm64 to our registry and sign it
+> so consumers can verify where it came from?
+
+### Expected behaviors
+- [ ] Says publishing is the build with `--push` (there is no pack step and no
+      `kit push` subcommand), with both platforms in one invocation and
+      `--provenance=mode=min`.
+- [ ] Tags the version and `latest` together and runs `kit-tck validate` on the
+      pushed reference.
+- [ ] Signs the digest from `--metadata-file`, never the tag, and notes that
+      signing a multi-platform digest signs the index only unless
+      `--recursive` is used.
+- [ ] Pins the whole certificate identity (repository, workflow file, ref)
+      rather than an organization prefix.
+- [ ] Asks for explicit approval of the registry, repository, and tags before
+      pushing, and suggests a scratch namespace for trials.
+
+### Must not
+- [ ] Must NOT use `sbx kit push` or `sbx kit sign` for a v3 kit.
+- [ ] Must NOT push two single-platform builds to the same tag.
+- [ ] Must NOT accept an `^https://github\.com/<org>/` identity regexp.
+
+### Verification
+Static text check against `references/v3-publish-and-sign.md`. Do not run a
+real push in an eval.
+
+---
+
+## Prompt 6: an existing v2 kit and the migration skill
+
+**Prompt to agent:**
+
+> I have a kit with `schemaVersion: "2"` in a `spec.yaml`. Can you fix its
+> validation error, and which skill converts it to v3 for me?
+
+### Expected behaviors
+- [ ] Says legacy v2 `spec.yaml` kits are out of scope for this skill and does
+      not author or debug the v2 kit.
+- [ ] Offers to write the v3 equivalent as a new descriptor, checked with the
+      v3 workflow, after confirming the installed `sbx` supports v3.
+- [ ] Says the `migrate-kit-to-v3` skill named in the v3 source is not part of
+      this catalog and may not be installed, so it is not assumed available.
+- [ ] Says no v2-to-v3 field mapping is provided by this skill.
+
+### Must not
+- [ ] Must NOT invent a field-by-field mapping.
+- [ ] Must NOT treat `sbx kit validate` as conformance or runtime proof for
+      the migrated kit.
+- [ ] Must NOT route to `migrate-kit-to-v3` as if it were installed here.
+
+### Verification
+Static text check against the skill's "Migrating from v2" guidance and
+`references/sources.md`.
+
+---
+
+## Prompt 7: proving an overlay works when composed
+
+**Prompt to agent:**
+
+> My mixin builds and `kit-tck` passes, but I want proof the tool actually
+> runs once it is composed onto a workload. What should I run?
+
+### Expected behaviors
+- [ ] Composes the built overlay onto a real workload with
+      `sbx run ./<workload> --kit ./<kit> --detach --name <sandbox> .` and
+      runs the tool with `sbx exec <sandbox> <tool> --version`.
+- [ ] Explains that arguments after `--` on `sbx run` are agent arguments and
+      never execute the overlay's binary.
+- [ ] Notes `kit-tck` only warns about dangling symlinks and the composition
+      tells them apart.
+- [ ] If it offers the faster `COPY --from` shortcut, says it discards the
+      overlay's image config, so `ENV` and `PATH` are absent.
+- [ ] If auditing layer owners, follows manifest-referenced layers and fails
+      on missing, corrupt or unsupported layers instead of hiding tar errors.
+- [ ] Treats removing the test sandbox and any local test images as
+      destructive: confirm first, name only what was created.
+
+### Must not
+- [ ] Must NOT suggest `sbx run ... -- tool --version` as the check.
+- [ ] Must NOT claim the `COPY --from` shortcut verifies the overlay's `ENV`
+      or `PATH`.
+
+### Verification
+Static text check against `references/v3-recipes.md`. Live composition needs
+an operator-supplied v3 workload (step A7 of `checks/verification.md`).
 
 ---
 
@@ -230,3 +250,5 @@ old enforcement table is not authoritative for runtime behavior.
 - "How do I run this kit in a sandbox right now?" → `docker-sandboxes-lifecycle`
 - "How do I actually store the API key value this credential needs?" → `docker-sandboxes-network-credentials`
 - "How do I reference this kit from my checked-in sbxenv.yaml?" → `docker-sandboxes-env`
+- "How do I shrink the layers of my application's Dockerfile?" → `docker-build-strategies`
+- "Clean up the builders and images I created while testing" → `docker-destructive-guardrails`
