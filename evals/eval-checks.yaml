@@ -1356,6 +1356,11 @@
     description: Clone fetch is scoped to the disposable repository
     type: file_match
     pattern: ^git -C "\$REPO" fetch sandbox-eval-clone$
+  - id: sl-clone-running-before-fetch
+    description: Clone verification starts the disposable sandbox before fetching
+    type: line_order
+    first_pattern: ^sbx --app-name "\$APP" run --name eval-clone -d$
+    second_pattern: ^git -C "\$REPO" fetch sandbox-eval-clone$
   - id: sl-no-detached-spelling
     description: Verification commands, including subshell-prefixed ones, use -d,
       never the rejected --detached spelling

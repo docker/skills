@@ -78,6 +78,9 @@ sbx --app-name "$APP" rm --force eval-no-mount eval-cwd  # consented test cleanu
 # REPO is the disposable Git repository from the lifecycle runbook's step 1.
 sbx --app-name "$APP" create --clone --name eval-clone shell "$REPO"
 git -C "$REPO" remote -v | grep sandbox-eval-clone
+# Create may leave the sandbox stopped; fetch needs its Git daemon running.
+# Disposable sandbox only: -d makes it detached permanently before cleanup below.
+sbx --app-name "$APP" run --name eval-clone -d
 git -C "$REPO" fetch sandbox-eval-clone
 git -C "$REPO" branch recovered-eval-clone sandbox-eval-clone/main
 git -C "$REPO" log --oneline -1 recovered-eval-clone
