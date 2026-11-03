@@ -39,6 +39,11 @@ are required; validation runs in pinned container images.
   structure, frontmatter, catalog membership, manifests, ownership, and files.
 - `task eval`: run deterministic checks against checked-in skill assets. This is
   not a live model evaluation.
+- `task eval:skills`: opt-in live model evaluation. It runs scenarios in
+  `skills/*/evals/` with Claude Code against the real `sbx` CLI; see
+  [evals/README.md](evals/README.md#live-skill-scenarios). It needs `claude`,
+  `sbx` authenticated, and optionally model credentials. Runs separately
+  from offline `task`/`task ci`.
 - `task links`: check local Markdown destinations and heading anchors.
 - `task links:external`: opt-in live HTTPS link check; runs separately from
   offline `task`/`task ci` in a pinned container.

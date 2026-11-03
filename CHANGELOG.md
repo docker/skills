@@ -19,6 +19,13 @@ for distribution releases.
 - The plugin now registers the remote Docker docs MCP server
   (`https://ai-backend-service.docker.com/mcp`) for Claude Code, Codex, Cursor,
   GitHub Copilot CLI, and Gemini CLI installations.
+- Added live skill scenarios (`task eval:skills` and a `Live skill evals`
+  workflow). They run Claude Code headlessly with the repository skills
+  installed and a simulated user prompt against the real `sbx` CLI. A
+  logging shim records every call for grading. Scenarios live in each
+  skill's `evals/` folder. The first scenario covers creating a
+  `docker-sandboxes-lifecycle` sandbox with a mounted folder, listing it,
+  removing the sandbox, and verifying removal.
 
 ### Fixed
 

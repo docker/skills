@@ -1,0 +1,121 @@
+name: Live skill evals
+
+# Runs evals/scenarios/ with Claude Code against the real sbx CLI. Calls a
+# live model and needs Docker Sandboxes authentication, so it stays out of
+# offline `task ci`.
+on:
+  pull_request:
+    paths:
+      - "skills/**/evals/**"
+      - "scripts/skill_eval.py"
+      - ".github/workflows/skill-evals.yml"
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      skill:
+        description: "Only run scenarios for this skill id (empty: all)"
+        required: false
+        default: ""
+      model:
+        description: "Claude model alias or name"
+        required: false
+        default: "sonnet"
+      repeat:
+        description: "Runs per scenario"
+        required: false
+        default: "3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: skill-evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scenarios:
+    # Fork pull requests receive no secrets; skip them instead of failing.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CLAUDE_CODE_VERSION: "2.1.316"
+      SBX_VERSION: "0.50.1"
+      SKILL_EVAL_MODEL: ${{ inputs.model || 'sonnet' }}
+      SKILL_EVAL_REPEAT: ${{ inputs.repeat || '3' }}
+      # Model routing is nondeterministic: a scenario passes when 2 of 3 runs pass.
+      SKILL_EVAL_MIN_PASS_RATE: "0.66"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check credentials
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "::error::Set the ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN repository secret."
+            exit 1
+          fi
+          if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "::error::Set DOCKERHUB_USERNAME and DOCKERHUB_TOKEN repository secrets for sbx login."
+            exit 1
+          fi
+
+      - name: Install Docker Sandboxes (sbx)
+        run: |
+          # Ubuntu 24.04 runners have KVM support
+          curl -fsSL "https://github.com/docker/sbx-releases/releases/download/v${SBX_VERSION}/DockerSandboxes-linux-amd64-ubuntu2404.deb" -o sbx.deb
+          sudo apt-get install -y ./sbx.deb
+          sudo usermod -aG kvm "$USER"
+          rm sbx.deb
+          sbx version
+
+      - name: Authenticate sbx
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          echo "$DOCKERHUB_TOKEN" | sbx login --username "$DOCKERHUB_USERNAME" --password-stdin
+          sbx policy init balanced
+
+      - name: Install Claude Code
+        run: |
+          npm install --global --ignore-scripts "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+          node "$(npm root --global)/@anthropic-ai/claude-code/install.cjs"
+          claude --version
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -q --require-hashes -r scripts/requirements.txt
+
+      - name: Run live skill scenarios
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          INPUT_SKILL: ${{ inputs.skill }}
+        run: |
+          # Run in kvm group context
+          sg kvm -c '.venv/bin/python scripts/skill_eval.py ${INPUT_SKILL:+--skill "$INPUT_SKILL"}'
+
+      - name: Upload transcripts and sbx call logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: skill-evals
+          path: .skill-evals/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Cleanup sandboxes
+        if: always()
+        run: |
+          # Remove any sandboxes that might have been left behind
+          sbx ls -q 2>/dev/null | grep "^eval-" | xargs -r sbx rm --force || true
+          sbx daemon stop || true

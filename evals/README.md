@@ -4,8 +4,8 @@ This directory contains manual evaluation runbooks for each Docker skill. Each r
 
 ## Approach
 
-1. **Phase 1 (current):** Manual runbooks. A human evaluator feeds the prompts to an agent with the skill loaded, then walks through the behavioral checklist and runs the verification commands.
-2. **Phase 2:** Automate against one agent target (likely Claude Code) before broadening.
+1. **Phase 1:** Manual runbooks. A human evaluator feeds the prompts to an agent with the skill loaded, then walks through the behavioral checklist and runs the verification commands.
+2. **Phase 2 (started):** Automated [live skill scenarios](#live-skill-scenarios) against Claude Code.
 3. **Phase 3:** Track pass/fail per skill per agent across all four targets (Claude, Codex, Gemini CLI, GitHub Copilot).
 
 `task eval` runs the static assertions in `eval-checks.yaml`; it does not
@@ -44,3 +44,62 @@ One runbook per catalogued skill. The table is generated from [`catalog.yaml`](.
 4. Walk through every checkbox in the **Expected behaviors** and **Must not** sections.
 5. Run each **Verification command** and confirm the expected outcome.
 6. Record pass/fail per prompt per agent.
+
+## Live skill scenarios
+
+Scenarios in `skills/<skill-id>/evals/` automate a runbook-style prompt end
+to end. They test the skill against the real `sbx` CLI.
+
+[`scripts/skill_eval.py`](../scripts/skill_eval.py) runs each scenario in
+several steps:
+
+1. It creates a fresh directory with every repository skill under
+   `.claude/skills/` and the scenario's fixture files.
+2. It wraps `sbx` with a shim that logs every call.
+3. It runs `claude -p` with a narrow tool allowlist (`Skill`, `Bash(sbx:*)`,
+   read-only tools).
+4. It grades the transcript and the recorded `sbx` calls against the
+   scenario's expectations.
+
+Each scenario can check that:
+
+- the skill was loaded through the `Skill` tool;
+- the expected `sbx` calls happened in order, for example creating with the
+  right mount and then running `exec`, `rm`, and `ls` on the same sandbox;
+- forbidden calls never happened;
+- the final sandbox state is correct;
+- the final answer contains the expected text.
+
+Run locally (requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code),
+`sbx` authenticated via `sbx login`, and optionally `ANTHROPIC_API_KEY`):
+
+```bash
+task eval:skills                                       # all scenarios
+task eval:skills -- --skill docker-sandboxes-lifecycle --repeat 3
+task eval:skills -- --regrade .skill-evals/<run>/<skill>/<scenario>/1   # re-grade saved artifacts offline
+```
+
+If `ANTHROPIC_API_KEY` is not set, the harness uses your normal Claude Code
+login (subscription). Use `--only-target-skill` to install only the skill
+under test.
+
+Artifacts go to `.skill-evals/`: the stream-json transcript, the `sbx` call
+log, and `report.json`.
+
+CI runs the `Live skill evals` workflow
+([`.github/workflows/skill-evals.yml`](../.github/workflows/skill-evals.yml))
+in three cases:
+
+- on same-repository pull requests that touch `skills/*/evals/`;
+- weekly;
+- on manual dispatch.
+
+Each scenario runs three times and passes when at least two runs pass, since
+model routing is nondeterministic. The workflow needs Docker Hub credentials
+for `sbx login` and either `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`.
+Offline `task ci` only runs the harness unit tests.
+
+To add a scenario, copy
+[`skills/docker-sandboxes-lifecycle/evals/mount-ls-delete.yaml`](../skills/docker-sandboxes-lifecycle/evals/mount-ls-delete.yaml).
+Write the prompt the way a user would, without naming the skill or the
+commands. Then express the expected behavior as `sbx` call steps.
