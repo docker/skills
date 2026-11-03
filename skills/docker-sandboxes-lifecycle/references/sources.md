@@ -1,59 +1,47 @@
 # Sources
 
-## Local pinned source (repository docker/sandboxes, commit df5c96ba60484fa2c375469dbac912c205da6c37)
+## Public documentation checked for this correction
 
-Paths below are relative to the repository root.
+The author and reviewer read these public pages on 2026-11-03. This is document
+verification, not evidence that the runbooks or standalone CLI were executed.
 
-- `AGENTS.md` — repository-level agent instructions, isolated `--app-name` testing rule.
-- `README.md` — `sbx login` / `sbx run claude` quick-start; pointer to docs.docker.com/ai/sandboxes/.
-- `cli-plugin/commands/run.go` — `resolveCloneWorkdirForExistingSandbox` (reattach `--clone`: no-op only on an existing clone-mode sandbox; errors on a plain/bind-mounted sandbox or a legacy worktree sandbox missing its label), `warnDeprecatedRunPositionalName` (bare `sbx run NAME` prints a deprecation warning but is still accepted — `legacyPositionalAttach`), `directLookupCandidate`/`legacyPositionalAttach` wiring in `executeRun`.
-- `cli-plugin/commands/create.go` — `validateCloneOptions` (the four `--clone` preconditions: explicit workspace path, inside a Git repository, not a Git worktree, `.git` a real directory not a file/submodule pointer), `addCreateAgentSubcommand` (`:ro` semantics: "holds that one path out of reach inside a workspace the sandbox can otherwise write" — a write restriction, not a read restriction).
-- `cli-plugin/commands/rm.go` — `warnUnsavedCloneChanges` (the exact `git fetch sandbox-<name>` / `refs/remotes/sandbox-<name>/*` vs. survivor `refs/sandboxes/<name>/*` / `git branch <local> refs/sandboxes/<name>/<branch>` recovery text), `removeAll`/`removeByNameConfirmedWithSecretRemoval` (confirmation-prompt and `--force` semantics for `sbx rm`/`sbx rm --all`), `errRemovalDeclined`.
-- `cli-plugin/commands/root.go` — `rootFlags` (`--app-name`, hidden persistent flag, "Storagekit application name for isolated daemon instance"), `commandsWithoutDaemon`/`needDaemonAutoStart` (daemon-free commands).
-- `docs/yml/sbx_ls.yaml` — agent/status/published-ports/workspace listing,
-  `--json`, and `-q`/`--quiet` (sandbox names only).
-- `docs/yml/sbx_stop.yaml` — stops one or more sandboxes without removing
-  them; retains state for restart with `sbx run`.
-- `docs/yml/sbx_exec.yaml` — starts a stopped sandbox before execution;
-  local exec flags `-i`, `-t`, `-d`, `-u`, `-w`, `-e`, `--env-file`, and
-  `--privileged`.
-- `docs/yml/sbx_cp.yaml` — exactly one of SRC/DST must be `SANDBOX:PATH`;
-  the other is local, and sandbox-to-sandbox copies are unsupported.
-- `docs/yml/sbx_ports.yaml` — lists ports or changes existing bindings with
-  `--publish`/`--unpublish`.
-- `docs/yml/sbx_create.yaml` / `docs/yml/sbx_run.yaml` — `-p`/`--publish`
-  applies at creation only; run's flag explicitly says reattach ignores it
-  and directs users to `sbx ports`.
-- `docs/yml/sbx_prune.yaml` — current, pinned-source usage text: `--filter until=TIMESTAMP` ("stopped before TIMESTAMP... RFC 3339 timestamp, Unix timestamp, or Go duration relative to now, e.g. until=168h"), not `since=`.
+| Claim | Source and section | Applicability |
+| --- | --- | --- |
+| Use `--detach` or `-d`; `--detached` is rejected | [Release notes](https://docs.docker.com/ai/sandboxes/release-notes/), 0.48.0, “Update command flags” | Explicit spelling change in 0.48.0; not a minimum version for every lifecycle feature. |
+| `run --name` reattaches; `run -d --name` permanently changes detached mode | [Usage](https://docs.docker.com/ai/sandboxes/usage/), “Create without attaching” and “Keep a sandbox running in the background” | Detached-mode change is not an ordinary read-only reattach. |
+| `create` without a path is mountless; workspace layout is fixed at creation | [Troubleshooting](https://docs.docker.com/ai/sandboxes/troubleshooting/), “Sandbox doesn't contain my project files” | The page explicitly dates optional `create` paths to 0.42.0. |
+| `run --publish` is ignored on reattach; use `ports` to change mappings | [Development workflow](https://docs.docker.com/ai/sandboxes/workflows/development/), “Accessing services in the sandbox” | Local standalone `sbx`, not cloud sandbox behavior. |
+| Clone mode is fixed at creation; fetching needs a running sandbox; removal deletes the sandbox remote | [Git workflow](https://docs.docker.com/ai/sandboxes/workflows/git/), “Clone mode” and “Sandbox remote behavior” | Preserve fetched work in a verified local branch before removal. |
+| `rm` confirmation, stopped-only pruning, `until=` age filtering and legacy `since=` support | [Usage](https://docs.docker.com/ai/sandboxes/usage/), “Start, stop, and remove” | No minimum introduction version for `until=` was established. |
+| Piped `y` does not confirm; missing terminal confirmation exits 1 | [Automation workflow](https://docs.docker.com/ai/sandboxes/workflows/automation/), “Cleanup and exit codes” | Do not silently add `--force` to a failed cleanup command. |
+| Detached `sbx exec` is unsupported | [Usage](https://docs.docker.com/ai/sandboxes/usage/), “Run commands inside a sandbox” | Docker Engine's `docker exec` flags are not standalone `sbx` evidence. |
+| Resource defaults vary by platform | [Environment file](https://docs.docker.com/ai/sandboxes/configuration/environment-files/#sandboxoptions), `sandboxOptions` | Numeric defaults were removed rather than extrapolated across platforms. |
+| A local branch preserves a fetched commit independently of remote-tracking refs | [Git branch](https://git-scm.com/docs/git-branch), description and start-point | Inspect the fetched commit first; create a new branch, never overwrite an existing one. |
 
-## Captured standalone CLI help, cross-checked against an older installed build
+## Inherited evidence and limits
 
-Installed `sbx` reports `v0.42.0-503-g951b7f6d7` (commit
-`951b7f6d7f6bb260fac15077b607109ffe8ae012`), older than the pinned source
-HEAD. Verified name/version with `sbx version`; captured with
-`sbx <cmd> --help` under an isolated `--app-name`, no daemon started.
+The pre-existing public skill cited `docker/sandboxes` source revision
+`df5c96ba60484fa2c375469dbac912c205da6c37` and a standalone help capture
+`v0.42.0-503-g951b7f6d7`. Neither was re-read or re-executed for this correction.
+The source was unavailable to the reviewer. These are provenance records, not
+claims that all current behavior was tested at those versions.
 
-- **`sbx prune --help` differs from the pinned source**: the installed
-  build's help still advertises `--filter since=DURATION` as the supported
-  filter syntax. The pinned source's `docs/yml/sbx_prune.yaml` (generated
-  from the same `--help` text at commit df5c96ba) instead documents
-  `--filter until=VALUE` (RFC 3339 / Unix timestamp / duration). This is an
-  explicit source-vs-installed-help difference: prefer `until=` per the
-  pinned source, and treat `since=` as a legacy alias an older installed
-  build may still show.
-- Every other command this skill covers (`create`, `run`, `ls`, `stop`,
-  `rm`, `exec`, `cp`, `ports`) showed no source-only difference between the
-  installed help and the pinned-source `docs/yml/*.yaml`.
+Inherited source-only details include the clone-mode reattach error/no-op split,
+bare positional-name deprecation, naming restrictions, and the isolated
+`--app-name` runbook mechanism. Survivor refs under `refs/sandboxes/<name>/*`
+are implementation-specific and were not reverified: the recovery procedure
+now preserves a checked local branch **before** deletion instead of relying on
+them. The effect of extra workspace paths on reattach is also unverified; omit
+them. Flag-level reference pages were not consistently accessible, so this is
+not a complete CLI-surface audit.
 
-## Not verified / explicitly excluded
+The local `sbx` invocation behaved as the legacy Docker plugin, so its output
+and local `docker_help` results were **not** used to verify standalone flags.
+No standalone sandbox was created, stopped, removed, or pruned. The runbook
+(including its inherited isolation/setup commands) and eval Prompts 8–9 remain
+unexecuted and need product-owner/runtime acceptance. Static eval checks verify
+only fixture text; they do not establish routing or task effectiveness.
 
-- `sbx --cloud` (Docker Cloud Sandboxes) flags appear in the generated
-  reference as inherited options but are out of scope for this skill, which
-  covers the local daemon only; not exercised or asserted beyond noting
-  their existence.
-- No docs.docker.com URL beyond the canonical product page
-  (https://docs.docker.com/ai/sandboxes/) is cited here: this review did not
-  independently fetch any deeper docs.docker.com page, so no more specific
-  URL is asserted as a source for any rule above. Every rule above traces to
-  a repository path and/or a captured `--help` output, not to a fetched
-  docs page.
+The Forge run produced the initial correction and performed a reviewer/delta-review
+loop. Operator review then tightened pre-removal recovery and condensed this evidence
+record. No new private source material was accessed or incorporated.

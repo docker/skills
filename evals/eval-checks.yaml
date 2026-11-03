@@ -1323,29 +1323,66 @@
 
 # These assert test-fixture hygiene, not runtime behavior or agent responses.
 - eval: docker-sandboxes-lifecycle
-  prompt: "Verification snippet safety (static checks)"
+  prompt: 'Prompt 8: change settings on an existing sandbox'
+  skip: true
+  skip_reason: No reattach asset; creation-only settings being ignored on reattach
+    requires a disposable sandbox
+- eval: docker-sandboxes-lifecycle
+  prompt: 'Prompt 9: recover clone work from a stopped sandbox before cleanup'
+  skip: true
+  skip_reason: No stopped-clone asset; fetching from a stopped and restarted clone
+    sandbox requires a disposable sandbox
+- eval: docker-sandboxes-lifecycle
+  prompt: Verification snippet safety (static checks)
   asset: evals/docker-sandboxes-lifecycle.md
   checks:
-    - id: sl-disposable-clone
-      description: Clone verification uses the disposable repository and shell agent
-      type: file_match
-      pattern: '^sbx .* create --clone .* shell "\$REPO"$'
-    - id: sl-detached-cwd
-      description: Omitted-path verification runs detached from the disposable repository
-      type: file_match
-      pattern: '^\(cd "\$REPO" && sbx .* run .* -d shell\)$'
-    - id: sl-disposable-resume
-      description: Stop and resume verification mounts only the disposable repository
-      type: file_match
-      pattern: '^sbx .* run --name eval-resume -d shell "\$REPO"$'
-    - id: sl-no-provider-run
-      description: Verification does not launch a provider agent interactively
-      type: file_must_not_match
-      pattern: '^sbx .* (create|run) .*\b(claude|codex|devin)\b'
-    - id: sl-fetch-scoped
-      description: Clone fetch is scoped to the disposable repository
-      type: file_match
-      pattern: '^git -C "\$REPO" fetch sandbox-eval-clone$'
+  - id: sl-disposable-clone
+    description: Clone verification uses the disposable repository and shell agent
+    type: file_match
+    pattern: ^sbx .* create --clone .* shell "\$REPO"$
+  - id: sl-detached-cwd
+    description: Omitted-path verification runs detached from the disposable repository
+    type: file_match
+    pattern: ^\(cd "\$REPO" && sbx .* run .* -d shell\)$
+  - id: sl-disposable-resume
+    description: Stop and resume verification mounts only the disposable repository
+    type: file_match
+    pattern: ^sbx .* run --name eval-resume -d shell "\$REPO"$
+  - id: sl-no-provider-run
+    description: Verification does not launch a provider agent interactively
+    type: file_must_not_match
+    pattern: ^sbx .* (create|run) .*\b(claude|codex|devin)\b
+  - id: sl-fetch-scoped
+    description: Clone fetch is scoped to the disposable repository
+    type: file_match
+    pattern: ^git -C "\$REPO" fetch sandbox-eval-clone$
+  - id: sl-no-detached-spelling
+    description: Verification commands, including subshell-prefixed ones, use -d,
+      never the rejected --detached spelling
+    type: file_must_not_match
+    pattern: ^(\(cd "\$REPO" && )?sbx .*--detached\b
+  - id: sl-reattach-ports-fix
+    description: Reattach fixture publishes the port with sbx ports on loopback
+    type: file_match
+    pattern: ^sbx .* ports eval-reattach --publish 127\.0\.0\.1:\d+:\d+/tcp4$
+  - id: sl-stopped-clone-fetch-scoped
+    description: Stopped-clone fetch is scoped to the disposable repository
+    type: file_match
+    pattern: ^git -C "\$REPO" fetch sandbox-eval-stopped-clone$
+  - id: sl-no-rm-all
+    description: Verification never uses rm --all
+    type: file_must_not_match
+    pattern: ^sbx .* rm .*--all
+  - id: sl-no-prune-force
+    description: Verification never prunes with --force
+    type: file_must_not_match
+    pattern: ^sbx .* prune .*--force
+  - id: sl-local-recovery-before-removal
+    description: Stopped-clone verification creates a local recovery branch before
+      removal
+    type: line_order
+    first_pattern: ^git -C "\$REPO" branch recovered-stopped-clone sandbox-eval-stopped-clone/main$
+    second_pattern: ^sbx .* rm --force eval-stopped-clone
 
 - eval: docker-sandboxes-network-credentials
   prompt: "Verification credential safety (static checks)"

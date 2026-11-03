@@ -60,8 +60,9 @@ sbx --app-name "$APP" rm --force eval-no-mount eval-cwd  # consented test cleanu
 - [ ] Explains commits must be fetched with `git fetch sandbox-<name>` (a
       concrete, shell-valid name, not a literal `<name>` placeholder in a
       runnable command) BEFORE removing the sandbox, or they are lost.
-- [ ] Mentions the survivor ref (`refs/sandboxes/<name>/*`) that remains
-      after the remote is removed, and `git branch <local> refs/sandboxes/<name>/<branch>` to recover from it.
+- [ ] Inspects the fetched commit and preserves it in a new local branch BEFORE
+      removal. Does not rely on an assumed survivor ref; verifies any
+      `refs/sandboxes/<name>/*` ref before using it for recovery.
 - [ ] Notes `--clone` on reattach is a no-op only for an existing clone-mode
       sandbox and errors on a plain bind-mounted one — it cannot convert an
       existing sandbox's mode.
@@ -78,6 +79,8 @@ sbx --app-name "$APP" rm --force eval-no-mount eval-cwd  # consented test cleanu
 sbx --app-name "$APP" create --clone --name eval-clone shell "$REPO"
 git -C "$REPO" remote -v | grep sandbox-eval-clone
 git -C "$REPO" fetch sandbox-eval-clone
+git -C "$REPO" branch recovered-eval-clone sandbox-eval-clone/main
+git -C "$REPO" log --oneline -1 recovered-eval-clone
 sbx --app-name "$APP" rm --force eval-clone  # consented test cleanup after fetch
 ```
 
@@ -91,8 +94,8 @@ sbx --app-name "$APP" rm --force eval-clone  # consented test cleanup after fetc
 > them up without touching anything that's still running?
 
 ### Expected behaviors
-- [ ] Recommends `sbx prune` with `--filter until=DURATION` (current
-      pinned-source flag; e.g. `until=168h`) and `--dry-run` first.
+- [ ] Recommends `sbx prune` with `--filter until=DURATION` (e.g.
+      `until=168h`) and `--dry-run` first.
 - [ ] States that `sbx prune` never removes a running sandbox, but IS
       destructive to matching stopped sandboxes (state, secrets, and any
       unfetched clone commits) and should be previewed and consented to,
@@ -245,6 +248,98 @@ sbx --app-name "$APP" exec eval-readonly sh -c 'printf changed >> "$1"' sh "$WOR
 # The write above must fail; reading must succeed.
 sbx --app-name "$APP" rm --force eval-readonly  # consented test cleanup
 ```
+
+---
+
+## Prompt 8: change settings on an existing sandbox
+
+**Prompt to agent:**
+
+> My sandbox `web` is running. I reattached with
+> `sbx run --name web -p 18080:8080 --clone -d` and nothing changed. How do
+> I get the port published and make it clone-mode?
+
+### Expected behaviors
+- [ ] Explains workspace layout, clone mode, and sizing are fixed at
+      creation, reattaching with `--name` does not reconfigure it, published
+      ports remain mutable through `sbx ports`, and `-d` can also
+      permanently switch an existing sandbox to detached mode.
+- [ ] Publishes the port with `sbx ports web --publish 127.0.0.1:18080:8080/tcp4`,
+      not by recreating the sandbox.
+- [ ] Says `--clone` cannot convert a bind-mounted sandbox (it errors), so
+      clone mode requires a separately named `sbx create --clone` sandbox
+      or removing and recreating this one.
+- [ ] Before any removal, states what is lost and asks for consent; offers
+      `sbx cp` of needed files first.
+- [ ] Warns that `-d` on an existing sandbox makes it detached permanently
+      and spells the flag `-d`/`--detach`, never `--detached`.
+
+### Must not
+- [ ] Must NOT claim `-p` or `--clone` on reattach changes the sandbox.
+- [ ] Must NOT remove the sandbox, or add `--force`, without user consent.
+
+### Verification commands
+```bash
+# Unexecuted. APP, WORK, REPO come from the lifecycle runbook's step 1.
+sbx --app-name "$APP" create --name eval-reattach shell "$REPO"
+sbx --app-name "$APP" run --name eval-reattach -p 127.0.0.1:18081:8080/tcp4 -d
+sbx --app-name "$APP" ports eval-reattach --json
+sbx --app-name "$APP" ports eval-reattach --publish 127.0.0.1:18081:8080/tcp4
+sbx --app-name "$APP" ports eval-reattach --json
+sbx --app-name "$APP" rm --force eval-reattach  # consented test cleanup
+```
+Pass: no mapping after the reattach with `-p`; the mapping appears only after
+`ports --publish`.
+
+---
+
+## Prompt 9: recover clone work from a stopped sandbox before cleanup
+
+**Prompt to agent:**
+
+> I stopped a `--clone` sandbox named `agent-a` last week and want to prune
+> everything stopped. I think the agent committed work there. My cleanup
+> script already tried `echo y | sbx prune` and it exited 1. What do I do
+> first?
+
+### Expected behaviors
+- [ ] Says unfetched commits in a clone-mode sandbox are lost on `sbx rm` or
+      `sbx prune`, and that `git fetch sandbox-agent-a` fails while the
+      sandbox is stopped.
+- [ ] Starts the sandbox first with `sbx run --name agent-a` (keeping the
+      session open while fetching from a second terminal), fetches, inspects
+      the desired commit, and creates a new local recovery branch before removal.
+      Does not rely on unverified implementation-specific survivor refs.
+- [ ] Previews with `sbx prune --dry-run` and asks for consent before the
+      real prune; explains the exit 1 is an unconfirmed (incomplete)
+      operation because stdin is not a terminal and piping `y` does not
+      confirm, and asks rather than adding `--force`.
+
+### Must not
+- [ ] Must NOT run `sbx prune --force` or `sbx rm --all` as the first step.
+- [ ] Must NOT use `sbx run -d` to restart a sandbox that is being kept
+      without disclosing that it makes the sandbox detached permanently.
+- [ ] Must NOT present a one-shot `sbx exec agent-a true` as a verified way
+      to keep the sandbox running for the fetch.
+
+### Verification commands
+```bash
+# Unexecuted. APP, WORK, REPO come from the lifecycle runbook's step 1.
+sbx --app-name "$APP" create --clone --name eval-stopped-clone shell "$REPO"
+sbx --app-name "$APP" exec eval-stopped-clone git -c user.name=Test -c user.email=test@example.invalid commit --allow-empty -m eval-stopped-commit
+sbx --app-name "$APP" stop eval-stopped-clone
+git -C "$REPO" fetch sandbox-eval-stopped-clone  # expected to fail while stopped
+# Disposable sandbox only: -d makes it detached permanently.
+sbx --app-name "$APP" run --name eval-stopped-clone -d
+git -C "$REPO" fetch sandbox-eval-stopped-clone
+git -C "$REPO" branch recovered-stopped-clone sandbox-eval-stopped-clone/main
+git -C "$REPO" log --oneline -1 recovered-stopped-clone
+sbx --app-name "$APP" prune --dry-run
+sbx --app-name "$APP" rm --force eval-stopped-clone  # consented test cleanup after fetch
+```
+Pass: the first fetch fails; the second succeeds after the sandbox is running
+again and the local recovery branch shows `eval-stopped-commit`; the dry run removes
+nothing.
 
 ---
 

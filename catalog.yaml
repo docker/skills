@@ -131,7 +131,7 @@ skills:
   - id: docker-sandboxes-lifecycle
     product: docker-sandboxes
     path: skills/docker-sandboxes-lifecycle
-    version: 0.1.0
+    version: 0.1.1
     status: stable
   - id: docker-sandboxes-network-credentials
     product: docker-sandboxes

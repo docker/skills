@@ -8,6 +8,10 @@ for distribution releases.
 
 ## [Unreleased]
 
+### Changed
+
+- Correct local sandbox reattachment and detach guidance, preserve clone work in a verified local branch before cleanup, and clarify version evidence in `docker-sandboxes-lifecycle` (0.1.1).
+
 ### Added
 
 - Added the experimental `docker-docs` skill. It answers questions about any

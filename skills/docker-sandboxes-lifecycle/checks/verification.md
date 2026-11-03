@@ -33,7 +33,8 @@ sbx --app-name "$APP" ls --json
 ```
 Pass: `no-mount-check` has no workspace; `mount-check` has `$REPO`. Reusing
 `--name mount-check` does not create a third sandbox. Detached run does not
-open an interactive agent session.
+open an interactive agent session, and on the existing `mount-check` it
+switches that disposable sandbox to detached mode permanently.
 
 ## 3. Check clone-mode creation and reattachment
 
@@ -54,12 +55,13 @@ neither a linked worktree nor a submodule.
 sbx --app-name "$APP" exec clone-check git -c user.name=Test -c user.email=test@example.invalid commit --allow-empty -m clone-check-commit
 git -C "$REPO" fetch sandbox-clone-check
 git -C "$REPO" log --oneline -1 refs/remotes/sandbox-clone-check/main
+git -C "$REPO" branch recovered-clone-check sandbox-clone-check/main
 sbx --app-name "$APP" rm --force clone-check
 git -C "$REPO" rev-parse --verify refs/remotes/sandbox-clone-check/main
-git -C "$REPO" log --oneline -1 refs/sandboxes/clone-check/main
+git -C "$REPO" log --oneline -1 recovered-clone-check
 ```
 Pass: the first log shows `clone-check-commit`. After this consented removal,
-`rev-parse` fails (the ordinary remote ref was removed) but the survivor ref
+`rev-parse` fails (the ordinary remote ref was removed) but the local recovery branch
 still shows that commit. Exec uses the sandbox's recorded workspace, not an
 assumed `/workspace`. Unfetched commits would be lost on removal.
 
@@ -89,10 +91,46 @@ Pass: the unfiltered preview includes `prune-drop` and excludes running
 preview is empty because this app's sandboxes were created moments ago,
 not stopped more than a week ago. Neither preview removes anything.
 
-## 7. Clean up only this disposable session
+## 7. Confirm creation-only settings are not applied on reattach
 
 ```bash
-sbx --app-name "$APP" rm --force no-mount-check mount-check ro-check prune-keep prune-drop
+sbx --app-name "$APP" create --name reattach-check shell "$REPO"
+sbx --app-name "$APP" run --name reattach-check -p 127.0.0.1:18081:8080/tcp4 -d
+sbx --app-name "$APP" ports reattach-check --json
+sbx --app-name "$APP" ports reattach-check --publish 127.0.0.1:18081:8080/tcp4
+sbx --app-name "$APP" ports reattach-check --json
+```
+Pass: the first `ports` listing has no mapping despite `-p` on reattach (use a
+free host port if 18081 is taken); the mapping appears only after `ports
+--publish`. Extra workspace paths on reattach are deliberately not tested;
+the skill tells agents to omit them.
+
+## 8. Fetch clone work from a stopped sandbox before cleanup
+
+```bash
+sbx --app-name "$APP" create --clone --name stopped-clone shell "$REPO"
+sbx --app-name "$APP" exec stopped-clone git -c user.name=Test -c user.email=test@example.invalid commit --allow-empty -m stopped-clone-commit
+sbx --app-name "$APP" stop stopped-clone
+git -C "$REPO" fetch sandbox-stopped-clone
+sbx --app-name "$APP" run --name stopped-clone -d
+git -C "$REPO" fetch sandbox-stopped-clone
+git -C "$REPO" branch recovered-stopped-clone sandbox-stopped-clone/main
+git -C "$REPO" log --oneline -1 recovered-stopped-clone
+sbx --app-name "$APP" prune --dry-run
+```
+Pass: the first fetch fails while the sandbox is stopped; after the detached
+run starts it, the second fetch succeeds and the local recovery branch shows
+`stopped-clone-commit`; the dry run lists no running sandbox and removes
+nothing. Detached run is used only because this disposable sandbox is removed
+in the cleanup step; for a sandbox you keep, attach with `sbx run --name` and
+fetch from a second terminal. Experimental: a one-shot `sbx exec NAME true`
+is not established as a way to keep the sandbox running; verify locally
+before relying on it.
+
+## 9. Clean up only this disposable session
+
+```bash
+sbx --app-name "$APP" rm --force no-mount-check mount-check ro-check prune-keep prune-drop reattach-check stopped-clone
 sbx --app-name "$APP" daemon stop
 rm -rf "$WORK"
 ```
