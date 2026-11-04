@@ -51,22 +51,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Check credentials
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-            echo "::error::Set the ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN repository secret."
-            exit 1
-          fi
-          if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
-            echo "::error::Set DOCKERHUB_USERNAME and DOCKERHUB_TOKEN repository secrets for sbx login."
-            exit 1
-          fi
-
       - name: Install Docker Sandboxes (sbx)
         run: |
           # Ubuntu 24.04 runners have KVM support
@@ -78,10 +62,10 @@ jobs:
 
       - name: Authenticate sbx
         env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERPUBLICBOT_READ_PAT: ${{ secrets.DOCKERPUBLICBOT_READ_PAT }}
+          DOCKERPUBLICBOT_USERNAME: ${{ vars.DOCKERPUBLICBOT_USERNAME }}
         run: |
-          echo "$DOCKERHUB_TOKEN" | sbx login --username "$DOCKERHUB_USERNAME" --password-stdin
+          echo "$DOCKERPUBLICBOT_READ_PAT" | sbx login --username "$DOCKERPUBLICBOT_USERNAME" --password-stdin
           sbx policy init balanced
 
       - name: Install Claude Code
@@ -98,7 +82,6 @@ jobs:
       - name: Run live skill scenarios
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           INPUT_SKILL: ${{ inputs.skill }}
         run: |
           # Run in kvm group context
