@@ -197,6 +197,12 @@ class CheckVersionBumpsTests(unittest.TestCase):
         self.commit()
         self.assertEqual(check_version_bumps(self.base, self.root), [])
 
+    def test_evals_directory_does_not_require_version_bump(self):
+        """Changes to skills/<id>/evals/ should not trigger a version bump."""
+        self.write("skills/build-a/evals/test-scenario.yaml", "id: test\n")
+        self.commit()
+        self.assertEqual(check_version_bumps(self.base, self.root), [])
+
     def test_unavailable_base_is_actionable(self):
         errors = check_version_bumps("missing-base", self.root)
         self.assertEqual(

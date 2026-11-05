@@ -1,0 +1,113 @@
+name: Live skill evals
+
+# Runs skills/*/evals/*.yaml with Claude Code against real CLIs. Calls a
+# live model and may need tool-specific authentication, so it stays out of
+# offline `task ci`.
+on:
+  pull_request:
+    paths:
+      - "skills/**"
+      - "scripts/skill_eval.py"
+      - ".github/workflows/skill-evals.yml"
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      skill:
+        description: "Only run scenarios for this skill id (empty: all)"
+        required: false
+        default: ""
+      model:
+        description: "Claude model alias or name"
+        required: false
+        default: "sonnet"
+      repeat:
+        description: "Runs per scenario"
+        required: false
+        default: "3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: skill-evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scenarios:
+    # Fork pull requests receive no secrets; skip them instead of failing.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CLAUDE_CODE_VERSION: "2.1.316"
+      SBX_VERSION: "0.50.1"
+      SKILL_EVAL_MODEL: ${{ inputs.model || 'sonnet' }}
+      SKILL_EVAL_REPEAT: ${{ inputs.repeat || '3' }}
+      # Model routing is nondeterministic: a scenario passes when 2 of 3 runs pass.
+      SKILL_EVAL_MIN_PASS_RATE: "0.66"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Docker Sandboxes (sbx)
+        run: |
+          curl -fsSL "https://github.com/docker/sbx-releases/releases/download/v${SBX_VERSION}/DockerSandboxes-linux-amd64-ubuntu2404.deb" -o sbx.deb
+          sudo apt-get install -y ./sbx.deb
+          sudo usermod -aG kvm "$USER"
+          rm sbx.deb
+          sbx version
+
+      - name: Setup sbx (login and policy)
+        env:
+          DOCKERPUBLICBOT_READ_PAT: ${{ secrets.DOCKERPUBLICBOT_READ_PAT }}
+          DOCKERPUBLICBOT_USERNAME: ${{ vars.DOCKERPUBLICBOT_USERNAME }}
+        run: |
+          # sg kvm runs commands in kvm group context (usermod doesn't affect current shell)
+          # Login starts the daemon and authenticates for pulling sandbox images
+          sg kvm -c 'echo "$DOCKERPUBLICBOT_READ_PAT" | sbx login --username "$DOCKERPUBLICBOT_USERNAME" --password-stdin'
+          sg kvm -c 'sbx policy init balanced'
+
+      - name: Install Claude Code
+        run: |
+          npm install --global --ignore-scripts "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+          node "$(npm root --global)/@anthropic-ai/claude-code/install.cjs"
+          claude --version
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -q --require-hashes -r scripts/requirements.txt
+
+      - name: Run live skill scenarios
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          INPUT_SKILL: ${{ inputs.skill }}
+        run: |
+          set +e
+          .venv/bin/python scripts/skill_eval.py ${INPUT_SKILL:+--skill "$INPUT_SKILL"}
+          exit_code=$?
+          # Debug output
+          echo "=== Listing .skill-evals ==="
+          ls -laR .skill-evals/ 2>&1 | head -50 || echo "No .skill-evals directory found"
+          echo "=== report.json ==="
+          cat .skill-evals/*/docker-sandboxes-lifecycle/mount-ls-delete/1/report.json 2>/dev/null | head -200 || true
+          echo "=== transcript.jsonl (last 50 lines) ==="
+          tail -50 .skill-evals/*/docker-sandboxes-lifecycle/mount-ls-delete/1/transcript.jsonl 2>/dev/null || true
+          exit $exit_code
+
+      - name: Upload transcripts and call logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: skill-evals
+          path: .skill-evals/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Cleanup sandboxes
+        if: always()
+        run: |
+          sbx ls -q 2>/dev/null | grep "^eval-" | xargs -r sbx rm --force || true
+          sbx daemon stop || true
