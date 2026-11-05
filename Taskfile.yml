@@ -21,6 +21,13 @@ tasks:
     cmds:
       - docker run --rm -v "{{.ROOT_DIR}}:/work" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d sh -c "pip install -q --require-hashes -r scripts/requirements.txt && python3 scripts/eval_check.py"
 
+  eval:skills:
+    desc: Run live skill scenarios with Claude Code and real sbx (calls a live model; needs claude, sbx authenticated, and ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN; separate from offline CI)
+    cmds:
+      - python3 -m venv .venv
+      - .venv/bin/pip install -q --require-hashes -r scripts/requirements.txt
+      - .venv/bin/python scripts/skill_eval.py {{.CLI_ARGS}}
+
   catalog:
     desc: Regenerate catalog tables, skills.sh.json, and rendered plugin manifest versions from catalog.yaml
     cmds:
