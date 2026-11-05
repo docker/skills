@@ -215,6 +215,9 @@ def check_version_bumps(base: str, root: str = REPO_ROOT, head: str = "HEAD") ->
         if isinstance(path, str):
             known_paths[path.rstrip("/") + "/"] = skill_id
     for path in changed_paths:
+        # Skip evals/ directories - they don't affect skill content
+        if "/evals/" in path or path.endswith("/evals"):
+            continue
         for prefix, skill_id in known_paths.items():
             if path.startswith(prefix):
                 changed_skill_ids.add(skill_id)

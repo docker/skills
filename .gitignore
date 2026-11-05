@@ -4,6 +4,7 @@
 .claude/settings.local.json
 .sbx/
 .data/
+.skill-evals/
 
 # Environment, credentials, and key material
 .env

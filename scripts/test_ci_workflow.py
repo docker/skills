@@ -58,7 +58,7 @@ class CIWorkflowTests(unittest.TestCase):
         self.assertIn("pyyaml==6.0.3", requirements)
         self.assertIn("--hash=sha256:", requirements)
         self.assertIn(install, CI_SCRIPT)
-        self.assertEqual(taskfile.count(install), 5)
+        self.assertEqual(taskfile.count(install), 6)  # 5 tasks + skill-evals workflow
         self.assertNotIn("pip install -q pyyaml", CI_SCRIPT + taskfile)
 
 
