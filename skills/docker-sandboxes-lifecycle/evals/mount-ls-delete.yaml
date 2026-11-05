@@ -49,7 +49,6 @@ cli:
   # Cleanup: list and remove resources created during the test
   cleanup:
     list: ["sbx", "ls", "-q"]
-    list_filter_prefix: "eval-"
     remove: ["sbx", "rm", "--force"]
 
 expect:

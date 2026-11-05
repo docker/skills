@@ -6,7 +6,7 @@ name: Live skill evals
 on:
   pull_request:
     paths:
-      - "skills/**/evals/**"
+      - "skills/**"
       - "scripts/skill_eval.py"
       - ".github/workflows/skill-evals.yml"
   schedule:
@@ -43,7 +43,7 @@ jobs:
       CLAUDE_CODE_VERSION: "2.1.316"
       SBX_VERSION: "0.50.1"
       SKILL_EVAL_MODEL: ${{ inputs.model || 'sonnet' }}
-      SKILL_EVAL_REPEAT: ${{ inputs.repeat || '1' }}
+      SKILL_EVAL_REPEAT: ${{ inputs.repeat || '3' }}
       # Model routing is nondeterministic: a scenario passes when 2 of 3 runs pass.
       SKILL_EVAL_MIN_PASS_RATE: "0.66"
     steps:

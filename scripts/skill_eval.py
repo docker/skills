@@ -68,7 +68,6 @@ class CLIConfig:
     name_flags: list[str] = dataclasses.field(default_factory=list)
     name_positional_commands: list[str] = dataclasses.field(default_factory=list)
     cleanup_list: list[str] = dataclasses.field(default_factory=list)
-    cleanup_filter_prefix: str = ""
     cleanup_remove: list[str] = dataclasses.field(default_factory=list)
 
 
@@ -132,7 +131,6 @@ def load_scenario(path: Path) -> Scenario:
             name_flags=cli_config.get("name_flags") or [],
             name_positional_commands=cli_config.get("name_positional_commands") or [],
             cleanup_list=cleanup.get("list") or [],
-            cleanup_filter_prefix=cleanup.get("list_filter_prefix", ""),
             cleanup_remove=cleanup.get("remove") or [],
         )
     
@@ -198,14 +196,12 @@ class Transcript:
             # Extract CLI commands from the shell command
             for line in command.split("\n"):
                 line = line.strip()
-                # Remove trailing redirections for parsing
-                clean = re.sub(r'\s+2>&1.*$', '', line)
-                clean = re.sub(r'\s+>\s*/dev/null.*$', '', clean)
-                clean = re.sub(r'\s+2>/dev/null.*$', '', clean)
-                # Split on shell command separators to handle chained commands
-                # like "ls && sbx create ..." or "VAR=x; sbx exec ..."
-                for segment in re.split(r'\s*(?:&&|;|\|)\s*', clean):
+                # Split on shell command separators first to handle chained commands
+                # like "sbx ls 2>&1 && sbx rm --all" - we need both parts
+                for segment in re.split(r'\s*(?:&&|;|\|)\s*', line):
                     segment = segment.strip()
+                    # Remove redirections from this segment only (not following commands)
+                    segment = re.sub(r'\s*(?:2>&1|>&2|>[>&]?\s*\S+|2>\s*\S+)\s*$', '', segment).strip()
                     # Handle variable assignments: "VAR=value cmd args" -> extract cmd
                     if segment.split() and '=' in segment.split()[0]:
                         parts = segment.split(None, 1)
@@ -219,7 +215,6 @@ class Transcript:
                         except ValueError:
                             argv = segment.split()
                         calls.append(enrich_call({"argv": argv, "command": command}, cli))
-        return calls
         return calls
 
 
@@ -492,22 +487,31 @@ def has_api_credentials() -> bool:
     return False
 
 
-def cleanup_resources(scenario: Scenario, prefix: str) -> None:
-    """Clean up resources created during the test using scenario's CLI config."""
+def list_resources(scenario: Scenario) -> set[str]:
+    """List current resources using scenario's CLI config."""
+    cli = scenario.cli
+    if not cli or not cli.cleanup_list:
+        return set()
+    try:
+        result = subprocess.run(cli.cleanup_list, capture_output=True, text=True, timeout=30, check=False)
+        if result.returncode != 0:
+            return set()
+        return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return set()
+
+
+def cleanup_resources(scenario: Scenario, before: set[str]) -> None:
+    """Clean up resources created during the test (those not in 'before' set)."""
     cli = scenario.cli
     if not cli or not cli.cleanup_list or not cli.cleanup_remove:
         return
     try:
-        # List resources
-        result = subprocess.run(cli.cleanup_list, capture_output=True, text=True, timeout=30, check=False)
-        if result.returncode != 0:
-            return
-        # Filter by prefix
-        names = [line.strip() for line in result.stdout.splitlines() 
-                 if line.strip().startswith(cli.cleanup_filter_prefix or prefix)]
-        # Remove matching resources
-        if names:
-            subprocess.run([*cli.cleanup_remove, *names], capture_output=True, timeout=60, check=False)
+        after = list_resources(scenario)
+        # Remove only resources that were created during this run
+        created = after - before
+        if created:
+            subprocess.run([*cli.cleanup_remove, *sorted(created)], capture_output=True, timeout=60, check=False)
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
 
@@ -515,15 +519,14 @@ def cleanup_resources(scenario: Scenario, prefix: str) -> None:
 def run_scenario(scenario: Scenario, args: argparse.Namespace, run_dir: Path, use_host_config: bool) -> list[Check]:
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate a unique prefix for resources created in this run
-    prefix = f"eval-{int(time.time())}-{os.getpid()}-"
+    # Snapshot resources before the run so we only clean up what the agent creates
+    resources_before = list_resources(scenario)
 
     paths = prepare_workspace(scenario, run_dir, args.only_target_skill)
     command = agent_command(scenario, args, use_host_config)
     meta = {
         "scenario": str(scenario.path.relative_to(REPO_ROOT)),
         "workspace": str(paths["workspace"]),
-        "prefix": prefix,
         "model": args.model,
         "command": command,
         "started": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -542,8 +545,8 @@ def run_scenario(scenario: Scenario, args: argparse.Namespace, run_dir: Path, us
     except FileNotFoundError as exc:
         raise ScenarioError(f"cannot start agent {args.claude_bin!r}: {exc}") from exc
 
-    # Clean up resources
-    cleanup_resources(scenario, prefix)
+    # Clean up only resources created during this run
+    cleanup_resources(scenario, resources_before)
 
     # Grade
     checks = regrade(run_dir)

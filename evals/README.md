@@ -20,22 +20,20 @@ Record the CLI version, agent/model, and observed results when running them.
 One runbook per catalogued skill. The table is generated from [`catalog.yaml`](../catalog.yaml) by `task catalog`.
 
 <!-- catalog-start -->
-
-| Skill                                | Runbook                                                                            |
-| ------------------------------------ | ---------------------------------------------------------------------------------- |
-| docker-project-foundations           | [docker-project-foundations.md](docker-project-foundations.md)                     |
-| docker-build-strategies              | [docker-build-strategies.md](docker-build-strategies.md)                           |
-| docker-compose-patterns              | [docker-compose-patterns.md](docker-compose-patterns.md)                           |
-| docker-sandboxes-lifecycle           | [docker-sandboxes-lifecycle.md](docker-sandboxes-lifecycle.md)                     |
+| Skill | Runbook |
+|-------|---------|
+| docker-project-foundations | [docker-project-foundations.md](docker-project-foundations.md) |
+| docker-build-strategies | [docker-build-strategies.md](docker-build-strategies.md) |
+| docker-compose-patterns | [docker-compose-patterns.md](docker-compose-patterns.md) |
+| docker-sandboxes-lifecycle | [docker-sandboxes-lifecycle.md](docker-sandboxes-lifecycle.md) |
 | docker-sandboxes-network-credentials | [docker-sandboxes-network-credentials.md](docker-sandboxes-network-credentials.md) |
-| docker-sandboxes-env                 | [docker-sandboxes-env.md](docker-sandboxes-env.md)                                 |
-| docker-sandboxes-kits                | [docker-sandboxes-kits.md](docker-sandboxes-kits.md)                               |
-| docker-agent-config                  | [docker-agent-config.md](docker-agent-config.md)                                   |
-| docker-agent-run                     | [docker-agent-run.md](docker-agent-run.md)                                         |
-| docker-agent-deploy                  | [docker-agent-deploy.md](docker-agent-deploy.md)                                   |
-| docker-docs                          | [docker-docs.md](docker-docs.md)                                                   |
-| docker-destructive-guardrails        | [docker-destructive-guardrails.md](docker-destructive-guardrails.md)               |
-
+| docker-sandboxes-env | [docker-sandboxes-env.md](docker-sandboxes-env.md) |
+| docker-sandboxes-kits | [docker-sandboxes-kits.md](docker-sandboxes-kits.md) |
+| docker-agent-config | [docker-agent-config.md](docker-agent-config.md) |
+| docker-agent-run | [docker-agent-run.md](docker-agent-run.md) |
+| docker-agent-deploy | [docker-agent-deploy.md](docker-agent-deploy.md) |
+| docker-docs | [docker-docs.md](docker-docs.md) |
+| docker-destructive-guardrails | [docker-destructive-guardrails.md](docker-destructive-guardrails.md) |
 <!-- catalog-end -->
 
 ## How to run an evaluation
