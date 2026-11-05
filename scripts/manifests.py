@@ -65,30 +65,42 @@ def validate_skills_index(index: Any, catalog_ids: list[str]) -> list[str]:
 
 
 def validate_claude_marketplace_controls(marketplace: Any, plugin_manifest: Any) -> list[str]:
-    """Check Claude marketplace classifications and deprecated category metadata."""
+    """Check Claude marketplace category metadata.
+
+    The 'classification' object was previously required but is now rejected by
+    the official 'claude plugin validate' command. The correct field is 'category'
+    as a simple string (e.g., 'development', 'security', 'productivity').
+    """
     errors: list[str] = []
     plugin_path = ".claude-plugin/plugin.json"
     marketplace_path = ".claude-plugin/marketplace.json"
+    # category in plugin.json is still deprecated - it belongs in marketplace.json
     if isinstance(plugin_manifest, dict) and "category" in plugin_manifest:
-        errors.append(plugin_path + " has deprecated field: category")
+        errors.append(plugin_path + " has deprecated field: category (move to marketplace.json)")
     if not isinstance(marketplace, dict) or not isinstance(marketplace.get("plugins"), list):
         return errors
-    required = {"object_acted_on", "work_department", "industry", "life_area", "subject"}
+    valid_categories = {
+        "automation", "database", "deployment", "design", "development",
+        "monitoring", "productivity", "security",
+    }
     for i, plugin in enumerate(marketplace["plugins"]):
         if not isinstance(plugin, dict):
             continue
         entry_path = marketplace_path + " plugins[" + str(i) + "]"
-        if "category" in plugin:
-            errors.append(entry_path + " has deprecated field: category")
-        prefix = entry_path + ".classification"
-        classification = plugin.get("classification")
-        if not isinstance(classification, dict):
-            errors.append(prefix + " must be an object")
-            continue
-        for key in sorted(required):
-            value = classification.get(key)
-            if not isinstance(value, str) or not value.strip():
-                errors.append(prefix + "." + key + " must be a non-empty string")
+        # classification is now rejected by claude plugin validate
+        if "classification" in plugin:
+            errors.append(entry_path + " has unsupported field: classification (use 'category' string instead)")
+        category = plugin.get("category")
+        if category is None:
+            errors.append(entry_path + " missing required field: category")
+        elif not isinstance(category, str) or not category.strip():
+            errors.append(entry_path + ".category must be a non-empty string")
+        elif category not in valid_categories:
+            errors.append(
+                entry_path + ".category '" + category + "' is not a known category; "
+                "expected one of: " + ", ".join(sorted(valid_categories))
+            )
+    return errors
     return errors
 
 

@@ -18,7 +18,7 @@ class SkillEvalsWorkflowTests(unittest.TestCase):
             self.assertIn(trigger, WORKFLOW)
         self.assertIn("permissions:\n  contents: read", WORKFLOW)
         self.assertIn("persist-credentials: false", WORKFLOW)
-        self.assertIn("github.event.pull_request.head.repo.full_name == github.repository", WORKFLOW)
+        # Fork PRs now run and fail explicitly if secrets are missing (no skip condition)
 
     def test_actions_and_tools_are_pinned(self):
         for ref in re.findall(r"uses: \S+@(\S+)", WORKFLOW):
