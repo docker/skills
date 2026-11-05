@@ -6,6 +6,7 @@ name: Live skill evals
 on:
   pull_request:
     paths:
+      - ".claude-plugin/**"
       - "skills/**"
       - "scripts/skill_eval.py"
       - ".github/workflows/skill-evals.yml"
@@ -34,9 +35,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  plugin-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLAUDE_CODE_VERSION: "2.1.316"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Claude Code
+        run: |
+          npm install --global --ignore-scripts "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+          node "$(npm root --global)/@anthropic-ai/claude-code/install.cjs"
+
+      - name: Validate plugin manifest
+        run: claude plugin validate .
+
   scenarios:
-    # Fork pull requests receive no secrets; skip them instead of failing.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:

@@ -15,48 +15,44 @@ from manifests import (
 
 
 class ClaudeMarketplaceControlsTests(unittest.TestCase):
-    classification = {
-        "object_acted_on": "code",
-        "work_department": "engineering",
-        "industry": "software development",
-        "life_area": "work",
-        "subject": "container development",
-    }
-
     def test_checked_in_manifests(self):
         root = Path(__file__).resolve().parent.parent / ".claude-plugin"
         marketplace = json.loads((root / "marketplace.json").read_text(encoding="utf-8"))
         plugin = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
         self.assertEqual(validate_claude_marketplace_controls(marketplace, plugin), [])
-        self.assertEqual(marketplace["plugins"][0]["classification"], self.classification)
-        self.assertNotIn("category", marketplace["plugins"][0])
+        self.assertEqual(marketplace["plugins"][0]["category"], "development")
+        self.assertNotIn("classification", marketplace["plugins"][0])
         self.assertNotIn("category", plugin)
 
-    def test_each_entry_requires_five_non_empty_string_fields(self):
-        marketplace = {"plugins": [{"classification": self.classification.copy()}, {"classification": {}}]}
+    def test_category_must_be_valid_string(self):
+        marketplace = {"plugins": [{"category": "development"}, {"category": ""}]}
         errors = validate_claude_marketplace_controls(marketplace, {})
-        self.assertEqual(len(errors), 5)
-        self.assertTrue(all("plugins[1].classification" in error for error in errors))
-        marketplace["plugins"][1]["classification"] = self.classification | {"industry": "  ", "subject": 4}
-        errors = validate_claude_marketplace_controls(marketplace, {})
-        self.assertEqual(len(errors), 2)
-        self.assertTrue(any(".industry" in error for error in errors))
-        self.assertTrue(any(".subject" in error for error in errors))
+        self.assertEqual(len(errors), 1)
+        self.assertIn("plugins[1].category must be a non-empty string", errors[0])
 
-    def test_missing_classification_and_deprecated_category(self):
-        marketplace = {"plugins": [{"category": "workflow"}]}
+    def test_missing_category(self):
+        marketplace = {"plugins": [{}]}
+        errors = validate_claude_marketplace_controls(marketplace, {})
+        self.assertEqual(len(errors), 1)
+        self.assertIn("missing required field: category", errors[0])
+
+    def test_unknown_category_warns(self):
+        marketplace = {"plugins": [{"category": "unknown-category"}]}
+        errors = validate_claude_marketplace_controls(marketplace, {})
+        self.assertEqual(len(errors), 1)
+        self.assertIn("not a known category", errors[0])
+
+    def test_classification_is_rejected(self):
+        marketplace = {"plugins": [{"category": "development", "classification": {"foo": "bar"}}]}
+        errors = validate_claude_marketplace_controls(marketplace, {})
+        self.assertEqual(len(errors), 1)
+        self.assertIn("unsupported field: classification", errors[0])
+
+    def test_category_in_plugin_json_is_deprecated(self):
+        marketplace = {"plugins": [{"category": "development"}]}
         errors = validate_claude_marketplace_controls(marketplace, {"category": "workflow"})
-        self.assertEqual(len(errors), 3)
-        self.assertTrue(any("plugins[0].classification must be an object" in error for error in errors))
-        self.assertTrue(any("plugin.json has deprecated field: category" in error for error in errors))
-        self.assertTrue(any("plugins[0] has deprecated field: category" in error for error in errors))
-
-    def test_marketplace_category_is_rejected_even_with_valid_classification(self):
-        marketplace = {"plugins": [{"classification": self.classification, "category": "workflow"}]}
-        self.assertEqual(
-            validate_claude_marketplace_controls(marketplace, {}),
-            [".claude-plugin/marketplace.json plugins[0] has deprecated field: category"],
-        )
+        self.assertEqual(len(errors), 1)
+        self.assertIn("plugin.json has deprecated field: category", errors[0])
 
 
 class ClaudePluginIconTests(unittest.TestCase):
