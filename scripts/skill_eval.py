@@ -214,7 +214,13 @@ class Transcript:
                             argv = shlex.split(segment)
                         except ValueError:
                             argv = segment.split()
-                        calls.append(enrich_call({"argv": argv, "command": command}, cli))
+                        # Include tool call error status and result for grading
+                        calls.append(enrich_call({
+                            "argv": argv,
+                            "command": command,
+                            "is_error": tc.is_error,
+                            "result": tc.result,
+                        }, cli))
         return calls
 
 
@@ -382,6 +388,11 @@ def grade_steps(steps: list[dict[str, Any]], calls: list[dict[str, Any]], variab
             checks.append(Check(name, False, detail))
             continue
         call = calls[found]
+        # Check if the call failed (Bash tool returned an error)
+        if call.get("is_error"):
+            checks.append(Check(name, False, f"{describe_call(call)} failed: tool returned error"))
+            cursor = found + 1
+            continue
         if step.get("capture"):
             variables[step["capture"]] = call.get("name") or ""
         checks.append(Check(name, True, describe_call(call)))
