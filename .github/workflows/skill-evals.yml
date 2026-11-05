@@ -1,12 +1,14 @@
 name: Live skill evals
 
-# Runs skills/*/evals/*.yaml with Claude Code against real CLIs. Calls a
-# live model and may need tool-specific authentication, so it stays out of
-# offline `task ci`.
+# Runs skills/*/evals/*.yaml with Claude Code and/or Codex against real CLIs.
+# Calls a live model and may need tool-specific authentication, so it stays
+# out of offline `task ci`.
 on:
   pull_request:
     paths:
       - ".claude-plugin/**"
+      - ".codex-plugin/**"
+      - ".agents/**"
       - "skills/**"
       - "scripts/skill_eval.py"
       - ".github/workflows/skill-evals.yml"
@@ -18,10 +20,19 @@ on:
         description: "Only run scenarios for this skill id (empty: all)"
         required: false
         default: ""
-      model:
-        description: "Claude model alias or name"
+      agent:
+        description: "Agent to test (claude, codex, or both)"
         required: false
-        default: "sonnet"
+        default: "both"
+        type: choice
+        options:
+          - claude
+          - codex
+          - both
+      model:
+        description: "Model alias or name (agent-specific)"
+        required: false
+        default: ""
       repeat:
         description: "Runs per scenario"
         required: false
@@ -53,12 +64,14 @@ jobs:
       - name: Validate plugin manifest
         run: claude plugin validate .
 
-  scenarios:
+  scenarios-claude:
+    if: ${{ inputs.agent == 'claude' || inputs.agent == 'both' || inputs.agent == '' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       CLAUDE_CODE_VERSION: "2.1.316"
       SBX_VERSION: "0.50.1"
+      SKILL_EVAL_AGENT: "claude"
       SKILL_EVAL_MODEL: ${{ inputs.model || 'sonnet' }}
       SKILL_EVAL_REPEAT: ${{ inputs.repeat || '3' }}
       # Model routing is nondeterministic: a scenario passes when 2 of 3 runs pass.
@@ -97,13 +110,13 @@ jobs:
           python3 -m venv .venv
           .venv/bin/pip install -q --require-hashes -r scripts/requirements.txt
 
-      - name: Run live skill scenarios
+      - name: Run live skill scenarios (Claude)
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           INPUT_SKILL: ${{ inputs.skill }}
         run: |
           set +e
-          .venv/bin/python scripts/skill_eval.py ${INPUT_SKILL:+--skill "$INPUT_SKILL"}
+          .venv/bin/python scripts/skill_eval.py --agent claude ${INPUT_SKILL:+--skill "$INPUT_SKILL"}
           exit_code=$?
           # Debug output
           echo "=== Listing .skill-evals ==="
@@ -114,11 +127,133 @@ jobs:
           tail -50 .skill-evals/*/docker-sandboxes-lifecycle/mount-ls-delete/1/transcript.jsonl 2>/dev/null || true
           exit $exit_code
 
-      - name: Upload transcripts and call logs
+      - name: Upload transcripts and call logs (Claude)
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: skill-evals
+          name: skill-evals-claude
+          path: .skill-evals/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Cleanup sandboxes
+        if: always()
+        run: |
+          sbx ls -q 2>/dev/null | grep "^eval-" | xargs -r sbx rm --force || true
+          sbx daemon stop || true
+
+  scenarios-codex:
+    # Codex evals use Docker AI Gateway with Docker Hub authentication
+    if: ${{ inputs.agent == 'codex' || inputs.agent == 'both' || inputs.agent == '' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CODEX_VERSION: "0.166.0"
+      SBX_VERSION: "0.50.1"
+      SKILL_EVAL_AGENT: "codex"
+      # Use gpt-4o via Docker AI Gateway unless explicitly specified
+      SKILL_EVAL_MODEL: ${{ inputs.model || 'gpt-4o' }}
+      SKILL_EVAL_REPEAT: ${{ inputs.repeat || '3' }}
+      # Model routing is nondeterministic: a scenario passes when 2 of 3 runs pass.
+      SKILL_EVAL_MIN_PASS_RATE: "0.66"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Docker Sandboxes (sbx)
+        run: |
+          curl -fsSL "https://github.com/docker/sbx-releases/releases/download/v${SBX_VERSION}/DockerSandboxes-linux-amd64-ubuntu2404.deb" -o sbx.deb
+          sudo apt-get install -y ./sbx.deb
+          sudo usermod -aG kvm "$USER"
+          rm sbx.deb
+          sbx version
+
+      - name: Setup sbx (login and policy)
+        env:
+          DOCKERPUBLICBOT_READ_PAT: ${{ secrets.DOCKERPUBLICBOT_READ_PAT }}
+          DOCKERPUBLICBOT_USERNAME: ${{ vars.DOCKERPUBLICBOT_USERNAME }}
+        run: |
+          # sg kvm runs commands in kvm group context (usermod doesn't affect current shell)
+          # Login starts the daemon and authenticates for pulling sandbox images
+          sg kvm -c 'echo "$DOCKERPUBLICBOT_READ_PAT" | sbx login --username "$DOCKERPUBLICBOT_USERNAME" --password-stdin'
+          sg kvm -c 'sbx policy init balanced'
+
+      - name: Install Codex
+        run: |
+          npm install --global "@openai/codex@${CODEX_VERSION}"
+          codex --version
+
+      - name: Configure Codex for Docker AI Gateway
+        env:
+          DOCKERPUBLICBOT_READ_PAT: ${{ secrets.DOCKERPUBLICBOT_READ_PAT }}
+          DOCKERPUBLICBOT_USERNAME: ${{ vars.DOCKERPUBLICBOT_USERNAME }}
+        run: |
+          # Get JWT token from Docker Hub
+          JWT=$(curl -s -X POST "https://hub.docker.com/v2/users/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\":\"${DOCKERPUBLICBOT_USERNAME}\",\"password\":\"${DOCKERPUBLICBOT_READ_PAT}\"}" \
+            | jq -r '.token')
+          
+          if [ -z "$JWT" ] || [ "$JWT" = "null" ]; then
+            echo "::error::Failed to get Docker Hub JWT token"
+            exit 1
+          fi
+          
+          # Create Codex config directory
+          mkdir -p ~/.codex
+          
+          # Configure Codex to use Docker AI Gateway
+          cat > ~/.codex/config.toml << EOF
+          model_provider = "docker-gateway"
+          
+          [model_providers.docker-gateway]
+          name = "Docker AI Gateway"
+          base_url = "https://gw.docker.com/v1/docker/gateways/default/inference/openai/v1"
+          env_key = "DOCKER_GATEWAY_TOKEN"
+          wire_api = "responses"
+          requires_openai_auth = false
+          EOF
+          
+          # Export token for later steps
+          echo "DOCKER_GATEWAY_TOKEN=${JWT}" >> $GITHUB_ENV
+          echo "::add-mask::${JWT}"
+          
+          echo "Codex configured to use Docker AI Gateway"
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -q --require-hashes -r scripts/requirements.txt
+
+      - name: Run live skill scenarios (Codex)
+        env:
+          INPUT_SKILL: ${{ inputs.skill }}
+          INPUT_MODEL: ${{ inputs.model }}
+        run: |
+          set +e
+          model_arg=""
+          if [ -n "$INPUT_MODEL" ]; then
+            model_arg="--model $INPUT_MODEL"
+          else
+            model_arg="--model gpt-4o"
+          fi
+          .venv/bin/python scripts/skill_eval.py --agent codex $model_arg ${INPUT_SKILL:+--skill "$INPUT_SKILL"}
+          exit_code=$?
+          # Debug output
+          echo "=== Listing .skill-evals ==="
+          ls -laR .skill-evals/ 2>&1 | head -50 || echo "No .skill-evals directory found"
+          echo "=== report.json ==="
+          cat .skill-evals/*/docker-sandboxes-lifecycle/mount-ls-delete/1/report.json 2>/dev/null | head -200 || true
+          echo "=== transcript.jsonl (last 50 lines) ==="
+          tail -50 .skill-evals/*/docker-sandboxes-lifecycle/mount-ls-delete/1/transcript.jsonl 2>/dev/null || true
+          exit $exit_code
+
+      - name: Upload transcripts and call logs (Codex)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: skill-evals-codex
           path: .skill-evals/
           if-no-files-found: ignore
           retention-days: 14

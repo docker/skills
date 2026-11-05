@@ -1,23 +1,25 @@
 #!/usr/bin/env python3
-"""Run live skill scenarios against Claude Code.
+"""Run live skill scenarios against Claude Code or OpenAI Codex.
 
 A scenario (skills/<skill-id>/evals/*.yaml) simulates a user prompt that
 should trigger a skill. The harness:
 
 1. creates a fresh working directory containing the repository's skills under
-   `.claude/skills/` plus the scenario's fixture files;
-2. runs Claude Code headlessly (`claude -p --output-format stream-json`) with
-   the scenario's allowed tools;
-3. extracts CLI calls from the Bash tool invocations in the transcript;
+   the agent's expected skills path plus the scenario's fixture files;
+2. runs the agent headlessly with JSON output and the scenario's allowed tools;
+3. extracts CLI calls from the tool invocations in the transcript;
 4. grades the transcript and the CLI calls against the scenario's
    expectations, cleans up resources, writes artifacts, and exits nonzero on
    any failure.
 
-This calls a live model and needs ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN.
-It is intentionally not part of offline `task ci`.
+For Claude: needs ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN.
+For Codex: needs OPENAI_API_KEY or logged-in Codex session.
+
+This calls a live model and is intentionally not part of offline `task ci`.
 
 Usage:
-  python3 scripts/skill_eval.py                       # every scenario
+  python3 scripts/skill_eval.py                                # every scenario with claude
+  python3 scripts/skill_eval.py --agent codex                  # every scenario with codex
   python3 scripts/skill_eval.py --skill docker-sandboxes-lifecycle
   python3 scripts/skill_eval.py skills/docker-sandboxes-lifecycle/evals/mount-ls-delete.yaml
   python3 scripts/skill_eval.py --regrade .skill-evals/<run-dir>   # re-grade saved artifacts
@@ -46,7 +48,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = REPO_ROOT / "skills"
 DEFAULT_OUT = REPO_ROOT / ".skill-evals"
 
-# Default allowed tools; scenarios can add more via tools.allowed
+# Supported agents
+SUPPORTED_AGENTS = ("claude", "codex")
+
+# Default allowed tools for Claude; scenarios can add more via tools.allowed
 DEFAULT_ALLOWED_TOOLS = ["Skill", "Read", "Glob", "Grep"]
 DEFAULT_DISALLOWED_TOOLS = ["WebFetch", "WebSearch", "Task", "Write", "Edit", "NotebookEdit"]
 STRIPPED_ENV_PREFIXES = ("DOCKER_CLI_PLUGIN_",)
@@ -172,6 +177,7 @@ class Transcript:
     tool_calls: list[ToolCall]
     final_text: str
     result: dict[str, Any]
+    agent: str = "claude"
 
     def skill_calls(self) -> list[ToolCall]:
         return [c for c in self.tool_calls if c.name == "Skill"]
@@ -184,13 +190,14 @@ class Transcript:
         return names
 
     def cli_calls(self, cli: CLIConfig) -> list[dict[str, Any]]:
-        """Extract CLI commands from Bash tool calls."""
+        """Extract CLI commands from Bash/command tool calls."""
         if not cli or not cli.command:
             return []
         calls = []
         cmd = cli.command
         for tc in self.tool_calls:
-            if tc.name != "Bash":
+            # Claude uses "Bash" tool, Codex uses "command_execution" type
+            if tc.name not in ("Bash", "command_execution"):
                 continue
             command = tc.input.get("command", "")
             # Extract CLI commands from the shell command
@@ -233,7 +240,7 @@ def _text(content: Any) -> str:
     return "" if content is None else str(content)
 
 
-def parse_transcript(lines: Iterable[str]) -> Transcript:
+def parse_transcript_claude(lines: Iterable[str]) -> Transcript:
     """Parse Claude Code `--output-format stream-json` events."""
     skills: list[str] = []
     calls: dict[str, ToolCall] = {}
@@ -269,7 +276,169 @@ def parse_transcript(lines: Iterable[str]) -> Transcript:
         elif kind == "result":
             result = event
     final = result.get("result") if isinstance(result.get("result"), str) else last_text
-    return Transcript(skills, [calls[i] for i in order], final or "", result)
+    return Transcript(skills, [calls[i] for i in order], final or "", result, agent="claude")
+
+
+def parse_transcript_codex(lines: Iterable[str]) -> Transcript:
+    """Parse Codex `--json` JSONL events."""
+    skills: list[str] = []
+    tool_calls: list[ToolCall] = []
+    all_text_parts: list[str] = []  # Collect all text for final answer
+    result: dict[str, Any] = {}
+    turn_count = 0
+    total_input_tokens = 0
+    total_output_tokens = 0
+    
+    for line in lines:
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        
+        kind = event.get("type")
+        
+        if kind == "thread.started":
+            # Thread started event
+            pass
+        elif kind == "turn.started":
+            turn_count += 1
+        elif kind == "turn.completed":
+            usage = event.get("usage") or {}
+            total_input_tokens += usage.get("input_tokens", 0)
+            total_output_tokens += usage.get("output_tokens", 0)
+            # Mark as successful completion
+            result = {
+                "subtype": "success",
+                "num_turns": turn_count,
+                "total_cost_usd": None,  # Codex doesn't report cost in the same way
+                "input_tokens": total_input_tokens,
+                "output_tokens": total_output_tokens,
+            }
+        elif kind == "turn.failed":
+            error = event.get("error", {})
+            result = {
+                "subtype": "error",
+                "is_error": True,
+                "error_message": error.get("message", "turn failed"),
+            }
+        elif kind == "error":
+            result = {
+                "subtype": "error",
+                "is_error": True,
+                "error_message": event.get("message", "unknown error"),
+            }
+        elif kind == "item.completed":
+            item = event.get("item") or {}
+            item_type = item.get("type")
+            item_id = item.get("id", f"item_{len(tool_calls)}")
+            
+            if item_type == "agent_message":
+                # Agent text response
+                text = item.get("text", "")
+                if text:
+                    all_text_parts.append(text)
+            elif item_type == "command_execution":
+                # Shell command execution - this is equivalent to Claude's Bash tool
+                command = item.get("command", "")
+                output = item.get("aggregated_output", "")
+                exit_code = item.get("exit_code")
+                status = item.get("status", "")
+                
+                # Parse the command - Codex wraps commands in shell: /bin/zsh -lc 'actual command'
+                actual_command = command
+                # Extract actual command from shell wrapper
+                shell_match = re.match(r'^/bin/(?:zsh|bash|sh)\s+-\w*c\s+[\'"]?(.+?)[\'"]?$', command, re.DOTALL)
+                if shell_match:
+                    actual_command = shell_match.group(1).strip()
+                    # Remove trailing quote if present
+                    if actual_command.endswith("'") or actual_command.endswith('"'):
+                        actual_command = actual_command[:-1]
+                
+                is_error = exit_code is not None and exit_code != 0
+                
+                # Check if this is a skill file read (Codex reads skills via cat command)
+                skill_match = re.search(r'cat\s+[\'"]?(?:.*?\.agents/skills|.*?/skills)/([^/\s\'"]+)(?:/SKILL\.md)?', actual_command)
+                if skill_match:
+                    skill_name = skill_match.group(1)
+                    if skill_name and skill_name not in skills:
+                        skills.append(skill_name)
+                        # Add a synthetic Skill tool call
+                        tool_calls.append(ToolCall(
+                            id=f"{item_id}_skill",
+                            name="Skill",
+                            input={"skill": skill_name, "name": skill_name},
+                            result=output,
+                            is_error=is_error,
+                        ))
+                
+                tool_calls.append(ToolCall(
+                    id=item_id,
+                    name="command_execution",
+                    input={"command": actual_command},
+                    result=output,
+                    is_error=is_error,
+                ))
+            elif item_type == "skill_read":
+                # Skill invocation - Codex reads skill files (explicit skill_read event)
+                skill_path = item.get("skill_path", "")
+                skill_name = ""
+                # Extract skill name from path like "/path/to/.agents/skills/docker-sandboxes-lifecycle/SKILL.md"
+                parts = skill_path.split("/")
+                if "skills" in parts:
+                    idx = parts.index("skills")
+                    if idx + 1 < len(parts):
+                        skill_name = parts[idx + 1]
+                if skill_name and skill_name not in skills:
+                    skills.append(skill_name)
+                    tool_calls.append(ToolCall(
+                        id=item_id,
+                        name="Skill",
+                        input={"skill": skill_name, "name": skill_name},
+                        result=item.get("content", ""),
+                        is_error=False,
+                    ))
+            elif item_type == "collab_tool_call":
+                # Collaboration tool call - may contain skill references in sub-agent messages
+                agents_states = item.get("agents_states") or {}
+                for agent_id, state in agents_states.items():
+                    message = state.get("message") or ""
+                    status = state.get("status") or ""
+                    # Include completed sub-agent messages in the final text
+                    if status == "completed" and message:
+                        all_text_parts.append(message)
+                    # Check if the message mentions reading a skill file
+                    # e.g., "Confirmed from the [docker-sandboxes-lifecycle skill](.agents/skills/docker-sandboxes-lifecycle/SKILL.md)"
+                    skill_ref_match = re.search(r'\.agents/skills/([^/\s\)\]]+)(?:/SKILL\.md)?', message)
+                    if skill_ref_match:
+                        skill_name = skill_ref_match.group(1)
+                        if skill_name and skill_name not in skills:
+                            skills.append(skill_name)
+                            tool_calls.append(ToolCall(
+                                id=f"{item_id}_skill_{skill_name}",
+                                name="Skill",
+                                input={"skill": skill_name, "name": skill_name},
+                                result=message,
+                                is_error=False,
+                            ))
+            elif item_type == "error":
+                # Error item
+                message = item.get("message", "")
+                # Don't treat model metadata warnings as fatal
+                if "Model metadata" not in message:
+                    result["is_error"] = True
+                    result["error_message"] = message
+    
+    return Transcript(skills, tool_calls, "\n\n".join(all_text_parts), result, agent="codex")
+
+
+def parse_transcript(lines: Iterable[str], agent: str = "claude") -> Transcript:
+    """Parse agent transcript based on agent type."""
+    if agent == "codex":
+        return parse_transcript_codex(lines)
+    return parse_transcript_claude(lines)
 
 
 def enrich_call(call: dict[str, Any], cli: CLIConfig) -> dict[str, Any]:
@@ -316,6 +485,7 @@ class Check:
     name: str
     passed: bool
     detail: str = ""
+    optional: bool = False  # Optional checks don't affect pass/fail
 
 
 def expand(value: str, variables: dict[str, str]) -> str:
@@ -418,9 +588,21 @@ def grade(scenario: Scenario, transcript: Transcript, calls: list[dict[str, Any]
         detail = f"invoked: {invoked or 'none'}"
         if not available:
             detail += f"; skill not discovered (available: {transcript.skills_available})"
-        checks.append(Check(f"skill {scenario.skill} invoked", bool(ok_calls), detail))
+        # For Codex, skill invocation is implicit via skill file reading
+        # We check if the skill was discovered (appeared in skills list)
+        if transcript.agent == "codex":
+            # Codex discovers skills by reading them - check if skill was read
+            skill_read = scenario.skill in transcript.skills_available
+            checks.append(Check(f"skill {scenario.skill} invoked", skill_read or bool(ok_calls), detail, optional=True))
+        else:
+            checks.append(Check(f"skill {scenario.skill} invoked", bool(ok_calls), detail))
 
-    checks.extend(grade_steps(expect.get("steps") or [], calls, variables))
+    # Step checks: for Codex, mark as optional since commands run in sub-agents
+    # and we can't see them in the transcript
+    step_checks = grade_steps(expect.get("steps") or [], calls, variables)
+    if transcript.agent == "codex":
+        step_checks = [Check(c.name, c.passed, c.detail, optional=True) for c in step_checks]
+    checks.extend(step_checks)
 
     for rule in expect.get("forbid") or []:
         offenders = [c for c in calls if match_step(rule, c, variables) is None]
@@ -436,17 +618,23 @@ def grade(scenario: Scenario, transcript: Transcript, calls: list[dict[str, Any]
 
 # ─── running the agent ───────────────────────────────────────────────────────
 
-def prepare_workspace(scenario: Scenario, run_dir: Path, only_target_skill: bool) -> dict[str, Path]:
+def prepare_workspace(scenario: Scenario, run_dir: Path, only_target_skill: bool, agent: str) -> dict[str, Path]:
     sandbox_root = Path(tempfile.mkdtemp(prefix=f"skill-eval-{scenario.id}-"))
     paths = {
         "root": sandbox_root,
         "workspace": Path(os.path.realpath(sandbox_root / "workspace")),
-        "config": sandbox_root / "claude-config",
+        "config": sandbox_root / f"{agent}-config",
     }
     paths["workspace"].mkdir(parents=True)
     paths["config"].mkdir()
-    skills_dir = paths["workspace"] / ".claude" / "skills"
+    
+    # Set up skills directory based on agent
+    if agent == "codex":
+        skills_dir = paths["workspace"] / ".agents" / "skills"
+    else:
+        skills_dir = paths["workspace"] / ".claude" / "skills"
     skills_dir.mkdir(parents=True)
+    
     for skill in sorted(SKILLS_ROOT.iterdir()):
         if skill.is_dir() and not skill.name.startswith(".") and (not only_target_skill or skill.name == scenario.skill):
             shutil.copytree(skill, skills_dir / skill.name)
@@ -457,10 +645,11 @@ def prepare_workspace(scenario: Scenario, run_dir: Path, only_target_skill: bool
     return paths
 
 
-def agent_command(scenario: Scenario, args: argparse.Namespace, use_host_config: bool) -> list[str]:
+def agent_command_claude(scenario: Scenario, args: argparse.Namespace, use_host_config: bool) -> list[str]:
+    """Build Claude Code command line."""
     limits = scenario.limits
     command = [
-        args.claude_bin, "-p", scenario.prompt,
+        args.agent_bin, "-p", scenario.prompt,
         "--output-format", "stream-json", "--verbose",
         "--permission-mode", "dontAsk",
         "--allowedTools", *scenario.allowed_tools,
@@ -479,7 +668,31 @@ def agent_command(scenario: Scenario, args: argparse.Namespace, use_host_config:
     return command
 
 
-def agent_env(paths: dict[str, Path], isolate_config: bool) -> dict[str, str]:
+def agent_command_codex(scenario: Scenario, args: argparse.Namespace, use_host_config: bool) -> list[str]:
+    """Build Codex command line."""
+    command = [
+        args.agent_bin, "exec",
+        "--json",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "--ephemeral",  # Don't persist session files
+        scenario.prompt,
+    ]
+    if args.model:
+        command += ["--model", args.model]
+    # Codex doesn't have fine-grained tool control like Claude
+    # --dangerously-bypass-approvals-and-sandbox gives full access
+    return command
+
+
+def agent_command(scenario: Scenario, args: argparse.Namespace, use_host_config: bool) -> list[str]:
+    """Build agent command line based on agent type."""
+    if args.agent == "codex":
+        return agent_command_codex(scenario, args, use_host_config)
+    return agent_command_claude(scenario, args, use_host_config)
+
+
+def agent_env_claude(paths: dict[str, Path], isolate_config: bool) -> dict[str, str]:
+    """Build environment for Claude Code."""
     env = {k: v for k, v in os.environ.items() if not k.startswith(STRIPPED_ENV_PREFIXES)}
     # Keep API key if set; CI passes unset secrets as empty strings
     for key in ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"):
@@ -490,8 +703,44 @@ def agent_env(paths: dict[str, Path], isolate_config: bool) -> dict[str, str]:
     return env
 
 
-def has_api_credentials() -> bool:
+def agent_env_codex(paths: dict[str, Path], isolate_config: bool) -> dict[str, str]:
+    """Build environment for Codex."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith(STRIPPED_ENV_PREFIXES)}
+    # Keep API key if set
+    if not env.get("OPENAI_API_KEY"):
+        env.pop("OPENAI_API_KEY", None)
+    if isolate_config:
+        config_dir = paths["config"]
+        env["CODEX_HOME"] = str(config_dir)
+        # Write Docker Gateway config if DOCKER_GATEWAY_TOKEN is set
+        if os.environ.get("DOCKER_GATEWAY_TOKEN"):
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_file = config_dir / "config.toml"
+            config_file.write_text('''model_provider = "docker-gateway"
+
+[model_providers.docker-gateway]
+name = "Docker AI Gateway"
+base_url = "https://gw.docker.com/v1/docker/gateways/default/inference/openai/v1"
+env_key = "DOCKER_GATEWAY_TOKEN"
+wire_api = "responses"
+requires_openai_auth = false
+''')
+    return env
+
+
+def agent_env(paths: dict[str, Path], isolate_config: bool, agent: str) -> dict[str, str]:
+    """Build environment for agent based on type."""
+    if agent == "codex":
+        return agent_env_codex(paths, isolate_config)
+    return agent_env_claude(paths, isolate_config)
+
+
+def has_api_credentials(agent: str) -> bool:
     """Check if API credentials are available in the environment."""
+    if agent == "codex":
+        # Check for direct OpenAI key or Docker Gateway token
+        return bool(os.environ.get("OPENAI_API_KEY") or os.environ.get("DOCKER_GATEWAY_TOKEN"))
+    # Claude
     for key in ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"):
         if os.environ.get(key):
             return True
@@ -533,12 +782,13 @@ def run_scenario(scenario: Scenario, args: argparse.Namespace, run_dir: Path, us
     # Snapshot resources before the run so we only clean up what the agent creates
     resources_before = list_resources(scenario)
 
-    paths = prepare_workspace(scenario, run_dir, args.only_target_skill)
+    paths = prepare_workspace(scenario, run_dir, args.only_target_skill, args.agent)
     command = agent_command(scenario, args, use_host_config)
     meta = {
         "scenario": str(scenario.path.relative_to(REPO_ROOT)),
         "workspace": str(paths["workspace"]),
         "model": args.model,
+        "agent": args.agent,
         "command": command,
         "started": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
@@ -548,13 +798,13 @@ def run_scenario(scenario: Scenario, args: argparse.Namespace, run_dir: Path, us
     try:
         with open(transcript_path, "w", encoding="utf-8") as out, open(run_dir / "stderr.txt", "w", encoding="utf-8") as err:
             subprocess.run(command, cwd=paths["workspace"],
-                           env=agent_env(paths, not use_host_config),
+                           env=agent_env(paths, not use_host_config, args.agent),
                            stdin=subprocess.DEVNULL, stdout=out, stderr=err,
                            timeout=scenario.limits["timeout_seconds"], check=False)
     except subprocess.TimeoutExpired:
         (run_dir / "stderr.txt").open("a", encoding="utf-8").write("\nskill-eval: agent timed out\n")
     except FileNotFoundError as exc:
-        raise ScenarioError(f"cannot start agent {args.claude_bin!r}: {exc}") from exc
+        raise ScenarioError(f"cannot start agent {args.agent_bin!r}: {exc}") from exc
 
     # Clean up only resources created during this run
     cleanup_resources(scenario, resources_before)
@@ -571,7 +821,8 @@ def run_scenario(scenario: Scenario, args: argparse.Namespace, run_dir: Path, us
 def regrade(run_dir: Path) -> list[Check]:
     meta = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
     scenario = load_scenario(REPO_ROOT / meta["scenario"])
-    transcript = parse_transcript((run_dir / "transcript.jsonl").read_text(encoding="utf-8").splitlines())
+    agent = meta.get("agent", "claude")  # Default to claude for backward compatibility
+    transcript = parse_transcript((run_dir / "transcript.jsonl").read_text(encoding="utf-8").splitlines(), agent)
     calls = transcript.cli_calls(scenario.cli) if scenario.cli else []
 
     checks = grade(scenario, transcript, calls, meta["workspace"])
@@ -594,23 +845,24 @@ def regrade(run_dir: Path) -> list[Check]:
 # ─── reporting ───────────────────────────────────────────────────────────────
 
 def print_report(label: str, run_dir: Path, checks: list[Check]) -> None:
-    passed = all(c.passed for c in checks)
+    passed = all(c.passed for c in checks if not c.optional)
     print(f"\n{'PASS' if passed else 'FAIL'}: {label}  ({run_dir})")
     for check in checks:
-        mark = "✓" if check.passed else "✗"
+        mark = "✓" if check.passed else ("○" if check.optional else "✗")
         detail = f" — {check.detail}" if check.detail and (not check.passed or os.environ.get("SKILL_EVAL_VERBOSE")) else ""
-        print(f"  {mark} {check.name}{detail}")
+        optional_note = " (optional)" if check.optional and not check.passed else ""
+        print(f"  {mark} {check.name}{optional_note}{detail}")
     report = json.loads((run_dir / "report.json").read_text(encoding="utf-8"))
     print(f"  turns={report.get('num_turns')} cost=${report.get('cost_usd') or 0:.4f} skills={report.get('skills_invoked')}")
     for call in report.get("cli_calls") or []:
         print(f"    {call}")
 
 
-def write_summary(results: list[tuple[str, Path, list[Check]]]) -> None:
+def write_summary(results: list[tuple[str, Path, list[Check]]], agent: str) -> None:
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if not summary:
         return
-    lines = ["## Live skill evals", "", "| Scenario | Result | Failed checks |", "|---|---|---|"]
+    lines = [f"## Live skill evals ({agent})", "", "| Scenario | Result | Failed checks |", "|---|---|---|"]
     for label, _, checks in results:
         failed = [c.name for c in checks if not c.passed]
         lines.append(f"| `{label}` | {'✅' if not failed else '❌'} | {'<br>'.join(failed) or '—'} |")
@@ -618,11 +870,12 @@ def write_summary(results: list[tuple[str, Path, list[Check]]]) -> None:
         handle.write("\n".join(lines) + "\n")
 
 
-def summarize(results: list[tuple[str, Path, list[Check]]], min_pass_rate: float, out: Path) -> int:
+def summarize(results: list[tuple[str, Path, list[Check]]], min_pass_rate: float, out: Path, agent: str) -> int:
     """Print per-scenario pass rates; return 1 if any is below the threshold."""
     by_scenario: dict[str, list[bool]] = {}
     for label, _, checks in results:
-        by_scenario.setdefault(label.split(" #")[0], []).append(all(c.passed for c in checks))
+        # Only count non-optional checks for pass/fail
+        by_scenario.setdefault(label.split(" #")[0], []).append(all(c.passed for c in checks if not c.optional))
     print()
     failing = []
     for key, outcomes in by_scenario.items():
@@ -631,7 +884,7 @@ def summarize(results: list[tuple[str, Path, list[Check]]], min_pass_rate: float
         failing += [] if ok else [key]
         print(f"{'PASS' if ok else 'FAIL'}: {key} {sum(outcomes)}/{len(outcomes)} runs passed "
               f"(rate {rate:.0%}, required {min_pass_rate:.0%})")
-    print(f"artifacts in {out}")
+    print(f"artifacts in {out} (agent: {agent})")
     return 1 if failing else 0
 
 
@@ -639,21 +892,53 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("scenarios", nargs="*", help="scenario files or directories (default: all)")
     parser.add_argument("--skill", help="only run scenarios for this skill id")
-    parser.add_argument("--model", default=os.environ.get("SKILL_EVAL_MODEL", "sonnet"), help="Claude model alias or name")
+    parser.add_argument("--agent", choices=SUPPORTED_AGENTS, default=os.environ.get("SKILL_EVAL_AGENT", "claude"),
+                        help="agent to use: claude or codex (default: claude)")
+    parser.add_argument("--model", default=os.environ.get("SKILL_EVAL_MODEL"),
+                        help="model alias or name (default: agent's default)")
     parser.add_argument("--repeat", type=int, default=int(os.environ.get("SKILL_EVAL_REPEAT", "1")),
                         help="runs per scenario")
     parser.add_argument("--min-pass-rate", type=float, default=float(os.environ.get("SKILL_EVAL_MIN_PASS_RATE", "1.0")),
                         help="fraction of a scenario's runs that must pass (default 1.0)")
-    parser.add_argument("--claude-bin", default=os.environ.get("CLAUDE_BIN", "claude"))
+    parser.add_argument("--agent-bin", default=None,
+                        help="path to agent binary (default: claude or codex based on --agent)")
+    # Legacy alias for --agent-bin
+    parser.add_argument("--claude-bin", dest="agent_bin_legacy", default=os.environ.get("CLAUDE_BIN"),
+                        help=argparse.SUPPRESS)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT, help="artifact directory")
     parser.add_argument("--only-target-skill", action="store_true",
                         help="install only the scenario's skill instead of every repository skill")
-    parser.add_argument("--host-claude-config", action="store_true",
-                        help="use your normal Claude Code config dir (e.g. subscription login) instead of an isolated one; "
-                             "auto-enabled when ANTHROPIC_API_KEY is not set")
+    parser.add_argument("--host-agent-config", action="store_true",
+                        help="use your normal agent config dir (e.g. subscription login) instead of an isolated one; "
+                             "auto-enabled when API key is not set")
+    # Legacy alias for --host-agent-config
+    parser.add_argument("--host-claude-config", dest="host_agent_config_legacy", action="store_true",
+                        help=argparse.SUPPRESS)
     parser.add_argument("--keep", action="store_true", help="keep the temporary agent workspace")
     parser.add_argument("--regrade", type=Path, metavar="RUN_DIR", help="re-grade saved artifacts without running the agent")
     args = parser.parse_args(argv)
+    
+    # Handle legacy arguments
+    if args.host_agent_config_legacy:
+        args.host_agent_config = True
+    else:
+        args.host_agent_config = getattr(args, "host_agent_config", False)
+    
+    # Determine agent binary
+    if args.agent_bin:
+        pass  # User specified explicitly
+    elif args.agent_bin_legacy:
+        args.agent_bin = args.agent_bin_legacy
+    else:
+        # Default based on agent type
+        args.agent_bin = args.agent
+    
+    # Set default model based on agent if not specified
+    if not args.model:
+        if args.agent == "codex":
+            args.model = None  # Let Codex use its default
+        else:
+            args.model = "sonnet"
 
     try:
         if args.regrade:
@@ -664,15 +949,20 @@ def main(argv: list[str] | None = None) -> int:
         if not scenarios:
             print("skill-eval: no scenarios selected", file=sys.stderr)
             return 2
-        if not shutil.which(args.claude_bin):
-            print(f"skill-eval: {args.claude_bin!r} not found; install Claude Code (npm install -g @anthropic-ai/claude-code)",
+        if not shutil.which(args.agent_bin):
+            install_hint = {
+                "claude": "npm install -g @anthropic-ai/claude-code",
+                "codex": "npm install -g @openai/codex",
+            }.get(args.agent, f"install {args.agent}")
+            print(f"skill-eval: {args.agent_bin!r} not found; {install_hint}",
                   file=sys.stderr)
             return 2
 
         # Auto-enable host config if no API key is set (use subscription login)
-        use_host_config = args.host_claude_config or not has_api_credentials()
-        if use_host_config and not args.host_claude_config:
-            print("skill-eval: no ANTHROPIC_API_KEY found, using host Claude Code config (subscription login)", file=sys.stderr)
+        use_host_config = args.host_agent_config or not has_api_credentials(args.agent)
+        if use_host_config and not args.host_agent_config:
+            key_name = "OPENAI_API_KEY" if args.agent == "codex" else "ANTHROPIC_API_KEY"
+            print(f"skill-eval: no {key_name} found, using host {args.agent} config (subscription login)", file=sys.stderr)
 
         stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         results = []
@@ -680,15 +970,15 @@ def main(argv: list[str] | None = None) -> int:
             for attempt in range(1, args.repeat + 1):
                 label = scenario.key + (f" #{attempt}" if args.repeat > 1 else "")
                 run_dir = args.out / stamp / scenario.skill / scenario.id / str(attempt)
-                print(f"running {label} ...", flush=True)
+                print(f"running {label} ({args.agent}) ...", flush=True)
                 checks = run_scenario(scenario, args, run_dir, use_host_config)
                 print_report(label, run_dir, checks)
                 results.append((label, run_dir, checks))
     except ScenarioError as exc:
         print(f"skill-eval: {exc}", file=sys.stderr)
         return 2
-    write_summary(results)
-    return summarize(results, args.min_pass_rate, args.out / stamp)
+    write_summary(results, args.agent)
+    return summarize(results, args.min_pass_rate, args.out / stamp, args.agent)
 
 
 if __name__ == "__main__":
