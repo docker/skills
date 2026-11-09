@@ -151,8 +151,9 @@ jobs:
       CODEX_VERSION: "0.166.0"
       SBX_VERSION: "0.50.1"
       SKILL_EVAL_AGENT: "codex"
-      # Use gpt-4o via Docker AI Gateway unless explicitly specified
-      SKILL_EVAL_MODEL: ${{ inputs.model || 'gpt-4o' }}
+      # Don't specify a model by default - let Codex use the gateway's default
+      # (explicitly specifying gpt-4o causes flaky behavior where the model refuses to execute commands)
+      SKILL_EVAL_MODEL: ${{ inputs.model || '' }}
       SKILL_EVAL_REPEAT: ${{ inputs.repeat || '3' }}
       # Model routing is nondeterministic: a scenario passes when 2 of 3 runs pass.
       SKILL_EVAL_MIN_PASS_RATE: "0.66"
@@ -232,11 +233,10 @@ jobs:
           INPUT_MODEL: ${{ inputs.model }}
         run: |
           set +e
+          # Only pass --model if explicitly specified; gateway default works better than explicit gpt-4o
           model_arg=""
           if [ -n "$INPUT_MODEL" ]; then
             model_arg="--model $INPUT_MODEL"
-          else
-            model_arg="--model gpt-4o"
           fi
           .venv/bin/python scripts/skill_eval.py --agent codex $model_arg ${INPUT_SKILL:+--skill "$INPUT_SKILL"}
           exit_code=$?
