@@ -88,6 +88,40 @@ class TranscriptParsingTests(unittest.TestCase):
         self.assertEqual(calls[1]["subcommand"], "exec")
         self.assertEqual(calls[2]["subcommand"], "rm")
 
+    def test_parse_codex_transcript(self):
+        """Test parsing Codex JSON events."""
+        events = [
+            {"type": "thread.started", "thread_id": "test-123"},
+            {"type": "turn.started"},
+            {"type": "item.completed", "item": {
+                "id": "item_0", "type": "agent_message",
+                "text": "I'll use the skill to help."}},
+            {"type": "item.completed", "item": {
+                "id": "item_1", "type": "command_execution",
+                "command": "/bin/zsh -lc 'cat .agents/skills/docker-sandboxes-lifecycle/SKILL.md'",
+                "aggregated_output": "# Test skill content", "exit_code": 0, "status": "completed"}},
+            {"type": "item.completed", "item": {
+                "id": "item_2", "type": "command_execution",
+                "command": "/bin/zsh -lc 'sbx create --name mybox shell /workspace'",
+                "aggregated_output": "Created sandbox mybox", "exit_code": 0, "status": "completed"}},
+            {"type": "item.completed", "item": {
+                "id": "item_3", "type": "agent_message",
+                "text": "Done! Created the sandbox."}},
+            {"type": "turn.completed", "usage": {"input_tokens": 1000, "output_tokens": 100}},
+        ]
+        transcript = skill_eval.parse_transcript([json.dumps(e) for e in events], agent="codex")
+        self.assertEqual(transcript.agent, "codex")
+        self.assertEqual(transcript.result.get("subtype"), "success")
+        # final_text now includes all agent messages
+        self.assertIn("Done! Created the sandbox.", transcript.final_text)
+        self.assertIn("I'll use the skill to help.", transcript.final_text)
+        self.assertIn("docker-sandboxes-lifecycle", transcript.skills_available)
+        self.assertEqual(transcript.invoked_skills(), ["docker-sandboxes-lifecycle"])
+        cli = make_cli_config()
+        calls = transcript.cli_calls(cli)
+        self.assertEqual(len(calls), 1)  # Only one sbx command
+        self.assertEqual(calls[0]["subcommand"], "create")
+
 
 class CallEnrichmentTests(unittest.TestCase):
     def test_enrich_create_with_name(self):
@@ -115,6 +149,15 @@ class CallEnrichmentTests(unittest.TestCase):
         call = skill_eval.enrich_call({"argv": ["sbx", "rm", "--force", "mybox"]}, cli)
         self.assertEqual(call["subcommand"], "rm")
         self.assertEqual(call["name"], "mybox")
+
+    def test_enrich_rm_flags_after_name(self):
+        """Flags after the sandbox name should still be recorded for rm."""
+        cli = make_cli_config()
+        call = skill_eval.enrich_call({"argv": ["sbx", "rm", "mybox", "--all", "--force"]}, cli)
+        self.assertEqual(call["subcommand"], "rm")
+        self.assertEqual(call["name"], "mybox")
+        self.assertIn("--all", call["flags"])
+        self.assertIn("--force", call["flags"])
 
 
 class GradingTests(unittest.TestCase):
@@ -238,7 +281,8 @@ class HarnessTests(unittest.TestCase):
     def test_workspace_preparation(self):
         scenario = skill_eval.load_scenario(SCENARIO)
         with tempfile.TemporaryDirectory() as tmp:
-            paths = skill_eval.prepare_workspace(scenario, Path(tmp), only_target_skill=True)
+            # Test Claude workspace
+            paths = skill_eval.prepare_workspace(scenario, Path(tmp), only_target_skill=True, agent="claude")
             try:
                 skills = sorted(p.name for p in (paths["workspace"] / ".claude" / "skills").iterdir())
                 self.assertEqual(skills, ["docker-sandboxes-lifecycle"])
@@ -247,9 +291,22 @@ class HarnessTests(unittest.TestCase):
                 import shutil
                 shutil.rmtree(paths["root"], ignore_errors=True)
 
-    def test_agent_command_structure(self):
+    def test_workspace_preparation_codex(self):
         scenario = skill_eval.load_scenario(SCENARIO)
-        args = argparse.Namespace(claude_bin="claude", model="sonnet")
+        with tempfile.TemporaryDirectory() as tmp:
+            # Test Codex workspace
+            paths = skill_eval.prepare_workspace(scenario, Path(tmp), only_target_skill=True, agent="codex")
+            try:
+                skills = sorted(p.name for p in (paths["workspace"] / ".agents" / "skills").iterdir())
+                self.assertEqual(skills, ["docker-sandboxes-lifecycle"])
+                self.assertTrue((paths["workspace"] / "notes" / "hello.txt").is_file())
+            finally:
+                import shutil
+                shutil.rmtree(paths["root"], ignore_errors=True)
+
+    def test_agent_command_structure_claude(self):
+        scenario = skill_eval.load_scenario(SCENARIO)
+        args = argparse.Namespace(agent_bin="claude", agent="claude", model="sonnet")
         # Test with API key (isolated)
         command = skill_eval.agent_command(scenario, args, use_host_config=False)
         self.assertIn("stream-json", command)
@@ -261,6 +318,15 @@ class HarnessTests(unittest.TestCase):
         command_host = skill_eval.agent_command(scenario, args, use_host_config=True)
         self.assertNotIn("--setting-sources", command_host)
 
+    def test_agent_command_structure_codex(self):
+        scenario = skill_eval.load_scenario(SCENARIO)
+        args = argparse.Namespace(agent_bin="codex", agent="codex", model=None)
+        command = skill_eval.agent_command(scenario, args, use_host_config=False)
+        self.assertIn("exec", command)
+        self.assertIn("--json", command)
+        self.assertIn("--dangerously-bypass-approvals-and-sandbox", command)
+        self.assertIn("--ephemeral", command)
+
     def test_pass_rate_threshold(self):
         ok = [skill_eval.Check("c", True)]
         bad = [skill_eval.Check("c", False)]
@@ -268,8 +334,8 @@ class HarnessTests(unittest.TestCase):
         with open(os.devnull, "w") as devnull:
             stdout, sys.stdout = sys.stdout, devnull
             try:
-                self.assertEqual(skill_eval.summarize(results, 0.6, Path(".")), 0)
-                self.assertEqual(skill_eval.summarize(results, 1.0, Path(".")), 1)
+                self.assertEqual(skill_eval.summarize(results, 0.6, Path("."), "claude"), 0)
+                self.assertEqual(skill_eval.summarize(results, 1.0, Path("."), "claude"), 1)
             finally:
                 sys.stdout = stdout
 
