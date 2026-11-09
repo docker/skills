@@ -361,7 +361,8 @@ def parse_transcript_codex(lines: Iterable[str]) -> Transcript:
                 
                 # Check if this is a skill file read (Codex reads skills via cat command)
                 skill_match = re.search(r'cat\s+[\'"]?(?:.*?\.agents/skills|.*?/skills)/([^/\s\'"]+)(?:/SKILL\.md)?', actual_command)
-                if skill_match:
+                if skill_match and not is_error:
+                    # Only count as skill read if the command succeeded
                     skill_name = skill_match.group(1)
                     if skill_name and skill_name not in skills:
                         skills.append(skill_name)
@@ -455,6 +456,11 @@ FLAGS_WITH_VALUES = {
 }
 
 
+# Commands where flags after the first positional belong to an inner command
+# (e.g., sbx exec mybox ls -la -- the -la belongs to ls, not sbx)
+COMMANDS_WITH_INNER_ARGS = {"exec"}
+
+
 def enrich_call(call: dict[str, Any], cli: CLIConfig) -> dict[str, Any]:
     """Add subcommand, name, and other parsed fields to a call."""
     argv = call.get("argv") or []
@@ -466,18 +472,25 @@ def enrich_call(call: dict[str, Any], cli: CLIConfig) -> dict[str, Any]:
             i += 2
         else:
             i += 1
-    call["subcommand"] = argv[i] if i < len(argv) else None
+    subcommand = argv[i] if i < len(argv) else None
+    call["subcommand"] = subcommand
     
-    # For commands like "exec", extract flags before the target name,
-    # then treat everything after the first positional as raw args
-    # (since they belong to the inner command, not to sbx)
+    # Parse args after subcommand
+    # For 'exec', flags after the first positional belong to the inner command
+    # For other commands (like 'rm'), flags can appear anywhere
     positionals = []
     flags = {}
     j = i + 1
     found_first_positional = False
+    stop_flag_parsing = False
+    
     while j < len(argv):
         arg = argv[j]
-        if not found_first_positional and arg.startswith("-"):
+        # For exec, stop parsing flags after first positional (inner command args)
+        if subcommand in COMMANDS_WITH_INNER_ARGS and found_first_positional:
+            stop_flag_parsing = True
+        
+        if not stop_flag_parsing and arg.startswith("-"):
             flags[arg] = True
             # Check if this flag takes a value
             if arg in FLAGS_WITH_VALUES and j + 1 < len(argv):
@@ -485,7 +498,8 @@ def enrich_call(call: dict[str, Any], cli: CLIConfig) -> dict[str, Any]:
             else:
                 j += 1
         else:
-            found_first_positional = True
+            if not found_first_positional:
+                found_first_positional = True
             positionals.append(arg)
             j += 1
     call["positionals"] = positionals
@@ -580,9 +594,13 @@ def grade_steps(steps: list[dict[str, Any]], calls: list[dict[str, Any]], variab
         for position in range(cursor, len(calls)):
             reason = match_step(step, calls[position], variables)
             if reason is None:
-                found = position
-                break
-            if "subcommand" not in step or re.search(step["subcommand"], calls[position].get("subcommand") or ""):
+                # Found a matching call - check if it succeeded
+                if not calls[position].get("is_error"):
+                    found = position
+                    break
+                # Matching call failed, record as near miss and keep looking for success
+                misses.append(f"{describe_call(calls[position])}: tool returned error")
+            elif "subcommand" not in step or re.search(step["subcommand"], calls[position].get("subcommand") or ""):
                 misses.append(f"{describe_call(calls[position])}: {reason}")
         if found is None:
             detail = "no matching call"
@@ -591,11 +609,6 @@ def grade_steps(steps: list[dict[str, Any]], calls: list[dict[str, Any]], variab
             checks.append(Check(name, False, detail))
             continue
         call = calls[found]
-        # Check if the call failed (Bash tool returned an error)
-        if call.get("is_error"):
-            checks.append(Check(name, False, f"{describe_call(call)} failed: tool returned error"))
-            cursor = found + 1
-            continue
         if step.get("capture"):
             variables[step["capture"]] = call.get("name") or ""
         checks.append(Check(name, True, describe_call(call)))
@@ -955,7 +968,8 @@ def main(argv: list[str] | None = None) -> int:
     # Determine agent binary
     if args.agent_bin:
         pass  # User specified explicitly
-    elif args.agent_bin_legacy:
+    elif args.agent_bin_legacy and args.agent == "claude":
+        # Legacy CLAUDE_BIN only applies to Claude agent
         args.agent_bin = args.agent_bin_legacy
     else:
         # Default based on agent type

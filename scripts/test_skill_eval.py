@@ -150,6 +150,15 @@ class CallEnrichmentTests(unittest.TestCase):
         self.assertEqual(call["subcommand"], "rm")
         self.assertEqual(call["name"], "mybox")
 
+    def test_enrich_rm_flags_after_name(self):
+        """Flags after the sandbox name should still be recorded for rm."""
+        cli = make_cli_config()
+        call = skill_eval.enrich_call({"argv": ["sbx", "rm", "mybox", "--all", "--force"]}, cli)
+        self.assertEqual(call["subcommand"], "rm")
+        self.assertEqual(call["name"], "mybox")
+        self.assertIn("--all", call["flags"])
+        self.assertIn("--force", call["flags"])
+
 
 class GradingTests(unittest.TestCase):
     def setUp(self):
