@@ -441,34 +441,67 @@ def parse_transcript(lines: Iterable[str], agent: str = "claude") -> Transcript:
     return parse_transcript_claude(lines)
 
 
+# Flags that take values (for CLI parsing)
+FLAGS_WITH_VALUES = {
+    "-w", "--workdir",
+    "-u", "--user", 
+    "-e", "--env",
+    "--env-file",
+    "--name",
+    "-m", "--memory",
+    "--cpus",
+    "-p", "--publish",
+    "--filter",
+}
+
+
 def enrich_call(call: dict[str, Any], cli: CLIConfig) -> dict[str, Any]:
     """Add subcommand, name, and other parsed fields to a call."""
     argv = call.get("argv") or []
     # Skip command and global flags to find subcommand
     i = cli.subcommand_index if len(argv) > cli.subcommand_index else 0
-    # Skip any leading flags
+    # Skip any leading flags before subcommand
     while i < len(argv) and argv[i].startswith("-"):
-        # Handle flags with values
-        if i + 1 < len(argv) and not argv[i + 1].startswith("-"):
+        if argv[i] in FLAGS_WITH_VALUES and i + 1 < len(argv):
             i += 2
         else:
             i += 1
     call["subcommand"] = argv[i] if i < len(argv) else None
-    call["positionals"] = argv[i + 1:] if i < len(argv) else []
-    call["flags"] = {a: True for a in argv if a.startswith("-")}
+    
+    # For commands like "exec", extract flags before the target name,
+    # then treat everything after the first positional as raw args
+    # (since they belong to the inner command, not to sbx)
+    positionals = []
+    flags = {}
+    j = i + 1
+    found_first_positional = False
+    while j < len(argv):
+        arg = argv[j]
+        if not found_first_positional and arg.startswith("-"):
+            flags[arg] = True
+            # Check if this flag takes a value
+            if arg in FLAGS_WITH_VALUES and j + 1 < len(argv):
+                j += 2  # Skip flag and its value
+            else:
+                j += 1
+        else:
+            found_first_positional = True
+            positionals.append(arg)
+            j += 1
+    call["positionals"] = positionals
+    call["flags"] = flags
     
     # Extract target name based on CLI config
     if call["subcommand"] in cli.name_positional_commands:
-        # First non-flag positional is the name
-        pos = [p for p in call["positionals"] if not p.startswith("-")]
-        if pos:
-            call["name"] = pos[0]
+        # First positional is the name
+        if positionals:
+            call["name"] = positionals[0]
     else:
         # Look for name in flags
         for flag in cli.name_flags:
-            for j, arg in enumerate(argv):
-                if arg == flag and j + 1 < len(argv):
-                    call["name"] = argv[j + 1]
+            for k, arg in enumerate(argv):
+                if arg == flag and k + 1 < len(argv):
+                    call["name"] = argv[k + 1]
                     break
                 if arg.startswith(f"{flag}="):
                     call["name"] = arg.split("=", 1)[1]
@@ -588,20 +621,15 @@ def grade(scenario: Scenario, transcript: Transcript, calls: list[dict[str, Any]
         detail = f"invoked: {invoked or 'none'}"
         if not available:
             detail += f"; skill not discovered (available: {transcript.skills_available})"
-        # For Codex, skill invocation is implicit via skill file reading
-        # We check if the skill was discovered (appeared in skills list)
+        # For Codex, skill invocation is via reading the skill file
         if transcript.agent == "codex":
-            # Codex discovers skills by reading them - check if skill was read
             skill_read = scenario.skill in transcript.skills_available
-            checks.append(Check(f"skill {scenario.skill} invoked", skill_read or bool(ok_calls), detail, optional=True))
+            checks.append(Check(f"skill {scenario.skill} invoked", skill_read or bool(ok_calls), detail))
         else:
             checks.append(Check(f"skill {scenario.skill} invoked", bool(ok_calls), detail))
 
-    # Step checks: for Codex, mark as optional since commands run in sub-agents
-    # and we can't see them in the transcript
+    # Step checks
     step_checks = grade_steps(expect.get("steps") or [], calls, variables)
-    if transcript.agent == "codex":
-        step_checks = [Check(c.name, c.passed, c.detail, optional=True) for c in step_checks]
     checks.extend(step_checks)
 
     for rule in expect.get("forbid") or []:
