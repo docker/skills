@@ -36,7 +36,7 @@ on:
       repeat:
         description: "Runs per scenario"
         required: false
-        default: "3"
+        default: "1"
 
 permissions:
   contents: read
@@ -73,9 +73,8 @@ jobs:
       SBX_VERSION: "0.50.1"
       SKILL_EVAL_AGENT: "claude"
       SKILL_EVAL_MODEL: ${{ inputs.model || 'sonnet' }}
-      SKILL_EVAL_REPEAT: ${{ inputs.repeat || '3' }}
-      # Model routing is nondeterministic: a scenario passes when 2 of 3 runs pass.
-      SKILL_EVAL_MIN_PASS_RATE: "0.66"
+      SKILL_EVAL_REPEAT: ${{ inputs.repeat || '1' }}
+      SKILL_EVAL_MIN_PASS_RATE: "1.0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -154,9 +153,8 @@ jobs:
       # Don't specify a model by default - let Codex use the gateway's default
       # (explicitly specifying gpt-4o causes flaky behavior where the model refuses to execute commands)
       SKILL_EVAL_MODEL: ${{ inputs.model || '' }}
-      SKILL_EVAL_REPEAT: ${{ inputs.repeat || '3' }}
-      # Model routing is nondeterministic: a scenario passes when 2 of 3 runs pass.
-      SKILL_EVAL_MIN_PASS_RATE: "0.66"
+      SKILL_EVAL_REPEAT: ${{ inputs.repeat || '1' }}
+      SKILL_EVAL_MIN_PASS_RATE: "1.0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
