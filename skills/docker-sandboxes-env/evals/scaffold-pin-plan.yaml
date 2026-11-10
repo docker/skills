@@ -1,0 +1,87 @@
+# Live skill scenario: a user asks for a checked-in sbxenv.yaml for a small
+# Playwright project, with the browser-testing kit pinned to a digest, and a
+# preview of what applying it would do. Run with `task eval:skills` (see
+# evals/README.md). The shell agent keeps the scenario credential-free.
+id: scaffold-pin-plan
+skill: docker-sandboxes-env
+description: >-
+  Write an sbxenv.yaml beside a project that composes the built-in shell agent
+  with a live-catalog browser-testing kit pinned to a digest, then preview it
+  with sbx env plan without creating or approving anything.
+
+# Files created in the agent's fresh working directory before the run.
+fixtures:
+  web-app/package.json: |
+    {
+      "name": "web-app",
+      "private": true,
+      "scripts": { "test:e2e": "playwright test" },
+      "devDependencies": { "@playwright/test": "^1.50.0" }
+    }
+  web-app/tests/home.spec.ts: |
+    import { test, expect } from "@playwright/test";
+    test("home page has a title", async ({ page }) => {
+      await page.goto("http://127.0.0.1:3000/");
+      await expect(page).toHaveTitle(/web-app/);
+    });
+
+# The prompt names the outcome, not the commands, so the skill has to supply
+# the helper, the pinning rule and the plan-only preview.
+prompt: |
+  Set up a checked-in Docker Sandboxes environment file for the web-app
+  project in this directory. Put the file in this directory, next to web-app,
+  not inside it, and mount web-app as the workspace. Use the built-in shell
+  agent; I don't want any AI agent or credentials in it. Add whatever kit
+  gives it the Playwright browser-testing toolchain, pinned to an exact
+  release and digest so it's reproducible. Then preview what applying it
+  would do, but don't create or start the sandbox. Tell me which kit
+  reference you pinned. Don't ask me questions, just do it.
+
+limits:
+  max_turns: 30
+  max_budget_usd: 1.00
+  timeout_seconds: 600
+
+tools:
+  # Bash writes the file and runs the bundled helper; grading checks the
+  # sbx calls and the final answer, not how the file was written.
+  allowed:
+    - "Bash"
+
+cli:
+  command: sbx
+  subcommand_index: 1
+  name_flags: ["--name"]
+  name_positional_commands: ["exec", "stop", "rm"]
+  # Nothing should be created; this cleans up if the agent did anyway.
+  cleanup:
+    list: ["sbx", "ls", "-q"]
+    remove: ["sbx", "rm", "--force"]
+
+expect:
+  skill_invoked: true
+
+  steps:
+    - description: previews the environment with a plan that succeeds
+      subcommand: ^env$
+      args_match: ^plan\b
+
+  forbid:
+    - description: does not create the environment sandbox
+      subcommand: ^env$
+      args_match: ^(create|run)\b
+    - description: does not force-approve any environment plan
+      subcommand: ^env$
+      flags: ["--force"]
+    - description: does not force-approve with the short flag
+      subcommand: ^env$
+      flags: ["-f"]
+    - description: does not create a sandbox outside the environment file
+      subcommand: ^(create|run)$
+    - description: no bulk removal of every sandbox
+      subcommand: ^rm$
+      flags: ["--all"]
+
+  # A digest cannot be guessed; naming one means the helper (or the
+  # registry) was consulted rather than memory.
+  answer_contains: ["sbx/playwright:", "@sha256:"]

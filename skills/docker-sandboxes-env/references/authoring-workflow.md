@@ -201,6 +201,9 @@ version chosen on purpose (for example to satisfy another kit's
 - The YAML parses. Use any available parser (`yq`, `python3 -c 'import
   yaml'`, `ruby -ryaml`); if none is available, say so rather than claiming
   the file is valid.
+- Every OCI kit reference resolved with `kits.py describe` or `kits.py pin`
+  in this run. `sbx env plan` does not check that kits exist, so a clean plan
+  alone does not prove the references are valid.
 - If `sbx` is on `PATH`, run `sbx env plan`; otherwise ask the user to run it
   on the host and share any errors.
 

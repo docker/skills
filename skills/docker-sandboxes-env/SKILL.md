@@ -265,6 +265,9 @@ grant handling, and the final checklist are in
   sandbox — host commands, credentials, bindings, MCP registrations,
   directories, kits, ports, options, and variables — compared with what was
   last applied and approved. **It changes, approves, and records nothing.**
+  It also does not resolve kit references: an invented kit or a missing tag
+  plans cleanly and fails only at create. Verify every OCI reference with
+  `kits.py describe` or `kits.py pin` before trusting a clean plan.
   Margin symbols: `+` add, `~` change, `-` destroy, `>` run a host command
   again, `!` stop tracking without deleting.
 - `create`, `run`, and `rm` show their plan and ask for approval. Interactive
