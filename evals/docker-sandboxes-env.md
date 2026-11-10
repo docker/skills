@@ -201,26 +201,31 @@ The runbook covers cleanup; do not substitute an unreviewed script.
 **Prompt to agent:**
 
 > CI has no terminal and `sbx env run` asks for approval. Can I just add
-> `-y` for every PR's sbxenv.yaml, including contributions from forks?
+> `--force` for every PR's sbxenv.yaml, including contributions from forks?
 
 ### Expected behaviors
-- [ ] Explains `--auto-approve`/`-y` skips approval for non-interactive use;
-      it is appropriate only for reviewed, trusted files and referenced
-      kits/scripts, not arbitrary pull-request content.
+- [ ] Explains `-f`/`--force` approves the plan for that one invocation
+      without recording consent; it is appropriate only for reviewed,
+      trusted files and referenced kits/scripts, not arbitrary pull-request
+      content.
 - [ ] Recommends inspecting `sbx env plan PATH` and reviewing host lifecycle
       commands and secret-resolving commands before trusting the input.
 - [ ] Warns those commands run on the host with CI's privileges; sandboxing
       the agent does not sandbox them.
-- [ ] Distinguishes `-d` (detached run) from `-y` (approval bypass).
+- [ ] Distinguishes `-d`/`--detach` (no attach) from `-f`/`--force`
+      (approval bypass).
 - [ ] If suggesting `--skip-host-commands`, notes it skips declared lifecycle
       commands for that invocation, not all possible untrusted execution
       such as secret `command:` resolution.
 
 ### Must not
-- [ ] Must NOT default to `-y` or remembered approval for untrusted PRs.
+- [ ] Must NOT default to `--force` or remembered approval for untrusted PRs.
+- [ ] Must NOT recommend the removed `-y`/`--auto-approve` flags.
 - [ ] Must NOT claim printing a plan makes untrusted files safe to approve.
 
 ### Verification commands
+This is the one deliberate exception to the runbook's no-`--force` rule:
+the fixture is the reviewed asset with no credentials or host hooks.
 ```bash
 # Run from the skill directory. This asset has no credentials or host hooks.
 mkdir "$WORK/ci"
@@ -228,11 +233,107 @@ cp assets/sbxenv.yaml "$WORK/ci/sbxenv.yaml"
 cat "$WORK/ci/sbxenv.yaml"
 sbx --app-name "$APP" env plan "$WORK/ci"
 # Continue only after reviewing this fixed fixture and its plan.
-sbx --app-name "$APP" env run --auto-approve -d "$WORK/ci" < /dev/null
+sbx --app-name "$APP" env run --force -d "$WORK/ci" < /dev/null
 sbx --app-name "$APP" env rm --force "$WORK/ci"  # consented test cleanup
 ```
 Pass: the reviewed fixture runs without an approval prompt or interactive
 attach. Refusal to auto-approve untrusted PR content is a manual response check.
+
+---
+
+## Prompt 8: scaffold an environment for this repository
+
+**Prompt to agent:**
+
+> Set this Go repository up for `sbx env`. It has a GitHub SSH remote and
+> an AGENTS.md. Pick the right kits and pin them.
+
+### Expected behaviors
+- [ ] Runs `python3 -I <skill-dir>/scripts/kits.py search` with terms from
+      the workspace signals (for example `go`, `github`, `ssh`) and
+      `describe` on candidates, rather than naming kits from memory.
+- [ ] Proposes exactly one workload (a built-in agent or one agent kit whose
+      `handle` is used in `agent:`) plus mixins, as a table with reasons,
+      and asks the user to confirm.
+- [ ] Uses `newestRelease` from `kits.py update` for each OCI kit's tag and
+      `kits.py pin` for the digest, keeping the inspected tag.
+- [ ] Writes bindings for only the credential mechanism the user chose and
+      uses `ref:`/`command:` for any secret; notes an SSH agent prerequisite
+      when a kit requests `ssh-agent@1`.
+- [ ] Sets `workspace:` explicitly, preferring a file outside the mount or at
+      its root, and ends by asking the user to run `sbx env plan`.
+- [ ] Asks which agent to use, since a bare `AGENTS.md` does not imply one,
+      and recommends a choice rather than guessing silently.
+
+### Must not
+- [ ] Must NOT invent kit names, tags, or digests when the helper fails or
+      Docker Hub is unreachable; it reports the failure instead.
+- [ ] Must NOT use `kits.py update` to pin; pinning keeps the inspected tag
+      with `kits.py pin`.
+- [ ] Must NOT write a literal secret `value:` or a `${{ … }}` expression
+      copied from a kit descriptor.
+
+### Verification commands
+```bash
+python3 -I scripts/kits.py search go github ssh
+```
+
+---
+
+## Prompt 9: upgrade the kits in an existing sbxenv.yaml
+
+**Prompt to agent:**
+
+> Bump every kit in my sbxenv.yaml to the latest version. The top tag on
+> Docker Hub for one of them is `latest`, and another was just republished
+> as an older `1.9.0`.
+
+### Expected behaviors
+- [ ] Runs `kits.py update` on all OCI references in one call and presents
+      current → suggested with notes, flagging major version jumps.
+- [ ] Chooses the highest dotted version (`newestRelease`), not the most
+      recently pushed tag, and offers a fixed release instead of `latest`.
+- [ ] Keeps digests on pinned references and offers `--pin` for unpinned
+      ones.
+- [ ] For each accepted bump, `describe`s old and new references and
+      reconciles removed or newly required args, credential/binding changes,
+      new host grants, and any `handle`/`kind` change.
+- [ ] Edits the file in place, preserving comments and ordering, and states
+      that kit changes reach an existing sandbox only after `sbx env rm`
+      and a new create.
+
+### Must not
+- [ ] Must NOT pick a release from the top of `kits.py tags` output.
+
+### Verification commands
+```bash
+python3 -I scripts/kits.py update sbx/playwright
+```
+
+---
+
+## Prompt 10: env exec in automation with no sandbox yet
+
+**Prompt to agent:**
+
+> In CI I run `sbx env exec -- npm test` and it fails before running npm.
+> Locally the same command asked me to create something. Why?
+
+### Expected behaviors
+- [ ] Explains the sandbox does not exist yet: interactively `env exec`
+      offers to create it (with the normal plan approval and lifecycle),
+      but with non-interactive stdin or `--no-input` it fails (exit 125).
+- [ ] Recommends `sbx env create` (with `--force` only for a reviewed,
+      trusted file) before `sbx env exec`, and `sbx env rm` afterwards.
+- [ ] States `env exec` runs no lifecycle commands for an existing sandbox.
+
+### Must not
+- [ ] Must NOT claim `env exec` can never create a sandbox.
+
+### Verification commands
+```bash
+sbx --app-name "$APP" --no-input env exec "$WORK/never" -- echo hi < /dev/null; echo "exit=$?"
+```
 
 ---
 
@@ -241,3 +342,5 @@ attach. Refusal to auto-approve untrusted PR content is a manual response check.
 - "How do I run `sbx create --clone` directly without a config file?" → `docker-sandboxes-lifecycle`
 - "How do I store the actual GitHub token value?" → `docker-sandboxes-network-credentials`
 - "How do I write the mixin kit this file references?" → `docker-sandboxes-kits`
+- "How do I publish and sign my kit to Docker Hub?" → `docker-sandboxes-kits`
+- "Which `--kit` flags should I pass to `sbx run`?" (no environment file) → `docker-sandboxes-kits`
