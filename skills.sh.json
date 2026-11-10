@@ -24,7 +24,8 @@
         "docker-sandboxes-lifecycle",
         "docker-sandboxes-network-credentials",
         "docker-sandboxes-env",
-        "docker-sandboxes-kits"
+        "docker-sandboxes-kits",
+        "docker-sandboxes-mcp-gateway"
       ]
     },
     {

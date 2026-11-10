@@ -1,0 +1,25 @@
+schema: v1
+id: docker-sandboxes-mcp-gateway
+version: 0.1.0
+title: 'Docker Sandboxes: MCP Gateway'
+description: Register host-side MCP servers and expose them to local sandbox agents with sbx mcp, static or dynamic loading, and safe removal.
+owns:
+  - sbx-mcp
+  - sandbox-mcp-gateway
+  - sandbox-static-mcp-mode
+use_when:
+  - The user wants an agent in a local sbx sandbox to use a remote or host-run MCP server.
+  - The user wants to register, authorize, load, unload, list, or delete an MCP server for sandboxes.
+  - The user wants a sandbox to expose a fixed set of MCP servers or none, using --static-mcp.
+  - The user is debugging missing MCP tools, OAuth failures, or a server still reachable after removal.
+do_not_use_when:
+  - The task uses docker mcp (MCP Toolkit profiles, docker mcp gateway run, docker mcp client connect), which is a separate product.
+  - The task is creating, stopping, or removing the sandbox itself, or sandbox egress policy and general credentials.
+  - The task is writing the mcp block of sbxenv.yaml, MCP toolsets in a Docker Agent agent.yaml, or a kit spec.yaml.
+  - The sandbox is a cloud sandbox or uses a hosted gateway, where local sbx mcp registrations and unload do not apply.
+delegates_to:
+  - docker-sandboxes-lifecycle
+  - docker-sandboxes-network-credentials
+  - docker-sandboxes-env
+  - docker-agent-config
+  - docker-docs
