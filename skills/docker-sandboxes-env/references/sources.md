@@ -20,5 +20,6 @@
   check the scheme of server-provided URLs (auth realm, pagination,
   redirects); it classifies any reference ending in `.zip` as local; and
   date-style numeric tags would outrank dotted releases.
-- The `checks/verification.md` runtime steps are a user-run runbook; they are
-  not executed by repository validation.
+- The `checks/verification.md` runbook was run once on sbx v0.51.0, macOS
+  arm64 (results in `checks/runtime-results.md`); repository validation does
+  not execute it. The live scenario `evals/scaffold-pin-plan.yaml` runs in CI.

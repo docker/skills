@@ -190,7 +190,9 @@ grant handling, and the final checklist are in
   `sbx` mounts env files read-only by default, but a file in a
   **subdirectory** can still be replaced: the sandbox renames the writable
   parent directory and recreates the path. `sbx env plan` calls this out;
-  never claim the rename creates no gap.
+  never claim the rename creates no gap. (One sbx v0.51.0 macOS test refused
+  that rename — see `checks/runtime-results.md` — but the plan and docs
+  still treat the file as unprotected, so do not rely on it.)
 - `sandboxOptions.writableEnvFiles: true` lets the sandbox write its own env
   files (local only). It is a deliberate security downgrade the plan reports;
   use it only when the agent is meant to change what future invocations run
@@ -347,6 +349,8 @@ shapes, defaults, and what `sbx env rm` leaves behind for each are in
 ## Checks
 
 - `checks/verification.md` — verification runbook for the helper and
-  `sbx env` behavior (unexecuted by default; run manually with an isolated,
-  uniquely named `--app-name`, never with real secret values or untrusted
-  lifecycle commands force-approved).
+  `sbx env` behavior (run manually with an isolated, uniquely named
+  `--app-name` signed in for the run, never with real secret values or
+  untrusted lifecycle commands force-approved).
+- `checks/runtime-results.md` — recorded results of that runbook on sbx
+  v0.51.0 (macOS arm64), including what the plan does not check.

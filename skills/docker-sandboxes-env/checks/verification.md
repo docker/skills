@@ -1,10 +1,12 @@
 # Verification Runbook for sbxenv.yaml commands
 
-User-run integration checks; not executed during skill generation. `sbx env`
-is experimental. Require a supported local runtime and an existing Docker
-login; login is shared authentication, not scoped by `--app-name`. These
-files use the shell agent without provider secrets. Run from the skill
-directory in one shell. Review each generated host command before approval.
+User-run integration checks; not executed by repository validation. `sbx env`
+is experimental. Require a supported local runtime. Sign-in is per app: a
+session from plain `sbx login` does not sign in the isolated `--app-name`
+app, so sign it in once in step 1. These files use the shell agent without
+provider secrets. Run from the skill directory in one shell. Review each
+generated host command before approval. Recorded results are in
+`runtime-results.md`.
 Never pass `--force` to `create`/`run` here: each plan is approved
 interactively after review.
 
@@ -28,6 +30,7 @@ covered by `scripts/test_kits_helper.py` in repository validation.
 
 ```bash
 APP="env-$(date +%s)-$$"  # unique suffix, at most 20 characters
+sbx --app-name "$APP" login   # interactive sign-in for this isolated app only
 WORK=$(mktemp -d)
 mkdir "$WORK/minimal" "$WORK/empty" "$WORK/hooks" "$WORK/remove" "$WORK/never"
 cp assets/sbxenv.yaml "$WORK/minimal/sbxenv.yaml"
