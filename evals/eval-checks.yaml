@@ -704,6 +704,41 @@
   skip: true
   skip_reason: No CI asset; non-interactive approval and untrusted-input refusal require manual evaluation
 
+- eval: docker-sandboxes-env
+  prompt: "Prompt 8: scaffold an environment for this repository"
+  skip: true
+  skip_reason: Kit selection depends on the live Docker Hub catalog and agent behavior; use the helper step in checks/verification.md and a manual run
+
+- eval: docker-sandboxes-env
+  prompt: "Prompt 9: upgrade the kits in an existing sbxenv.yaml"
+  asset: skills/docker-sandboxes-env/scripts/kits.py
+  checks:
+    - id: se-kits-version-order
+      description: Helper picks the highest release by version order, not Hub push order
+      type: file_match
+      pattern: 'max\(candidates, key=lambda c: \(_sort_key\(c\[1\]\)'
+    - id: se-kits-prerelease-gate
+      description: Prereleases are considered only when the current tag is one
+      type: file_match
+      pattern: 'allow_pre or v\[1\] is None'
+    - id: se-kits-release-tags-only
+      description: Moving tags such as latest are not parsed as releases
+      type: file_match
+      pattern: 'RELEASE_TAG = re\.compile\(r"\^\(v\?\)'
+    - id: se-kits-failure-exit
+      description: Any failed lookup makes the helper exit nonzero
+      type: file_match
+      pattern: 'return 1 if failed else 0'
+    - id: se-kits-no-plain-http
+      description: Helper hard-codes no plain-HTTP endpoints (server-provided URLs are not scheme-checked)
+      type: file_must_not_match
+      pattern: 'http://'
+
+- eval: docker-sandboxes-env
+  prompt: "Prompt 10: env exec in automation with no sandbox yet"
+  skip: true
+  skip_reason: No exec asset; missing-sandbox behavior and exit status require the manual runbook step 6
+
 # ─── docker-sandboxes-kits ──────────────────────────────────────────────────
 
 # v3 prompts (1-7) assert checked-in v3 assets and skill text, not live model behavior,
