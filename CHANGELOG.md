@@ -10,6 +10,10 @@ for distribution releases.
 
 ### Added
 
+- Added the experimental `docker-sandboxes-mcp-gateway` skill. It registers
+  host-side MCP servers and exposes them to local sandbox agents with `sbx mcp`,
+  covering static vs dynamic loading, header and OAuth secrets, host-execution
+  and untrusted-URL boundaries, and the unload-then-remove revocation order.
 - Added the experimental `docker-docs` skill. It answers questions about any
   Docker product from current, cited Docker Docs pages. It uses the Docker docs
   MCP search tool when one is available. Otherwise it falls back to

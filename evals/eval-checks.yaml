@@ -1733,3 +1733,43 @@
       description: MCP setup reference says configuration does not make the tool callable in the running session
       type: file_match
       pattern: "doesn't make the tool callable in the current\\s+session"
+- eval: docker-sandboxes-mcp-gateway
+  prompt: 'Prompt 1: Register and attach a remote server'
+  skip: true
+  skip_reason: Requires an installed sbx CLI, a running sandbox and a live OAuth provider;
+    no static asset proves the agent behavior.
+- eval: docker-sandboxes-mcp-gateway
+  prompt: 'Prompt 2: Lock a sandbox to a fixed server set'
+  skip: true
+  skip_reason: Static-mode behavior needs a disposable sandbox runtime; no static
+    asset proves it.
+- eval: docker-sandboxes-mcp-gateway
+  prompt: 'Prompt 3: Change the server set of an existing sandbox'
+  skip: true
+  skip_reason: Reconnect semantics need an existing local sandbox; no static asset
+    proves it.
+- eval: docker-sandboxes-mcp-gateway
+  prompt: 'Prompt 4: Take a server away'
+  skip: true
+  skip_reason: Unload and removal ordering needs a running local sandbox; no static
+    asset proves it.
+- eval: docker-sandboxes-mcp-gateway
+  prompt: 'Prompt 5: Local command server'
+  skip: true
+  skip_reason: Host-execution disclosure and attachment are agent behavior on a live
+    sandbox; no static asset proves it.
+- eval: docker-sandboxes-mcp-gateway
+  prompt: 'Prompt 6: Internal URL and header auth, rotation and cleanup'
+  skip: true
+  skip_reason: Warning handling and secret lifecycle need a live sbx CLI and host
+    credential store; no static asset proves it.
+- eval: docker-sandboxes-mcp-gateway
+  prompt: 'Prompt 7: OAuth failure triage'
+  skip: true
+  skip_reason: OAuth flows need a live provider and sbx CLI; no static asset proves
+    it.
+- eval: docker-sandboxes-mcp-gateway
+  prompt: 'Prompt 8: Toolkit, cloud and hosted-gateway boundaries'
+  skip: true
+  skip_reason: Routing and boundary explanation is agent behavior; no static asset
+    proves it.
