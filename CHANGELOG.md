@@ -39,10 +39,9 @@ for distribution releases.
 ### Removed
 
 - Removed the experimental `docker-sandboxes-env` skill and its evaluation
-  runbook, following a decision with the Docker Sandboxes team. The
-  kit-reference rules it held now live in `docker-sandboxes-kits`. No skill in
-  this catalog owns the rest of `sbxenv.yaml`; `docker-docs` answers those
-  questions from the Docker Docs environment files page.
+  runbook. The kit-reference rules it held now live in `docker-sandboxes-kits`.
+  No skill in this catalog owns the rest of `sbxenv.yaml`; `docker-docs`
+  answers those questions from the Docker Docs environment files page.
 
 ### Changed
 
