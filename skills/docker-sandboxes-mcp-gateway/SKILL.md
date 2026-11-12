@@ -91,7 +91,14 @@ sbx mcp inspect acme   # shows header templates and whether secrets are set, nev
 - Inspect: `sbx mcp inspect <name>` for one registration; read `sbx mcp ls --help` first for the host listing, since its columns are not documented in the sources used here.
 - Detach from one sandbox: `sbx mcp unload <name> --sandbox <sb>` (0.48.0+, local gateway only). It removes the saved attachment, so the server is not restored after a restart; the host registration, credentials and other sandboxes are untouched.
 - Delete the host registration: `sbx mcp rm <name>`. It does not detach servers from sandboxes that already loaded them, and it keeps header secrets (it prints the removal commands, for example `sbx secret rm mcp:acme:api-key`). Unload from each sandbox first, then `rm`, then remove secrets deliberately.
-- Unloading is not a lock: in dynamic mode the agent can reattach a registered server. Remove the registration, or create the sandbox with `--static-mcp none`.
+- Unloading is not a lock: in dynamic mode the agent can reattach a registered server, including between `unload` and `rm`. If it does, `rm` leaves that attachment in place.
+- To revoke a server, close that window:
+  1. List every sandbox that loaded it. For each dynamic-mode one, ask the user to pause its agent (no task running) until step 4.
+  2. Run `sbx mcp unload <name> --sandbox <sb>` for each of those sandboxes.
+  3. Run `sbx mcp rm <name>`. After this, the agent can no longer find it.
+  4. Verify in each sandbox's session that the server's tools are gone before the user resumes the agent. Do not report the server as revoked until this check passes.
+- If tools reappeared, unload again from that sandbox. Whether `unload` accepts a name whose registration was already removed is unverified (`checks/verification.md` step 5). If it is rejected, stop that sandbox with `sbx stop` and escalate rather than resuming it.
+- For sandboxes that must never reach a server, create them with `--static-mcp none`.
 - Removing local state does not revoke provider-side OAuth grants or API keys; revoke those at the provider.
 
 ### Tool names and settings

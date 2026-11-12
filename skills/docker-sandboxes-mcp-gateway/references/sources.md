@@ -39,8 +39,12 @@ Page abbreviations: GW = https://docs.docker.com/ai/sandboxes/mcp-gateway/ (also
 | Org MCP policy at gateway, separate from network proxy | https://docs.docker.com/ai/sandboxes/architecture/#mcp-gateway | "enforcement happens on the MCP gateway path, separate from the HTTP/HTTPS network proxy. Server registration is checked before the server is stored". |
 | Cloud sandboxes use Agentic Platform servers; cloud ls/load | https://docs.docker.com/ai/sandboxes/cloud/usage/#load-an-mcp-server | "Cloud sandboxes don't use servers registered in the local MCP store with `sbx mcp add`." |
 | Supported-agent integrations read the gateway URL at sandbox start | GW "Choose an MCP mode" | "supported agent integrations read the gateway URL and register it with the agent." Agent list (Claude Code, Codex, Devin, Gemini, Kiro, OpenCode) is from the researcher brief and not used as a rule. |
+| Documented removal order; reattach between unload and rm | GW "Manage registrations", "Remove a server from a running sandbox" (docs.docker.com/ai/sandboxes/mcp-gateway.md, read 2026-11-12) | "Use `sbx mcp unload` for each sandbox before removing the registration." "In dynamic mode, the agent can also find and attach the registered server again." The pause-and-verify procedure is derived from these two statements and from "rm does not detach loaded servers"; it is not documented as such. |
+| `sbx ls -q` prints sandbox names, one per line | docker/skills `.github/workflows/skill-evals.yml` at 56001ac (cleanup step) | `sbx ls -q 2>/dev/null \| grep "^eval-" \| xargs -r sbx rm --force` |
+| `sbx stop` stops without removing | `docker-sandboxes-lifecycle` SKILL.md | "`sbx stop SANDBOX [SANDBOX...]` stops without removing; state is retained" |
 
 ## Not verified
+- Whether `sbx mcp unload` accepts a server whose registration was already removed (`checks/verification.md` step 5 records it).
 - Columns and options of `sbx mcp ls`; syntax for local per-sandbox listing.
 - `sbx settings` get/unset forms and exact `--help` output of any sbx command (no sbx binary available).
 - Exact meaning of `--dir`, `--resource`, `--scope` (names from the researcher brief).

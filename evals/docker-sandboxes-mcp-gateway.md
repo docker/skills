@@ -75,11 +75,13 @@ sbx mcp load --help
 
 ### Expected behaviors
 - [ ] Runs `sbx mcp unload linear --sandbox my-session` (for each sandbox that loaded it) before `sbx mcp rm linear`.
-- [ ] States that `rm` alone does not detach already-loaded sandboxes, and that unload alone lets a dynamic-mode agent reattach it.
+- [ ] States that `rm` alone does not detach already-loaded sandboxes, and that unload alone lets a dynamic-mode agent reattach it, including between `unload` and `rm`.
+- [ ] Asks the user to pause the agent in `my-session` during unload and `rm`, then verifies the server's tools are gone before it resumes.
 - [ ] Mentions that header secrets and provider-side OAuth grants survive `rm` and need separate removal or revocation.
 
 ### Must not
 - [ ] Must NOT run `sbx rm` on the sandbox to remove an MCP server.
+- [ ] Must NOT report the server as revoked before verifying no sandbox still has its tools.
 - [ ] Must NOT claim removal revokes provider-side OAuth tokens.
 
 ### Verification commands
