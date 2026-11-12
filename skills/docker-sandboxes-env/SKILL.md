@@ -106,8 +106,10 @@ python3 -I <skill-dir>/scripts/kits.py update sbx/playwright
    the user's personal defaults — usually bindings and `sandboxOptions`, not
    project kits. Nothing exists → create.
 2. **Create:** read only the file listing, manifests, and git remote; turn
-   signals into search terms; `search` and `describe` candidates; propose a
-   composition table (kit, kind, tag, why); set kit and environment args;
+   signals into search terms; `search` and `describe` candidates to
+   shortlist; resolve each kit's `newestRelease` and `describe` that exact
+   reference before configuring it; propose a composition table (kit, kind,
+   tag, why); set kit and environment args from that descriptor;
    add bindings/secrets per credential; set workspace and options; ask tags
    vs tag+digest; write the file with a prerequisites header; then run the
    checks.
@@ -131,6 +133,11 @@ grant handling, and the final checklist are in
 - When both `X` and `X-mixin` exist, the plain kit is the workload and the
   `-mixin` layers that agent onto another workload. Use the mixin only when
   the user wants a different base.
+- A mixin's `requires` can under-declare what it needs from the workload:
+  `sbx/playwright` reports `requires: []` but its install step needs Node, so
+  on the bare `shell` agent creation fails (`env: 'node': No such file or
+  directory`). Only a disposable `sbx env create` proves a composition; say
+  so when you hand over a file you could not create.
 - An entry is a bare reference or `{source, args}`. Explicit relative paths
   (`./…`, `../…`, `.`, `..`, or ending in `.zip`) resolve against the
   **declaring file's directory**; a bare `org/kit` is always a registry
@@ -268,8 +275,8 @@ grant handling, and the final checklist are in
   directories, kits, ports, options, and variables — compared with what was
   last applied and approved. **It changes, approves, and records nothing.**
   It also does not resolve kit references: an invented kit or a missing tag
-  plans cleanly and fails only at create. Verify every OCI reference with
-  `kits.py describe` or `kits.py pin` before trusting a clean plan.
+  plans cleanly. `describe` every OCI reference at the exact tag you write
+  before trusting a clean plan.
   Margin symbols: `+` add, `~` change, `-` destroy, `>` run a host command
   again, `!` stop tracking without deleting.
 - `create`, `run`, and `rm` show their plan and ask for approval. Interactive

@@ -91,6 +91,38 @@ class UpdateAndPinTests(unittest.TestCase):
         result = kits.pin_one("sbx/example:1.9.0")
         self.assertEqual(result["suggested"], "sbx/example:1.9.0@" + DIGEST_NEW)
 
+    def patch_registry_without_digest(self, names):
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        stack.enter_context(mock.patch.object(kits, "list_tags", return_value=tags(*names)))
+        stack.enter_context(mock.patch.object(kits, "manifest", return_value=(None, None)))
+
+    def test_pin_without_registry_digest_fails(self):
+        self.patch_registry_without_digest(["1.9.0"])
+        with self.assertRaisesRegex(kits.Fail, "no digest"):
+            kits.pin_one("sbx/example:1.9.0")
+
+    def test_pinned_update_without_registry_digest_fails_instead_of_dropping_pin(self):
+        self.patch_registry_without_digest(["1.9.0", "1.10.0"])
+        with self.assertRaisesRegex(kits.Fail, "no digest"):
+            kits.update_one("sbx/example:1.9.0@" + DIGEST_OLD, False)
+        with self.assertRaisesRegex(kits.Fail, "no digest"):
+            kits.update_one("sbx/example:1.9.0", True)
+
+    def test_unpinned_update_without_registry_digest_still_suggests_tag(self):
+        self.patch_registry_without_digest(["1.9.0", "1.10.0"])
+        result = kits.update_one("sbx/example:1.9.0", False)
+        self.assertEqual(result["suggested"], "sbx/example:1.10.0")
+
+    def test_missing_digest_makes_pin_command_exit_nonzero(self):
+        self.patch_registry_without_digest(["1.9.0"])
+        out = io.StringIO()
+        with mock.patch.object(sys, "argv", ["kits.py", "pin", "sbx/example:1.9.0"]), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            code = kits.main()
+        self.assertEqual(code, 1)
+        self.assertIn("no digest", json.loads(out.getvalue())[0]["error"])
+
 
 class FailureReportingTests(unittest.TestCase):
     def run_main(self, *argv):

@@ -548,6 +548,9 @@ def update_one(text, pin):
                 if newest else "digest-only reference with no release tags; resolved latest")
 
     new_digest = manifest(ref, target, method="HEAD")[0]
+    if pinned and not new_digest:
+        # Never report a pinned result that silently dropped its digest.
+        raise Fail(f"{ref.format(target)}: registry returned no digest; cannot pin")
     tag_out = None if (ref.digest and not ref.tag) else target
     suggested = ref.format(tag_out, new_digest if pinned else None)
     return {
@@ -571,6 +574,8 @@ def pin_one(text):
     if tag is None:
         return {"ref": text, "suggested": text, "changed": False, "note": "already digest-only"}
     digest = manifest(ref, tag, method="HEAD")[0]
+    if not digest:
+        raise Fail(f"{ref.format(tag)}: registry returned no digest; cannot pin")
     suggested = ref.format(ref.tag, digest)
     note = None
     if not ref.tag:

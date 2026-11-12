@@ -33,7 +33,7 @@ for distribution releases.
 
 ### Changed
 
-- `docker-sandboxes-env` 0.2.0: adds a create/update workflow for `sbxenv.yaml` adapted from docker/sandbox-kit-spec's `sbxenv` skill, including the `scripts/kits.py` live Docker Hub helper for kit selection, version-ordered upgrades, and digest pinning; refreshes the guidance for sbx v0.51.0 (`--force` replaces `-y`/`--auto-approve`, interactive `env exec` creation, user defaults, MCP command approval, recreate-on-change rules, and the complete field reference); notes that `sbx env plan` does not verify kit references; adds the `scaffold-pin-plan` live scenario and recorded runtime results for sbx v0.51.0.
+- `docker-sandboxes-env` 0.2.0: adds a create/update workflow for `sbxenv.yaml` adapted from docker/sandbox-kit-spec's `sbxenv` skill, including the `scripts/kits.py` live Docker Hub helper for kit selection, version-ordered upgrades, and digest pinning; refreshes the guidance for sbx v0.51.0 (`--force` replaces `-y`/`--auto-approve`, interactive `env exec` creation, user defaults, MCP command approval, recreate-on-change rules, and the complete field reference); notes that `sbx env plan` does not verify kit references; adds the `scaffold-pin-plan` live scenario and recorded runtime results for sbx v0.51.0; the helper refuses to report a pin without a registry digest.
 - `docker-sandboxes-kits` 1.0.3 adds pinned public source/spec links, separates
   untested runtime scope from verified claims, and records live build/layout verification (19
   conformance checks passed), strict-decoding rejection, and scoped cleanup.

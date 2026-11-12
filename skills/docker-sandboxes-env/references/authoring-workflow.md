@@ -47,7 +47,9 @@ python3 -I <skill-dir>/scripts/kits.py describe <candidate refs…>
 ```
 
 You need `kind` and `agent` from `describe` to tell agent workloads from
-mixins.
+mixins. This first `describe` of an untagged candidate reads `latest`, which
+can be a different release from the one you will write; use it only to
+shortlist kits, never to configure them.
 
 ### C2. Propose a composition
 
@@ -61,13 +63,17 @@ mixins.
   wants that different base.
 - For each OCI kit you keep, run `kits.py update <org>/<name>` (no tag) and
   use `newestRelease` as the tag. Skip this for `./path` and `git+` sources.
+- Then `describe` that exact reference (`<org>/<name>:<newestRelease>`).
+  C3 and C4 use this descriptor, not the shortlist one: args, credentials,
+  and host grants can differ between releases.
 
 Present a short table (kit, kind, tag, why) and ask the user to confirm,
 add, or remove kits.
 
 ### C3. Kit args and environment args
 
-For every chosen kit, take `args` from `describe`:
+For every chosen kit, take `args` from the `describe` of the selected
+release (C2):
 
 - `required: true` → must be set; ask for the value.
 - Optional → set only when the user wants a non-default value. Show the
@@ -89,7 +95,7 @@ images need no binding for them, and an environment file cannot set them.
 
 ### C4. Credentials, secrets, and bindings
 
-For each entry in `credentials` from `describe`:
+For each entry in `credentials` from the selected release's `describe`:
 
 1. **Mechanism.** If `mechanisms` has both `apiKey` and `oauth`, ask which
    one the user will use (subscription logins usually mean `oauth`; tokens
@@ -201,11 +207,17 @@ version chosen on purpose (for example to satisfy another kit's
 - The YAML parses. Use any available parser (`yq`, `python3 -c 'import
   yaml'`, `ruby -ryaml`); if none is available, say so rather than claiming
   the file is valid.
-- Every OCI kit reference resolved with `kits.py describe` or `kits.py pin`
-  in this run. `sbx env plan` does not check that kits exist, so a clean plan
-  alone does not prove the references are valid.
+- Every OCI kit reference written to the file was described in this run at
+  that exact tag (or digest), and its args, bindings, and prerequisites match
+  that descriptor. A `kits.py pin` result proves only that the tag exists.
+  `sbx env plan` does not check that kits exist, so a clean plan alone does
+  not prove the references are valid.
 - If `sbx` is on `PATH`, run `sbx env plan`; otherwise ask the user to run it
-  on the host and share any errors.
+  on the host and share any errors. A clean plan does not prove the
+  composition installs: a mixin can depend on a runtime its `requires` does
+  not declare. If the user agrees, prove it with a disposable `sbx env create`
+  (reviewed plan, no `--force`) and `sbx env rm`; otherwise report the
+  composition as unverified.
 
 Then report what changed and what the user still has to do on the host
 (create secrets, `sbx login`, start an SSH agent, OAuth sign-in).

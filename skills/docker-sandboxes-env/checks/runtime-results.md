@@ -36,6 +36,27 @@ stopped afterwards. These results describe this release and platform only.
   public kit), while an unknown field (`kitz`) failed with
   `unknown field "kitz"`.
 
+## Kit composition at create (2026-11-12)
+
+Same isolated app and release, after the review of #130. References were
+selected with the bundled helper: `update` for the release, `describe` of that
+exact tag, then `pin` (with the missing-digest fix).
+
+| Composition | Plan | Create | Inside the sandbox |
+|---|---|---|---|
+| `agent: shell` + `sbx/playwright:1.61.1@sha256:6a4607b6…` (mixin; `requires: []`, no args, credentials, or grants) | Pass | **Fails**: the kit install step exits 127 with `env: 'node': No such file or directory`; the sandbox is rolled back and no secrets remain | n/a |
+| `agent: shell` + `sbx/task:3.50.0@sha256:ce9b6e92…` (mixin with no capabilities) | Pass | Pass: the kit image assembles from `sbx/shell` and `sbx/task` | `task --version` prints `3.50.0`; a Taskfile task runs |
+| `agent: shell` + `sbx/playwright:99.0.0` (nonexistent tag) | Pass | **Fails after approval**: `resolve kits: … sbx/playwright:99.0.0: not found`; nothing created | n/a |
+
+Other observations from these runs:
+
+- `sbx/playwright:1.61.1` and `latest` were republished on 2026-11-12, moving
+  the digest from `sha256:7099b84a…` to `sha256:6a4607b6…`; a tag alone is
+  not reproducible.
+- The built-in `shell` agent now resolves as the kit `docker.io/sbx/shell`.
+- A `kits:` list with an empty (`null`) entry was accepted at create and
+  ignored.
+
 ## Not covered
 
 - Cloud environments, MCP servers, secrets/bindings provisioning,

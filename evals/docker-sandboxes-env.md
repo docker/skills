@@ -278,8 +278,9 @@ attach. Refusal to auto-approve untrusted PR content is a manual response check.
 python3 -I scripts/kits.py search go github ssh
 ```
 The automated live scenario `skills/docker-sandboxes-env/evals/scaffold-pin-plan.yaml`
-covers the credential-free part of this workflow: kit selection, digest
-pinning, and a plan-only preview.
+covers the credential-free part of this workflow: kit selection from a
+Taskfile signal, digest pinning, and a plan-only preview. Its composition
+(shell + `sbx/task`) was verified to create; see `checks/runtime-results.md`.
 
 ---
 
