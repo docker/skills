@@ -83,6 +83,10 @@ jobs:
       - name: Install Docker Sandboxes (sbx)
         run: |
           curl -fsSL "https://github.com/docker/sbx-releases/releases/download/v${SBX_VERSION}/DockerSandboxes-linux-amd64-ubuntu2404.deb" -o sbx.deb
+          # Refresh the runner image's package index first: a stale index
+          # resolves sbx.deb dependencies to superseded files the mirror no
+          # longer serves (404), which fails the install.
+          sudo apt-get update
           sudo apt-get install -y ./sbx.deb
           sudo usermod -aG kvm "$USER"
           rm sbx.deb
@@ -163,6 +167,10 @@ jobs:
       - name: Install Docker Sandboxes (sbx)
         run: |
           curl -fsSL "https://github.com/docker/sbx-releases/releases/download/v${SBX_VERSION}/DockerSandboxes-linux-amd64-ubuntu2404.deb" -o sbx.deb
+          # Refresh the runner image's package index first: a stale index
+          # resolves sbx.deb dependencies to superseded files the mirror no
+          # longer serves (404), which fails the install.
+          sudo apt-get update
           sudo apt-get install -y ./sbx.deb
           sudo usermod -aG kvm "$USER"
           rm sbx.deb
