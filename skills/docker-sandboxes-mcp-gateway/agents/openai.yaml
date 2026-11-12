@@ -1,6 +1,0 @@
-interface:
-  display_name: 'Docker Sandboxes: MCP Gateway'
-  short_description: Register host-side MCP servers and expose them to local sandbox agents with sbx mcp, static or dynamic loading, and safe removal.
-  default_prompt: Use this skill when connecting an agent in a local Docker Sandbox to MCP servers with sbx mcp.
-policy:
-  allow_implicit_invocation: true
