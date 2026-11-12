@@ -93,7 +93,11 @@ Scenarios are YAML files with these keys:
 - `limits`: max turns, budget, timeout
 - `tools.allowed`: additional tools beyond defaults (Skill, Read, Glob, Grep)
 - `cli`: configuration for parsing CLI calls (command name, how to extract
-  subcommands and target names, cleanup commands)
+  subcommands and target names, cleanup commands). After the run, cleanup
+  force-removes only resources that were absent from the `cleanup.list`
+  listing before the run, present after it, and named by one of the agent's
+  recorded calls or listed in `cleanup.owned_names`. If either listing fails,
+  cleanup is skipped and a note is written to the run's `stderr.txt`.
 - `expect.skill_invoked`: whether the skill must be loaded
 - `expect.steps`: ordered sequence of calls to match
 - `expect.forbid`: calls that must never appear

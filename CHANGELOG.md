@@ -26,6 +26,12 @@ for distribution releases.
 
 ### Fixed
 
+- Live skill eval cleanup no longer treats a failed resource listing as empty,
+  and force-removes only resources created during the run that the agent's
+  own CLI calls named or the scenario declares in `cleanup.owned_names`, so a
+  failed `sbx ls` or a concurrently created sandbox is never removed.
+  `docker-sandboxes-env` 0.2.1 declares its scenario-owned sandbox name.
+
 - Kit verification examples preserve the parent working directory, compare
   complete tool versions literally, audit only manifest-referenced layers
   without hiding read failures, and remove a test builder only after this

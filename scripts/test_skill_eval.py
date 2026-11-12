@@ -249,6 +249,153 @@ class GradingTests(unittest.TestCase):
         self.assertIn("answer mentions 'hello.txt'", failed)
 
 
+class CleanupTests(unittest.TestCase):
+    """Cleanup must never force-remove resources this run did not own."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.dir = Path(self.temp.name)
+        self.listing = self.dir / "listing.txt"
+        self.removed = self.dir / "removed.txt"
+        fake = self.dir / "sbx"
+        fake.write_text(
+            "#!/bin/sh\n"
+            'if [ "$1" = ls ]; then\n'
+            f'  [ -f "{self.dir}/ls-fails" ] && exit 1\n'
+            f'  cat "{self.listing}"; exit 0\n'
+            "fi\n"
+            f'if [ "$1" = rm ]; then shift; echo "$@" >> "{self.removed}"; exit 0; fi\n'
+            "exit 2\n",
+            encoding="utf-8")
+        fake.chmod(0o755)
+        path = os.environ.get("PATH", "")
+        os.environ["PATH"] = f"{self.dir}{os.pathsep}{path}"
+        self.addCleanup(os.environ.__setitem__, "PATH", path)
+        cli = make_cli_config()
+        cli.cleanup_list = ["sbx", "ls", "-q"]
+        cli.cleanup_remove = ["sbx", "rm", "--force"]
+        self.scenario = skill_eval.Scenario(
+            SCENARIO, "cleanup", "docker-sandboxes-lifecycle", "prompt", {}, {}, {}, [], cli)
+
+    def set_listing(self, *names, fails=False):
+        self.listing.write_text("".join(f"{n}\n" for n in names), encoding="utf-8")
+        marker = self.dir / "ls-fails"
+        if fails:
+            marker.touch()
+        elif marker.exists():
+            marker.unlink()
+
+    def removed_names(self):
+        return self.removed.read_text(encoding="utf-8").split() if self.removed.exists() else []
+
+    def test_removes_only_new_resources_the_agent_named(self):
+        self.set_listing("user-box")
+        before = skill_eval.list_resources(self.scenario)
+        self.set_listing("user-box", "agent-box")
+        notes = skill_eval.cleanup_resources(self.scenario, before, {"agent-box"})
+        self.assertEqual(self.removed_names(), ["--force", "agent-box"])
+        self.assertEqual(notes, [])
+
+    def test_concurrent_resource_the_agent_never_named_is_kept(self):
+        self.set_listing("user-box")
+        before = skill_eval.list_resources(self.scenario)
+        self.set_listing("user-box", "agent-box", "someone-elses-box")
+        notes = skill_eval.cleanup_resources(self.scenario, before, {"agent-box"})
+        self.assertEqual(self.removed_names(), ["--force", "agent-box"])
+        self.assertIn("someone-elses-box", notes[0])
+
+    def test_failed_pre_run_listing_skips_cleanup(self):
+        self.set_listing("user-box", fails=True)
+        before = skill_eval.list_resources(self.scenario)
+        self.assertIsNone(before)
+        self.set_listing("user-box", "agent-box")
+        notes = skill_eval.cleanup_resources(self.scenario, before, {"user-box", "agent-box"})
+        self.assertEqual(self.removed_names(), [])
+        self.assertIn("pre-run listing failed", notes[0])
+
+    def test_failed_post_run_listing_skips_cleanup(self):
+        self.set_listing("user-box")
+        before = skill_eval.list_resources(self.scenario)
+        self.set_listing("user-box", "agent-box", fails=True)
+        notes = skill_eval.cleanup_resources(self.scenario, before, {"agent-box"})
+        self.assertEqual(self.removed_names(), [])
+        self.assertIn("post-run listing failed", notes[0])
+
+    def test_pre_existing_resource_the_agent_named_is_kept(self):
+        self.set_listing("user-box")
+        before = skill_eval.list_resources(self.scenario)
+        notes = skill_eval.cleanup_resources(self.scenario, before, {"user-box"})
+        self.assertEqual(self.removed_names(), [])
+        self.assertEqual(notes, [])
+
+    def test_missing_cli_reports_unknown_listing(self):
+        self.scenario.cli.cleanup_list = ["definitely-not-a-cli-for-this-test", "ls"]
+        self.assertIsNone(skill_eval.list_resources(self.scenario))
+
+    def test_referenced_names_come_from_recorded_cli_calls(self):
+        events = [
+            {"type": "system", "subtype": "init", "skills": []},
+            {"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": "t1", "name": "Bash",
+                 "input": {"command": "sbx run shell --name agent-box -d ./notes"}}]}},
+            {"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": "t2", "name": "Bash", "input": {"command": "sbx ls"}}]}},
+            {"type": "result", "subtype": "success", "result": "done"},
+        ]
+        transcript = self.dir / "transcript.jsonl"
+        transcript.write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+        self.assertEqual(skill_eval.referenced_names(self.scenario, transcript, "claude"), {"agent-box"})
+        self.assertEqual(skill_eval.referenced_names(self.scenario, self.dir / "missing.jsonl", "claude"), set())
+
+    def test_names_inside_shell_compound_commands_are_owned(self):
+        commands = [
+            "if sbx create --name eval-box shell ./notes; then echo ok; fi",
+            "BOX=$(sbx run --name sub-box -d shell ./notes)",
+            "! sbx exec neg-box ls || true",
+            "for i in 1; do sbx stop loop-box; done",
+            "echo sbx rm not-a-call-box",
+        ]
+        events = [{"type": "system", "subtype": "init", "skills": []}]
+        for index, command in enumerate(commands):
+            events.append({"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": f"t{index}", "name": "Bash", "input": {"command": command}}]}})
+        events.append({"type": "result", "subtype": "success", "result": "done"})
+        transcript = self.dir / "transcript.jsonl"
+        transcript.write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+        self.assertEqual(skill_eval.referenced_names(self.scenario, transcript, "claude"),
+                         {"eval-box", "sub-box", "neg-box", "loop-box"})
+
+    def test_compound_created_sandbox_is_cleaned_up(self):
+        transcript = self.dir / "transcript.jsonl"
+        transcript.write_text("\n".join(json.dumps(e) for e in [
+            {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "Bash",
+             "input": {"command": "if sbx create --name eval-box shell ./notes; then sleep 600; fi"}}]}},
+        ]), encoding="utf-8")
+        self.set_listing("user-box")
+        before = skill_eval.list_resources(self.scenario)
+        self.set_listing("user-box", "eval-box")
+        owned = skill_eval.referenced_names(self.scenario, transcript, "claude")
+        self.assertEqual(skill_eval.cleanup_resources(self.scenario, before, owned), [])
+        self.assertEqual(self.removed_names(), ["--force", "eval-box"])
+
+    def test_truncated_transcript_names_only_declared_owners(self):
+        transcript = self.dir / "transcript.jsonl"
+        transcript.write_text('{"type": "assistant", "message": {"content": [{"type": "tool_use"', encoding="utf-8")
+        self.scenario.cli.cleanup_owned_names = ["fixed-box"]
+        self.assertEqual(skill_eval.referenced_names(self.scenario, transcript, "claude"), {"fixed-box"})
+
+    def test_declared_owned_names_are_owned_without_a_named_call(self):
+        self.scenario.cli.cleanup_owned_names = ["fixed-box"]
+        self.assertEqual(skill_eval.referenced_names(self.scenario, self.dir / "missing.jsonl", "claude"),
+                         {"fixed-box"})
+        self.set_listing("user-box")
+        before = skill_eval.list_resources(self.scenario)
+        self.set_listing("user-box", "fixed-box")
+        skill_eval.cleanup_resources(self.scenario, before, {"fixed-box"})
+        self.assertEqual(self.removed_names(), ["--force", "fixed-box"])
+
+
 class HarnessTests(unittest.TestCase):
     def test_every_scenario_loads(self):
         scenarios = skill_eval.discover([], None)

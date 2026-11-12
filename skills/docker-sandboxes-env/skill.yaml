@@ -1,6 +1,6 @@
 schema: v1
 id: docker-sandboxes-env
-version: 0.2.0
+version: 0.2.1
 title: 'Docker Sandboxes: Declarative sbxenv.yaml Environments'
 description: Create, update, plan, and run declarative sbxenv.yaml environments for Docker Sandboxes, including live v3 kit selection and pinning, args, secrets/registries/bindings, host lifecycle hooks, and the approval plan.
 owns:

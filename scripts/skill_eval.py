@@ -74,6 +74,9 @@ class CLIConfig:
     name_positional_commands: list[str] = dataclasses.field(default_factory=list)
     cleanup_list: list[str] = dataclasses.field(default_factory=list)
     cleanup_remove: list[str] = dataclasses.field(default_factory=list)
+    # Fixed names the scenario owns even when no recorded call names them
+    # (for example a name set inside a file the agent writes).
+    cleanup_owned_names: list[str] = dataclasses.field(default_factory=list)
 
 
 @dataclasses.dataclass
@@ -137,6 +140,7 @@ def load_scenario(path: Path) -> Scenario:
             name_positional_commands=cli_config.get("name_positional_commands") or [],
             cleanup_list=cleanup.get("list") or [],
             cleanup_remove=cleanup.get("remove") or [],
+            cleanup_owned_names=[str(n) for n in cleanup.get("owned_names") or []],
         )
     
     return Scenario(path, str(data["id"]), skill, str(data["prompt"]), fixtures, limits, expect, allowed_tools, cli)
@@ -788,33 +792,117 @@ def has_api_credentials(agent: str) -> bool:
     return False
 
 
-def list_resources(scenario: Scenario) -> set[str]:
-    """List current resources using scenario's CLI config."""
+def list_resources(scenario: Scenario) -> set[str] | None:
+    """List current resources using scenario's CLI config.
+
+    Returns None when the listing could not be taken. An unknown listing is
+    never treated as empty: that would make every existing resource look
+    newly created and eligible for forced removal.
+    """
     cli = scenario.cli
     if not cli or not cli.cleanup_list:
         return set()
     try:
         result = subprocess.run(cli.cleanup_list, capture_output=True, text=True, timeout=30, check=False)
-        if result.returncode != 0:
-            return set()
-        return {line.strip() for line in result.stdout.splitlines() if line.strip()}
     except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+    if result.returncode != 0:
+        return None
+    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+
+
+# Shell words that may precede a command without being the command itself.
+_SHELL_PREFIX_WORDS = {"if", "then", "else", "elif", "do", "while", "until", "!", "time", "{", "}"}
+_SHELL_SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", ";;", "|&"}
+
+
+def shell_invocations(command: str, program: str) -> list[list[str]]:
+    """argv lists for every invocation of `program` in a shell command line.
+
+    Unlike cli_calls(), which grades only segments that start with the CLI,
+    this also finds invocations inside compound commands (`if sbx create ...;
+    then`, `X=$(sbx run ...)`, `! sbx ...`), so ownership is not missed.
+    """
+    found = []
+    for line in command.splitlines():
+        lexer = shlex.shlex(line, posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        lexer.commenters = ""
+        try:
+            tokens = list(lexer)
+        except ValueError:  # unbalanced quotes: fall back to whitespace words
+            tokens = line.split()
+        segment: list[str] = []
+        for token in [*tokens, ";"]:
+            if token not in _SHELL_SEPARATORS:
+                segment.append(token)
+                continue
+            words = list(segment)
+            segment = []
+            while words and (words[0] in _SHELL_PREFIX_WORDS
+                             or ("=" in words[0] and not words[0].startswith("-"))
+                             or words[0] == "$"):
+                words.pop(0)
+            if words and (words[0] == program or words[0].endswith("/" + program)):
+                found.append(words)
+    return found
+
+
+def referenced_names(scenario: Scenario, transcript_path: Path, agent: str) -> set[str]:
+    """Names the scenario owns: those its CLI calls targeted, plus declared ones."""
+    if not scenario.cli:
         return set()
+    if not transcript_path.is_file():
+        return set(scenario.cli.cleanup_owned_names)
+    declared = set(scenario.cli.cleanup_owned_names)
+    try:
+        lines = transcript_path.read_text(encoding="utf-8").splitlines()
+        transcript = parse_transcript(lines, agent)
+        calls = transcript.cli_calls(scenario.cli)
+        for tc in transcript.tool_calls:
+            if tc.name in ("Bash", "command_execution"):
+                for argv in shell_invocations(str(tc.input.get("command", "")), scenario.cli.command):
+                    calls.append(enrich_call({"argv": argv}, scenario.cli))
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        # A truncated or malformed transcript names nothing: never guess.
+        return declared
+    return {str(c["name"]) for c in calls if c.get("name")} | declared
 
 
-def cleanup_resources(scenario: Scenario, before: set[str]) -> None:
-    """Clean up resources created during the test (those not in 'before' set)."""
+def cleanup_resources(scenario: Scenario, before: set[str] | None, owned: set[str]) -> list[str]:
+    """Remove resources this run created and the scenario owns.
+
+    Only names that were absent before the run, present after it, and in
+    `owned` (targeted by the agent's own CLI calls, or declared by the
+    scenario) are removed, so a resource
+    another user or process creates meanwhile is left alone. Returns notes
+    about anything skipped, for the run's stderr log.
+    """
     cli = scenario.cli
     if not cli or not cli.cleanup_list or not cli.cleanup_remove:
-        return
-    try:
-        after = list_resources(scenario)
-        # Remove only resources that were created during this run
-        created = after - before
-        if created:
-            subprocess.run([*cli.cleanup_remove, *sorted(created)], capture_output=True, timeout=60, check=False)
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
+        return []
+    if before is None:
+        return ["cleanup skipped: the pre-run listing failed, so pre-existing resources are unknown"]
+    after = list_resources(scenario)
+    if after is None:
+        return ["cleanup skipped: the post-run listing failed"]
+    created = after - before
+    removable = created & owned
+    notes = []
+    unowned = sorted(created - owned)
+    if unowned:
+        notes.append("cleanup left resources the agent never named: " + ", ".join(unowned))
+    if removable:
+        try:
+            result = subprocess.run([*cli.cleanup_remove, *sorted(removable)], capture_output=True,
+                                    text=True, timeout=60, check=False)
+        except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+            notes.append(f"cleanup of {', '.join(sorted(removable))} failed: {exc}")
+        else:
+            if result.returncode != 0:
+                notes.append(f"cleanup of {', '.join(sorted(removable))} exited {result.returncode}: "
+                             f"{(result.stderr or '').strip()[:200]}")
+    return notes
 
 
 def run_scenario(scenario: Scenario, args: argparse.Namespace, run_dir: Path, use_host_config: bool) -> list[Check]:
@@ -847,8 +935,14 @@ def run_scenario(scenario: Scenario, args: argparse.Namespace, run_dir: Path, us
     except FileNotFoundError as exc:
         raise ScenarioError(f"cannot start agent {args.agent_bin!r}: {exc}") from exc
 
-    # Clean up only resources created during this run
-    cleanup_resources(scenario, resources_before)
+    # Clean up only resources created during this run that the agent named
+    owned = referenced_names(scenario, transcript_path, args.agent)
+    notes = cleanup_resources(scenario, resources_before, owned)
+    if notes:
+        with open(run_dir / "stderr.txt", "a", encoding="utf-8") as err:
+            err.writelines(f"\nskill-eval: {note}\n" for note in notes)
+        for note in notes:
+            print(f"skill-eval: {note}", file=sys.stderr)
 
     # Grade
     checks = regrade(run_dir)
