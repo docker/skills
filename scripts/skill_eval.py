@@ -811,6 +811,43 @@ def list_resources(scenario: Scenario) -> set[str] | None:
     return {line.strip() for line in result.stdout.splitlines() if line.strip()}
 
 
+# Shell words that may precede a command without being the command itself.
+_SHELL_PREFIX_WORDS = {"if", "then", "else", "elif", "do", "while", "until", "!", "time", "{", "}"}
+_SHELL_SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", ";;", "|&"}
+
+
+def shell_invocations(command: str, program: str) -> list[list[str]]:
+    """argv lists for every invocation of `program` in a shell command line.
+
+    Unlike cli_calls(), which grades only segments that start with the CLI,
+    this also finds invocations inside compound commands (`if sbx create ...;
+    then`, `X=$(sbx run ...)`, `! sbx ...`), so ownership is not missed.
+    """
+    found = []
+    for line in command.splitlines():
+        lexer = shlex.shlex(line, posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        lexer.commenters = ""
+        try:
+            tokens = list(lexer)
+        except ValueError:  # unbalanced quotes: fall back to whitespace words
+            tokens = line.split()
+        segment: list[str] = []
+        for token in [*tokens, ";"]:
+            if token not in _SHELL_SEPARATORS:
+                segment.append(token)
+                continue
+            words = list(segment)
+            segment = []
+            while words and (words[0] in _SHELL_PREFIX_WORDS
+                             or ("=" in words[0] and not words[0].startswith("-"))
+                             or words[0] == "$"):
+                words.pop(0)
+            if words and (words[0] == program or words[0].endswith("/" + program)):
+                found.append(words)
+    return found
+
+
 def referenced_names(scenario: Scenario, transcript_path: Path, agent: str) -> set[str]:
     """Names the scenario owns: those its CLI calls targeted, plus declared ones."""
     if not scenario.cli:
@@ -820,7 +857,12 @@ def referenced_names(scenario: Scenario, transcript_path: Path, agent: str) -> s
     declared = set(scenario.cli.cleanup_owned_names)
     try:
         lines = transcript_path.read_text(encoding="utf-8").splitlines()
-        calls = parse_transcript(lines, agent).cli_calls(scenario.cli)
+        transcript = parse_transcript(lines, agent)
+        calls = transcript.cli_calls(scenario.cli)
+        for tc in transcript.tool_calls:
+            if tc.name in ("Bash", "command_execution"):
+                for argv in shell_invocations(str(tc.input.get("command", "")), scenario.cli.command):
+                    calls.append(enrich_call({"argv": argv}, scenario.cli))
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         # A truncated or malformed transcript names nothing: never guess.
         return declared

@@ -348,6 +348,37 @@ class CleanupTests(unittest.TestCase):
         self.assertEqual(skill_eval.referenced_names(self.scenario, transcript, "claude"), {"agent-box"})
         self.assertEqual(skill_eval.referenced_names(self.scenario, self.dir / "missing.jsonl", "claude"), set())
 
+    def test_names_inside_shell_compound_commands_are_owned(self):
+        commands = [
+            "if sbx create --name eval-box shell ./notes; then echo ok; fi",
+            "BOX=$(sbx run --name sub-box -d shell ./notes)",
+            "! sbx exec neg-box ls || true",
+            "for i in 1; do sbx stop loop-box; done",
+            "echo sbx rm not-a-call-box",
+        ]
+        events = [{"type": "system", "subtype": "init", "skills": []}]
+        for index, command in enumerate(commands):
+            events.append({"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": f"t{index}", "name": "Bash", "input": {"command": command}}]}})
+        events.append({"type": "result", "subtype": "success", "result": "done"})
+        transcript = self.dir / "transcript.jsonl"
+        transcript.write_text("\n".join(json.dumps(e) for e in events), encoding="utf-8")
+        self.assertEqual(skill_eval.referenced_names(self.scenario, transcript, "claude"),
+                         {"eval-box", "sub-box", "neg-box", "loop-box"})
+
+    def test_compound_created_sandbox_is_cleaned_up(self):
+        transcript = self.dir / "transcript.jsonl"
+        transcript.write_text("\n".join(json.dumps(e) for e in [
+            {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "Bash",
+             "input": {"command": "if sbx create --name eval-box shell ./notes; then sleep 600; fi"}}]}},
+        ]), encoding="utf-8")
+        self.set_listing("user-box")
+        before = skill_eval.list_resources(self.scenario)
+        self.set_listing("user-box", "eval-box")
+        owned = skill_eval.referenced_names(self.scenario, transcript, "claude")
+        self.assertEqual(skill_eval.cleanup_resources(self.scenario, before, owned), [])
+        self.assertEqual(self.removed_names(), ["--force", "eval-box"])
+
     def test_truncated_transcript_names_only_declared_owners(self):
         transcript = self.dir / "transcript.jsonl"
         transcript.write_text('{"type": "assistant", "message": {"content": [{"type": "tool_use"', encoding="utf-8")
