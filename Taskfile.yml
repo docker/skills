@@ -21,19 +21,85 @@ tasks:
     cmds:
       - docker run --rm -v "{{.ROOT_DIR}}:/work" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d sh -c "pip install -q --require-hashes -r scripts/requirements.txt && python3 scripts/eval_check.py"
 
-  eval:skills:
-    desc: Run live skill scenarios with Claude Code (default) or Codex; use --agent codex for Codex (calls a live model; needs agent CLI, sbx authenticated, and API key or subscription login; separate from offline CI)
+  eval:judge:
+    desc: Run LLM-as-judge evaluations for all skills (calls a live model; needs claude/codex and ANTHROPIC_API_KEY)
     cmds:
       - python3 -m venv .venv
       - .venv/bin/pip install -q --require-hashes -r scripts/requirements.txt
-      - .venv/bin/python scripts/skill_eval.py {{.CLI_ARGS}}
+      - .venv/bin/python scripts/eval_judge.py {{.CLI_ARGS}}
 
-  eval:skills:codex:
-    desc: Run live skill scenarios with Codex (shorthand for eval:skills -- --agent codex)
+  # Per-skill eval tasks
+  eval:docker-agent-config:
+    desc: Run evals for docker-agent-config skill
     cmds:
-      - python3 -m venv .venv
-      - .venv/bin/pip install -q --require-hashes -r scripts/requirements.txt
-      - .venv/bin/python scripts/skill_eval.py --agent codex {{.CLI_ARGS}}
+      - task: eval:judge
+        vars: { CLI_ARGS: "--skill docker-agent-config {{.CLI_ARGS}}" }
+
+  eval:docker-agent-deploy:
+    desc: Run evals for docker-agent-deploy skill
+    cmds:
+      - task: eval:judge
+        vars: { CLI_ARGS: "--skill docker-agent-deploy {{.CLI_ARGS}}" }
+
+  eval:docker-agent-run:
+    desc: Run evals for docker-agent-run skill
+    cmds:
+      - task: eval:judge
+        vars: { CLI_ARGS: "--skill docker-agent-run {{.CLI_ARGS}}" }
+
+  eval:docker-build-strategies:
+    desc: Run evals for docker-build-strategies skill
+    cmds:
+      - task: eval:judge
+        vars: { CLI_ARGS: "--skill docker-build-strategies {{.CLI_ARGS}}" }
+
+  eval:docker-compose-patterns:
+    desc: Run evals for docker-compose-patterns skill
+    cmds:
+      - task: eval:judge
+        vars: { CLI_ARGS: "--skill docker-compose-patterns {{.CLI_ARGS}}" }
+
+  eval:docker-destructive-guardrails:
+    desc: Run evals for docker-destructive-guardrails skill (flaky, not in CI)
+    cmds:
+      - task: eval:judge
+        vars: { CLI_ARGS: "--skill docker-destructive-guardrails {{.CLI_ARGS}}" }
+
+  eval:docker-docs:
+    desc: Run evals for docker-docs skill
+    cmds:
+      - task: eval:judge
+        vars: { CLI_ARGS: "--skill docker-docs {{.CLI_ARGS}}" }
+
+  eval:docker-project-foundations:
+    desc: Run evals for docker-project-foundations skill
+    cmds:
+      - task: eval:judge
+        vars: { CLI_ARGS: "--skill docker-project-foundations {{.CLI_ARGS}}" }
+
+  eval:docker-sandboxes-env:
+    desc: Run evals for docker-sandboxes-env skill
+    cmds:
+      - task: eval:judge
+        vars: { CLI_ARGS: "--skill docker-sandboxes-env {{.CLI_ARGS}}" }
+
+  eval:docker-sandboxes-kits:
+    desc: Run evals for docker-sandboxes-kits skill
+    cmds:
+      - task: eval:judge
+        vars: { CLI_ARGS: "--skill docker-sandboxes-kits {{.CLI_ARGS}}" }
+
+  eval:docker-sandboxes-lifecycle:
+    desc: Run evals for docker-sandboxes-lifecycle skill
+    cmds:
+      - task: eval:judge
+        vars: { CLI_ARGS: "--skill docker-sandboxes-lifecycle {{.CLI_ARGS}}" }
+
+  eval:docker-sandboxes-network-credentials:
+    desc: Run evals for docker-sandboxes-network-credentials skill
+    cmds:
+      - task: eval:judge
+        vars: { CLI_ARGS: "--skill docker-sandboxes-network-credentials {{.CLI_ARGS}}" }
 
   catalog:
     desc: Regenerate catalog tables, skills.sh.json, and rendered plugin manifest versions from catalog.yaml

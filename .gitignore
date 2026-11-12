@@ -5,6 +5,7 @@
 .sbx/
 .data/
 .skill-evals/
+.eval-judge/
 
 # Environment, credentials, and key material
 .env

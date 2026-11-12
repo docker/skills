@@ -10,7 +10,8 @@ CI_SCRIPT = (REPO_ROOT / "scripts" / "ci.sh").read_text()
 
 class SkillEvalsWorkflowTests(unittest.TestCase):
     def test_live_evals_stay_out_of_offline_ci(self):
-        self.assertNotIn("skill_eval.py", CI_SCRIPT)
+        # eval_judge.py should not be in offline CI (it calls live models)
+        self.assertNotIn("eval_judge.py", CI_SCRIPT)
         self.assertIn("python3 -m unittest discover", CI_SCRIPT)
 
     def test_triggers_and_least_privilege(self):
@@ -29,14 +30,34 @@ class SkillEvalsWorkflowTests(unittest.TestCase):
         self.assertIn("pip install -q --require-hashes -r scripts/requirements.txt", WORKFLOW)
 
     def test_inputs_reach_the_shell_only_through_env(self):
+        # Check that run: lines don't have direct ${{ }} interpolation
+        # (except for matrix.skill which is safe as it comes from our own detect-changes)
         run_lines = [line for line in WORKFLOW.splitlines() if line.strip().startswith("run:")]
         for line in run_lines:
-            self.assertNotIn("${{", line)
-        self.assertIn("INPUT_SKILL: ${{ inputs.skill }}", WORKFLOW)
+            self.assertNotIn("${{ inputs", line)
+        # Model and repeat inputs should go through env vars
+        self.assertIn("INPUT_MODEL: ${{ inputs.model", WORKFLOW)
+        self.assertIn("INPUT_REPEAT: ${{ inputs.repeat", WORKFLOW)
 
     def test_artifacts_are_uploaded_even_on_failure(self):
         self.assertIn("if: always()", WORKFLOW)
-        self.assertIn("path: .skill-evals/", WORKFLOW)
+        self.assertIn("path: .eval-judge/", WORKFLOW)
+
+    def test_per_skill_matrix_jobs(self):
+        # Verify the workflow uses matrix strategy for per-skill parallelism
+        self.assertIn("strategy:", WORKFLOW)
+        self.assertIn("fail-fast: false", WORKFLOW)
+        self.assertIn("matrix:", WORKFLOW)
+        self.assertIn("skill: ${{ fromJson(needs.detect-changes.outputs.skills) }}", WORKFLOW)
+
+    def test_guardrails_excluded_from_ci(self):
+        # docker-destructive-guardrails should not be in the ALL_SKILLS list
+        self.assertNotIn('"docker-destructive-guardrails"', WORKFLOW)
+
+    def test_kits_excluded_from_ci(self):
+        # docker-sandboxes-kits is excluded until its signing guidance matches docs.docker.com
+        self.assertNotIn('"docker-sandboxes-kits"', WORKFLOW)
+        self.assertIn("docker-destructive-guardrails|docker-sandboxes-kits", WORKFLOW)
 
 
 if __name__ == "__main__":
