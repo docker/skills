@@ -74,6 +74,8 @@ class EvalPrompt:
     must_not: list[str]
     # Set by a "**Skip in CI:** <reason>" line, e.g. the prompt needs a real MCP server
     skip_reason: str | None = None
+    # Files written into the agent's workspace before the run ("**Fixtures:**" block)
+    fixtures: dict[str, str] = dataclasses.field(default_factory=dict)
 
     @property
     def id(self) -> str:
@@ -155,9 +157,30 @@ def parse_eval_markdown(path: Path) -> list[EvalPrompt]:
         
         skip_match = re.search(r'^\*\*Skip in CI:\*\*\s*(.+?)\s*$', section, re.MULTILINE)
         prompts.append(EvalPrompt(path, skill, num, title, prompt_text, expected, must_not,
-                                  skip_match.group(1) if skip_match else None))
+                                  skip_match.group(1) if skip_match else None,
+                                  _parse_fixtures(section, path, num)))
     
     return prompts
+
+
+FIXTURE_RE = re.compile(r'^`([^`\n]+)`:?[ \t]*\n```[^\n]*\n(.*?)^```[ \t]*$', re.MULTILINE | re.DOTALL)
+
+
+def _parse_fixtures(section: str, path: Path, num: int) -> dict[str, str]:
+    """Parse a "**Fixtures:**" block: a backticked relative path, then a fenced block per file."""
+    match = re.search(r'^\*\*Fixtures:\*\*[ \t]*\n(.*?)(?=^### |\Z)', section, re.MULTILINE | re.DOTALL)
+    if not match:
+        return {}
+    fixtures = {}
+    for rel, content in FIXTURE_RE.findall(match.group(1)):
+        rel = rel.strip()
+        parts = Path(rel).parts
+        if not rel or Path(rel).is_absolute() or ".." in parts:
+            raise EvalError(f"{path}: prompt {num}: fixture path must be relative and inside the workspace: {rel!r}")
+        fixtures[rel] = content
+    if not fixtures:
+        raise EvalError(f"{path}: prompt {num}: **Fixtures:** block has no `path` + fenced file entries")
+    return fixtures
 
 
 def discover_evals(skill_name: str | None, prompt_num: int | None) -> list[EvalPrompt]:
@@ -466,42 +489,69 @@ Double-check that each verdict matches your reasoning before responding."""
 
     result = None
     last_error: Exception | None = None
+    verdicts: dict[tuple[bool, int], JudgeResult] = {}
     for _attempt in range(JUDGE_ATTEMPTS):
         try:
             result = call_judge(prompt, model)
-            break
         except JudgeAPIError as e:
             last_error = e
             if not e.retryable:
                 break  # auth/request errors won't fix themselves
+            continue
         except (json.JSONDecodeError, OSError) as e:
             # Malformed judge JSON or a network error: ask the judge again
             last_error = e
+            continue
         except RuntimeError as e:
             last_error = e  # e.g. missing API key/token: not retryable
             break
+        verdicts = _map_verdicts(result, expected, must_not)
+        if len(verdicts) == len(expected) + len(must_not):
+            break
+        # Valid JSON but some criteria have no verdict: ask again
+        last_error = ValueError(
+            f"judge returned {len(verdicts)} of {len(expected) + len(must_not)} verdicts")
+
     if result is None:
         err = f"Judge error after {_attempt + 1} attempt(s): {last_error}"
         return [JudgeResult(c, False, err) for c in expected] + \
                [JudgeResult(c, False, err, True) for c in must_not]
-    
-    results = []
-    for ev in result.get("evaluations", []):
-        is_must_not = ev.get("criterion_type") == "must_not"
-        idx = ev.get("criterion_number", 1) - 1
+
+    # Every criterion gets exactly one result; one the judge never graded fails
+    missing = f"No judge verdict for this criterion after {_attempt + 1} attempt(s)"
+    return [verdicts.get((False, i), JudgeResult(c, False, missing)) for i, c in enumerate(expected)] + \
+           [verdicts.get((True, i), JudgeResult(c, False, missing, True)) for i, c in enumerate(must_not)]
+
+
+def _map_verdicts(result: dict[str, Any], expected: list[str],
+                  must_not: list[str]) -> dict[tuple[bool, int], JudgeResult]:
+    """Map the judge's evaluations to criteria, keyed by (is_must_not, index).
+
+    Entries with an unknown type, an out-of-range number or no verdict are
+    ignored; for duplicates the first verdict wins.
+    """
+    verdicts: dict[tuple[bool, int], JudgeResult] = {}
+    evaluations = result.get("evaluations") if isinstance(result, dict) else None
+    for ev in evaluations if isinstance(evaluations, list) else []:
+        if not isinstance(ev, dict) or ev.get("criterion_type") not in ("expected", "must_not"):
+            continue
+        is_must_not = ev["criterion_type"] == "must_not"
         criteria_list = must_not if is_must_not else expected
-        if 0 <= idx < len(criteria_list):
-            if is_must_not and "violated" in ev:
-                passed = not bool(ev["violated"])
-            else:
-                passed = bool(ev.get("passed", False))
-            results.append(JudgeResult(
-                criteria_list[idx],
-                passed,
-                ev.get("reasoning", ""),
-                is_must_not,
-            ))
-    return results
+        try:
+            idx = int(ev.get("criterion_number")) - 1
+        except (TypeError, ValueError):
+            continue
+        if not 0 <= idx < len(criteria_list) or (is_must_not, idx) in verdicts:
+            continue
+        if is_must_not and "violated" in ev:
+            passed = not bool(ev["violated"])
+        elif "passed" in ev:
+            passed = bool(ev["passed"])
+        else:
+            continue  # no verdict field at all
+        verdicts[(is_must_not, idx)] = JudgeResult(
+            criteria_list[idx], passed, ev.get("reasoning", ""), is_must_not)
+    return verdicts
 
 
 # ─── agent runner ────────────────────────────────────────────────────────────
@@ -513,9 +563,15 @@ def prepare_workspace(eval_prompt: EvalPrompt, agent: str) -> Path:
     workspace.mkdir()
     
     # Create a minimal README to indicate this is a project workspace
-    # This helps agents understand they should create files here
-    readme = workspace / "README.md"
-    readme.write_text("# Project Workspace\n\nThis is an empty project workspace. Create the requested files here.\n")
+    # This helps agents understand they should create files here.
+    # Prompts with fixtures describe their own project instead.
+    if not eval_prompt.fixtures:
+        readme = workspace / "README.md"
+        readme.write_text("# Project Workspace\n\nThis is an empty project workspace. Create the requested files here.\n")
+    for rel, content in eval_prompt.fixtures.items():
+        target = workspace / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content)
     
     # Claude uses .claude/skills/, Codex uses .agents/skills/
     if agent == "codex":
@@ -597,6 +653,46 @@ class AgentRunResult:
     transcript_text: str
     workspace_files: dict[str, str]
     workspace_path: Path  # For cleanup
+    exit_code: int | None = None  # None when the agent timed out
+    timed_out: bool = False
+
+
+AGENT_COMPLETION_CRITERION = "Agent run completes successfully (exit code 0, no timeout, completion event)"
+
+
+def agent_completion_error(result: AgentRunResult, transcript_path: Path, agent: str) -> str | None:
+    """Return why the agent run did not complete successfully, or None if it did.
+
+    A partial transcript can still satisfy the criteria, so a run only counts
+    when the CLI exited 0 before the timeout and logged a successful
+    completion event (Claude: a non-error "result"; Codex: "turn.completed").
+    """
+    if result.timed_out:
+        return f"agent timed out after {DEFAULT_LIMITS['timeout_seconds']}s"
+    if result.exit_code != 0:
+        return f"agent exited with code {result.exit_code}"
+    events = []
+    try:
+        for line in transcript_path.read_text(errors="replace").splitlines():
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    except OSError:
+        return "agent transcript is missing"
+    events = [e for e in events if isinstance(e, dict)]
+    if agent == "codex":
+        if any(e.get("type") == "turn.failed" for e in events):
+            return "agent turn failed"
+        if not any(e.get("type") == "turn.completed" for e in events):
+            return "agent never completed its turn (no turn.completed event)"
+        return None
+    final = [e for e in events if e.get("type") == "result"]
+    if not final:
+        return "agent never completed (no result event)"
+    if final[-1].get("is_error") or final[-1].get("subtype") not in (None, "success"):
+        return f"agent finished with an error ({final[-1].get('subtype')})"
+    return None
 
 
 def run_agent(eval_prompt: EvalPrompt, args: argparse.Namespace, run_dir: Path) -> AgentRunResult:
@@ -647,13 +743,16 @@ def run_agent(eval_prompt: EvalPrompt, args: argparse.Namespace, run_dir: Path) 
     refresh_docker_gateway_token()  # long jobs outlive the ~15-minute gateway token
     env = {k: v for k, v in os.environ.items() if v and k not in HUB_CREDENTIAL_VARS}
     
+    exit_code: int | None = None
+    timed_out = False
     try:
         with open(transcript_path, "w") as out, open(run_dir / "stderr.txt", "w") as err:
-            subprocess.run(cmd, cwd=workspace, env=env,
-                          stdin=subprocess.DEVNULL, stdout=out, stderr=err,
-                          timeout=DEFAULT_LIMITS["timeout_seconds"], check=False)
+            proc = subprocess.run(cmd, cwd=workspace, env=env,
+                                  stdin=subprocess.DEVNULL, stdout=out, stderr=err,
+                                  timeout=DEFAULT_LIMITS["timeout_seconds"], check=False)
+            exit_code = proc.returncode
     except subprocess.TimeoutExpired:
-        pass
+        timed_out = True
     
     # Collect workspace files BEFORE cleanup
     workspace_files = collect_workspace_files(workspace)
@@ -668,6 +767,8 @@ def run_agent(eval_prompt: EvalPrompt, args: argparse.Namespace, run_dir: Path) 
         transcript_text=transcript_text,
         workspace_files=workspace_files,
         workspace_path=root,
+        exit_code=exit_code,
+        timed_out=timed_out,
     )
 
 
@@ -783,6 +884,11 @@ def run_and_grade(eval_prompt: EvalPrompt, args: argparse.Namespace, run_dir: Pa
     # Grade with workspace files
     results = grade(eval_prompt, result.transcript_text, args, result.workspace_files)
     
+    # A run the agent did not finish never passes, whatever the partial output shows
+    completion_error = agent_completion_error(result, run_dir / "transcript.jsonl", args.agent)
+    if completion_error:
+        results.append(JudgeResult(AGENT_COMPLETION_CRITERION, False, completion_error))
+    
     # Cleanup workspace now that we're done
     if not args.keep:
         shutil.rmtree(result.workspace_path, ignore_errors=True)
@@ -792,6 +898,9 @@ def run_and_grade(eval_prompt: EvalPrompt, args: argparse.Namespace, run_dir: Pa
     report = {
         **meta,
         "passed": all(r.passed for r in results),
+        "agent_exit_code": result.exit_code,
+        "agent_timed_out": result.timed_out,
+        "agent_completion_error": completion_error,
         "workspace_files": list(result.workspace_files.keys()) if result.workspace_files else [],
         "results": [dataclasses.asdict(r) for r in results],
     }
@@ -800,19 +909,44 @@ def run_and_grade(eval_prompt: EvalPrompt, args: argparse.Namespace, run_dir: Pa
     return results
 
 
+def load_saved_workspace_files(run_dir: Path) -> dict[str, str]:
+    """Reload the workspace files saved with a run (as passed to the judge originally)."""
+    files_dir = run_dir / "workspace_files"
+    if not files_dir.is_dir():
+        return {}
+    return {
+        p.relative_to(files_dir).as_posix(): p.read_text(errors="replace")
+        for p in sorted(files_dir.rglob("*")) if p.is_file()
+    }
+
+
 def regrade(run_dir: Path, args: argparse.Namespace) -> list[JudgeResult]:
-    """Re-grade a saved run offline."""
+    """Re-grade a saved run offline, with the same inputs as the original verdict."""
     meta = json.loads((run_dir / "run.json").read_text())
     transcript = (run_dir / "transcript.txt").read_text()
+    previous = {}
+    if (run_dir / "report.json").exists():
+        previous = json.loads((run_dir / "report.json").read_text())
     
     eval_prompt = EvalPrompt(
         REPO_ROOT / meta["eval_file"], meta["skill"], meta["prompt_num"],
         meta["title"], meta["prompt"], meta["expected_behaviors"], meta["must_not"],
     )
     
-    results = grade(eval_prompt, transcript, args)
+    workspace_files = load_saved_workspace_files(run_dir)
+    results = grade(eval_prompt, transcript, args, workspace_files)
+    
+    # Keep the original run's completion status: re-grading must not turn an
+    # agent run that did not finish into a pass
+    completion_error = previous.get("agent_completion_error")
+    if completion_error:
+        results.append(JudgeResult(AGENT_COMPLETION_CRITERION, False, completion_error))
     
     report = {**meta, "passed": all(r.passed for r in results),
+              "agent_exit_code": previous.get("agent_exit_code"),
+              "agent_timed_out": previous.get("agent_timed_out"),
+              "agent_completion_error": completion_error,
+              "workspace_files": list(workspace_files),
               "results": [dataclasses.asdict(r) for r in results]}
     (run_dir / "report.json").write_text(json.dumps(report, indent=2))
     

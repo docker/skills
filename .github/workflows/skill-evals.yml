@@ -11,7 +11,7 @@ on:
       - ".agents/**"
       - "skills/**"
       - "scripts/eval_judge.py"
-      - "scripts/test_eval_judge.py"
+      - "scripts/ci_sbx_baseline.sh"
       - ".github/workflows/skill-evals.yml"
   schedule:
     - cron: "17 6 * * 1"
@@ -91,11 +91,13 @@ jobs:
             HEAD_SHA=${{ github.sha }}
           fi
           
-          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || echo "")
+          # Three-dot diff: changes from the merge base to the PR head only, so
+          # commits that landed on the base branch afterwards are not selected
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA...$HEAD_SHA" 2>/dev/null || echo "")
           
-          # Check if framework files changed
+          # Check if framework files changed (unit tests run in ci.yml, not here)
           FRAMEWORK_CHANGED=false
-          if echo "$CHANGED_FILES" | grep -qE '^(scripts/eval_judge\.py|\.github/workflows/skill-evals\.yml|\.claude-plugin/|\.codex-plugin/|\.agents/)'; then
+          if echo "$CHANGED_FILES" | grep -qE '^(scripts/eval_judge\.py|scripts/ci_sbx_baseline\.sh|\.github/workflows/skill-evals\.yml|\.claude-plugin/|\.codex-plugin/|\.agents/)'; then
             FRAMEWORK_CHANGED=true
           fi
           

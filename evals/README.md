@@ -98,8 +98,8 @@ python3 scripts/eval_judge.py --skill docker-sandboxes-lifecycle
 # Run a specific prompt
 python3 scripts/eval_judge.py --skill docker-sandboxes-lifecycle --prompt 1
 
-# Re-grade a saved run offline
-python3 scripts/eval_judge.py --regrade .eval-runs/<timestamp>/<skill>/prompt-N/1
+# Re-grade a saved run offline (reuses its saved workspace files)
+python3 scripts/eval_judge.py --regrade .eval-judge/<timestamp>/<skill>/prompt-N/1
 ```
 
 Or use the task:
@@ -115,8 +115,13 @@ task eval:judge -- --skill docker-sandboxes-lifecycle --prompt 1
 
 ### Output
 
-Results are saved to `.eval-runs/<timestamp>/`:
+Results are saved to `.eval-judge/<timestamp>/<skill>/prompt-N/<attempt>/`
+(change the root with `--out`; `--prune-passing` deletes passing prompts'
+directories, as CI does):
 - `run.json` - metadata and criteria
 - `transcript.jsonl` - raw agent output
 - `transcript.txt` - human-readable transcript for judging
-- `report.json` - pass/fail results with reasoning
+- `stderr.txt` - agent CLI stderr
+- `workspace_files/` - files the agent left in its workspace, as shown to the judge
+- `report.json` - pass/fail results with reasoning, plus the agent's exit code,
+  timeout and completion status

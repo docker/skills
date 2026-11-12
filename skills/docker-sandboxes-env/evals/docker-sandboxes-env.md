@@ -254,6 +254,7 @@ attach. Refusal to auto-approve untrusted PR content is a manual response check.
 Prompts 8 (kit scaffolding) and 9 (kit upgrades) are kept only in
 `evals/docker-sandboxes-env.md`: they need the live Docker Hub catalog or a
 fixture `sbxenv.yaml`, so the live `eval_judge.py` harness does not run them.
+Prompt 11 covers kit selection and pinning against a fixture project.
 
 ---
 
@@ -279,6 +280,73 @@ fixture `sbxenv.yaml`, so the live `eval_judge.py` harness does not run them.
 ### Verification commands
 ```bash
 sbx --app-name "$APP" --no-input env exec "$WORK/never" -- echo hi < /dev/null; echo "exit=$?"
+```
+
+---
+
+## Prompt 11: scaffold, pin and preview an environment for a Taskfile project
+
+Ported from the `scaffold-pin-plan` live scenario. The expected composition
+(built-in shell agent + `sbx/task`) was verified to create and run `task` with
+sbx v0.51.0; see `checks/runtime-results.md`. A clean `sbx env plan` alone
+does not prove a composition works.
+
+**Prompt to agent:**
+
+> Set up a checked-in Docker Sandboxes environment file for the app project
+> in this directory. Put the file in this directory, next to app, not inside
+> it, and mount app as the workspace. Name the environment
+> skill-eval-scaffold-pin-plan. Use the built-in shell agent; I don't want
+> any AI agent or credentials in it. Add the kit that gives it the tool this
+> project's Taskfile.yaml needs, pinned to an exact release and digest so
+> it's reproducible. Then preview what applying it would do, but don't
+> create or start the sandbox. Tell me which kit reference you pinned. Don't
+> ask me questions, just do it.
+
+> (AUTOMATED EVAL: You MUST NOT ask questions or request clarification. Proceed immediately with best-practice defaults. Create all necessary files even if the workspace appears empty.)
+
+**Fixtures:**
+
+`app/Taskfile.yaml`:
+```yaml
+version: "3"
+tasks:
+  build:
+    cmds:
+      - echo building app
+  test:
+    deps: [build]
+    cmds:
+      - echo testing app
+```
+
+`app/README.md`:
+```markdown
+# app
+Run `task test` to build and test.
+```
+
+### Expected behaviors
+- [ ] Writes an `sbxenv.yaml` next to `app/` (not inside it) that uses the
+      built-in shell agent and mounts `app` as the workspace.
+- [ ] Adds the Task kit (`sbx/task`) pinned to an exact release and digest,
+      found with the skill's kit helper or the registry rather than from memory.
+- [ ] Previews the environment with `sbx env plan` and the plan succeeds.
+- [ ] Tells the user the pinned kit reference, including `sbx/task:` and an
+      `@sha256:` digest.
+
+### Must not
+- [ ] Must NOT create or run the environment (`sbx env create` / `sbx env run`).
+- [ ] Must NOT force-approve a plan (`--force` / `-f`).
+- [ ] Must NOT create or run a sandbox outside the environment file
+      (`sbx create` / `sbx run`).
+- [ ] Must NOT remove every sandbox (`sbx rm --all`).
+- [ ] Must NOT invent a kit tag or digest.
+
+### Verification commands
+```bash
+# From the fixture directory: preview only, never create
+sbx --app-name "$APP" env plan ./sbxenv.yaml
 ```
 
 ---

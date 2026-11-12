@@ -22,4 +22,5 @@
   date-style numeric tags would outrank dotted releases.
 - The `checks/verification.md` runbook was run once on sbx v0.51.0, macOS
   arm64 (results in `checks/runtime-results.md`); repository validation does
-  not execute it. The live scenario `evals/scaffold-pin-plan.yaml` runs in CI.
+  not execute it. The live eval `evals/docker-sandboxes-env.md` (Prompt 11)
+  runs this kit-scaffolding workflow in CI.

@@ -241,36 +241,249 @@ class CodexTranscriptToTextTests(unittest.TestCase):
 class JudgeVerdictMappingTests(unittest.TestCase):
     """must_not items use a direct 'violated' verdict to avoid double negation."""
 
+    EXPECTED_OK = {"criterion_number": 1, "criterion_type": "expected", "passed": True}
+
     def _judge(self, evaluations):
         from unittest import mock
         with mock.patch.object(eval_judge, "call_judge", return_value={"evaluations": evaluations}):
             return eval_judge.judge_transcript("t", ["do A"], ["Must NOT do B"], "m")
 
+    def _must_not(self, results):
+        return [r for r in results if r.is_must_not][0]
+
     def test_must_not_not_violated_passes(self):
         results = self._judge([
-            {"criterion_number": 1, "criterion_type": "expected", "passed": True},
+            self.EXPECTED_OK,
             {"criterion_number": 1, "criterion_type": "must_not", "violated": False},
         ])
         self.assertTrue(all(r.passed for r in results))
 
     def test_must_not_violated_fails(self):
         results = self._judge([
+            self.EXPECTED_OK,
             {"criterion_number": 1, "criterion_type": "must_not", "violated": True},
         ])
-        self.assertFalse(results[0].passed)
-        self.assertTrue(results[0].is_must_not)
+        self.assertFalse(self._must_not(results).passed)
 
     def test_violated_takes_precedence_over_passed(self):
         results = self._judge([
+            self.EXPECTED_OK,
             {"criterion_number": 1, "criterion_type": "must_not", "violated": False, "passed": False},
         ])
-        self.assertTrue(results[0].passed)
+        self.assertTrue(self._must_not(results).passed)
 
     def test_must_not_falls_back_to_passed(self):
         results = self._judge([
+            self.EXPECTED_OK,
             {"criterion_number": 1, "criterion_type": "must_not", "passed": True},
         ])
-        self.assertTrue(results[0].passed)
+        self.assertTrue(self._must_not(results).passed)
+
+
+class AgentCompletionTests(unittest.TestCase):
+    """A run the agent did not finish never passes."""
+
+    def _check(self, agent, events, exit_code=0, timed_out=False):
+        import json
+        d = Path(tempfile.mkdtemp())
+        self.addCleanup(eval_judge.shutil.rmtree, d, True)
+        path = d / "transcript.jsonl"
+        path.write_text("".join(json.dumps(e) + "\n" for e in events) + "not json\n")
+        result = eval_judge.AgentRunResult("", {}, d, exit_code=None if timed_out else exit_code,
+                                           timed_out=timed_out)
+        return eval_judge.agent_completion_error(result, path, agent)
+
+    def test_claude_success(self):
+        self.assertIsNone(self._check("claude", [{"type": "system", "subtype": "init"},
+                                                 {"type": "result", "subtype": "success"}]))
+
+    def test_claude_error_result(self):
+        err = self._check("claude", [{"type": "result", "subtype": "success", "is_error": True}])
+        self.assertIn("error", err)
+
+    def test_claude_max_turns(self):
+        self.assertIn("error_max_turns", self._check("claude", [{"type": "result", "subtype": "error_max_turns"}]))
+
+    def test_claude_crashed_after_init(self):
+        self.assertIn("no result event", self._check("claude", [{"type": "system", "subtype": "init"}]))
+
+    def test_codex_success(self):
+        self.assertIsNone(self._check("codex", [{"type": "turn.started"}, {"type": "turn.completed"}]))
+
+    def test_codex_never_completed(self):
+        self.assertIn("turn.completed", self._check("codex", [{"type": "turn.started"}]))
+
+    def test_codex_turn_failed(self):
+        err = self._check("codex", [{"type": "turn.failed"}, {"type": "turn.completed"}])
+        self.assertIn("failed", err)
+
+    def test_timeout(self):
+        err = self._check("claude", [{"type": "result", "subtype": "success"}], timed_out=True)
+        self.assertIn("timed out", err)
+
+    def test_nonzero_exit(self):
+        err = self._check("codex", [{"type": "turn.completed"}], exit_code=1)
+        self.assertIn("code 1", err)
+
+    def test_failed_run_adds_failing_result(self):
+        from unittest import mock
+        import argparse
+        d = Path(tempfile.mkdtemp())
+        self.addCleanup(eval_judge.shutil.rmtree, d, True)
+        (d / "run.json").write_text("{}")
+        (d / "transcript.jsonl").write_text('{"type": "turn.started"}\n')
+        agent = eval_judge.AgentRunResult("partial", {}, d / "ws", exit_code=None, timed_out=True)
+        ok = [eval_judge.JudgeResult("do A", True, "")]
+        args = argparse.Namespace(agent="codex", keep=True, judge_model="m")
+        with mock.patch.object(eval_judge, "run_agent", return_value=agent), \
+             mock.patch.object(eval_judge, "grade", return_value=ok):
+            results = eval_judge.run_and_grade(mock.Mock(), args, d)
+        self.assertFalse(all(r.passed for r in results))
+        self.assertEqual(results[-1].criterion, eval_judge.AGENT_COMPLETION_CRITERION)
+        import json
+        report = json.loads((d / "report.json").read_text())
+        self.assertTrue(report["agent_timed_out"])
+        self.assertFalse(report["passed"])
+
+
+class FixtureTests(unittest.TestCase):
+    def _parse(self, fixtures_block):
+        md = ("# Eval: s\n\n## Prompt 1: t\n\n**Prompt to agent:**\n\n> Do it.\n\n"
+              + fixtures_block + "\n### Expected behaviors\n- [ ] x\n")
+        f = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False)
+        f.write(md)
+        f.close()
+        return eval_judge.parse_eval_markdown(Path(f.name))[0]
+
+    def test_parses_files_and_keeps_indentation(self):
+        ep = self._parse(
+            "**Fixtures:**\n\n`app/Taskfile.yaml`:\n```yaml\nversion: \"3\"\ntasks:\n  build:\n    cmds:\n      - echo hi\n```\n\n"
+            "`app/README.md`:\n```markdown\n# app\n```\n")
+        self.assertEqual(sorted(ep.fixtures), ["app/README.md", "app/Taskfile.yaml"])
+        self.assertIn("tasks:\n  build:\n    cmds:\n      - echo hi\n", ep.fixtures["app/Taskfile.yaml"])
+        self.assertEqual(ep.fixtures["app/README.md"], "# app\n")
+
+    def test_no_fixtures_by_default(self):
+        self.assertEqual(self._parse("").fixtures, {})
+
+    def test_rejects_path_traversal(self):
+        for bad in ("../evil.txt", "/etc/passwd", "a/../../b"):
+            with self.assertRaises(eval_judge.EvalError, msg=bad):
+                self._parse(f"**Fixtures:**\n\n`{bad}`:\n```\nx\n```\n")
+
+    def test_rejects_empty_block(self):
+        with self.assertRaises(eval_judge.EvalError):
+            self._parse("**Fixtures:**\n\nnothing here\n")
+
+    def test_written_into_workspace_without_generic_readme(self):
+        ep = self._parse("**Fixtures:**\n\n`app/Taskfile.yaml`:\n```yaml\nversion: \"3\"\n```\n")
+        root = eval_judge.prepare_workspace(ep, "codex")
+        self.addCleanup(eval_judge.shutil.rmtree, root, True)
+        ws = root / "workspace"
+        self.assertEqual((ws / "app" / "Taskfile.yaml").read_text(), 'version: "3"\n')
+        self.assertFalse((ws / "README.md").exists())
+
+    def test_generic_readme_without_fixtures(self):
+        root = eval_judge.prepare_workspace(self._parse(""), "claude")
+        self.addCleanup(eval_judge.shutil.rmtree, root, True)
+        self.assertTrue((root / "workspace" / "README.md").exists())
+
+
+class RegradeTests(unittest.TestCase):
+    def _run_dir(self, previous_report):
+        import json
+        d = Path(tempfile.mkdtemp())
+        self.addCleanup(eval_judge.shutil.rmtree, d, True)
+        (d / "run.json").write_text(json.dumps({
+            "eval_file": "x.md", "skill": "s", "prompt_num": 1, "title": "t",
+            "prompt": "p", "expected_behaviors": ["do A"], "must_not": []}))
+        (d / "transcript.txt").write_text("ASSISTANT: done")
+        (d / "workspace_files" / "sub").mkdir(parents=True)
+        (d / "workspace_files" / "Dockerfile").write_text("FROM node:22-slim\n")
+        (d / "workspace_files" / "sub" / "compose.yaml").write_text("services: {}\n")
+        if previous_report is not None:
+            (d / "report.json").write_text(json.dumps(previous_report))
+        return d
+
+    def _regrade(self, d):
+        import argparse
+        from unittest import mock
+        ok = [eval_judge.JudgeResult("do A", True, "")]
+        with mock.patch.object(eval_judge, "grade", return_value=ok) as g:
+            results = eval_judge.regrade(d, argparse.Namespace(judge_model="m"))
+        return results, g
+
+    def test_passes_saved_workspace_files_to_judge(self):
+        d = self._run_dir({"passed": True})
+        _, g = self._regrade(d)
+        files = g.call_args.args[3]
+        self.assertEqual(files, {"Dockerfile": "FROM node:22-slim\n", "sub/compose.yaml": "services: {}\n"})
+
+    def test_keeps_original_completion_failure(self):
+        import json
+        d = self._run_dir({"agent_completion_error": "agent timed out after 300s", "agent_timed_out": True})
+        results, _ = self._regrade(d)
+        self.assertFalse(all(r.passed for r in results))
+        report = json.loads((d / "report.json").read_text())
+        self.assertFalse(report["passed"])
+        self.assertTrue(report["agent_timed_out"])
+
+    def test_works_without_previous_report(self):
+        results, _ = self._regrade(self._run_dir(None))
+        self.assertTrue(all(r.passed for r in results))
+
+
+class IncompleteJudgeVerdictTests(unittest.TestCase):
+    """Every criterion must get exactly one verdict; missing ones never pass."""
+
+    def _judge(self, replies, expected=("do A", "do B"), must_not=("Must NOT do C",)):
+        from unittest import mock
+        with mock.patch.object(eval_judge, "call_judge", side_effect=replies) as m:
+            results = eval_judge.judge_transcript("t", list(expected), list(must_not), "m")
+        return results, m.call_count
+
+    @staticmethod
+    def _ev(kind, num, **verdict):
+        return {"criterion_type": kind, "criterion_number": num, **verdict}
+
+    def test_empty_evaluations_fail_every_criterion(self):
+        results, calls = self._judge([{"evaluations": []}] * 3)
+        self.assertEqual(calls, eval_judge.JUDGE_ATTEMPTS)
+        self.assertEqual(len(results), 3)
+        self.assertFalse(any(r.passed for r in results))
+        self.assertIn("No judge verdict", results[0].reasoning)
+
+    def test_partial_reply_is_retried_then_completed(self):
+        partial = {"evaluations": [self._ev("expected", 1, passed=True)]}
+        full = {"evaluations": [self._ev("expected", 1, passed=True), self._ev("expected", 2, passed=True),
+                                 self._ev("must_not", 1, violated=False)]}
+        results, calls = self._judge([partial, full])
+        self.assertEqual(calls, 2)
+        self.assertTrue(all(r.passed for r in results))
+
+    def test_still_partial_fails_only_missing_criteria(self):
+        partial = {"evaluations": [self._ev("expected", 1, passed=True), self._ev("must_not", 1, violated=False)]}
+        results, calls = self._judge([partial] * 3)
+        self.assertEqual(calls, eval_judge.JUDGE_ATTEMPTS)
+        self.assertEqual([r.passed for r in results], [True, False, True])
+        self.assertEqual([r.criterion for r in results], ["do A", "do B", "Must NOT do C"])
+
+    def test_duplicates_and_bad_entries_do_not_fill_gaps(self):
+        reply = {"evaluations": [
+            self._ev("expected", 1, passed=True),
+            self._ev("expected", 1, passed=False),          # duplicate: first wins
+            self._ev("expected", 9, passed=True),           # out of range
+            self._ev("bogus", 2, passed=True),              # unknown type
+            {"criterion_number": 2, "passed": True},        # no type
+            self._ev("expected", 2),                        # no verdict field
+            self._ev("must_not", 1, violated=False),
+        ]}
+        results, _ = self._judge([reply] * 3)
+        self.assertEqual([r.passed for r in results], [True, False, True])
+
+    def test_non_list_evaluations(self):
+        results, _ = self._judge([{"evaluations": "oops"}] * 3)
+        self.assertFalse(any(r.passed for r in results))
 
 
 class PrunePassingTests(unittest.TestCase):
