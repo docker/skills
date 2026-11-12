@@ -64,6 +64,8 @@ cli:
   cleanup:
     list: ["sh", "-c", "sbx ls -q 2>/dev/null | grep -x skill-eval-scaffold-pin-plan || true"]
     remove: ["sbx", "rm", "--force"]
+    # `sbx env` calls carry the name inside the file, not on the command line.
+    owned_names: ["skill-eval-scaffold-pin-plan"]
 
 expect:
   skill_invoked: true
