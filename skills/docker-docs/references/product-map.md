@@ -13,7 +13,7 @@ as Markdown at `<path without trailing slash>.md`.
 
 | Product | Aliases and terms users say | Section |
 | --- | --- | --- |
-| Docker Sandboxes | `sbx`, sandbox, microVM sandbox, local sandbox, "run Claude/Codex in a sandbox", sandbox policy or governance | `/ai/sandboxes/` |
+| Docker Sandboxes | `sbx`, sandbox, microVM sandbox, local sandbox, "run Claude/Codex in a sandbox", sandbox policy or governance, `sbxenv.yaml` and `sbx env` environment files, `sbx mcp` sandbox MCP servers | `/ai/sandboxes/` |
 | Cloud sandboxes | `sbx --cloud`, remote sandbox, "keep my agent running in the cloud" | `/ai/sandboxes/cloud/` |
 | Sandboxes API and SDK | TypeScript SDK, REST API, create sandboxes programmatically | `/ai/sandboxes-api/` |
 | Docker Agentic Platform | Agentic Platform, Console, cloud kits | `/agentic-platform/` |

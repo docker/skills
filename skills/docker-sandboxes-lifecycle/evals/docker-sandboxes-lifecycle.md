@@ -330,5 +330,5 @@ sbx --app-name "$APP" ls --json  # should not show eval-mount
 - "Run my Docker Agent config with docker agent run --sandbox." → `docker-agent-run`
 
 - "How do I stop an agent from reaching an internal API?" → `docker-sandboxes-network-credentials`
-- "How do I write a checked-in config so my whole team gets the same sandbox setup?" → `docker-sandboxes-env`
+- "How do I write a checked-in config so my whole team gets the same sandbox setup?" → `docker-docs` (no catalog skill owns `sbxenv.yaml`)
 - "How do I package a reusable mixin that adds a Postgres MCP server?" → `docker-sandboxes-kits`

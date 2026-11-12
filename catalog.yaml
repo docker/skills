@@ -101,7 +101,7 @@ products:
     repo: https://github.com/docker/compose
   - id: docker-sandboxes
     name: Docker Sandboxes
-    description: Run AI coding agents in isolated microVMs with the sbx CLI, including network policy, credentials, environments, and kits.
+    description: Run AI coding agents in isolated microVMs with the sbx CLI, including network policy, credentials, and kits.
     docs: https://docs.docker.com/ai/sandboxes/
   - id: docker-agent
     name: Docker Agent
@@ -131,22 +131,17 @@ skills:
   - id: docker-sandboxes-lifecycle
     product: docker-sandboxes
     path: skills/docker-sandboxes-lifecycle
-    version: 0.1.0
+    version: 0.1.1
     status: stable
   - id: docker-sandboxes-network-credentials
     product: docker-sandboxes
     path: skills/docker-sandboxes-network-credentials
-    version: 0.1.0
+    version: 0.1.1
     status: stable
-  - id: docker-sandboxes-env
-    product: docker-sandboxes
-    path: skills/docker-sandboxes-env
-    version: 0.2.2
-    status: experimental
   - id: docker-sandboxes-kits
     product: docker-sandboxes
     path: skills/docker-sandboxes-kits
-    version: 1.0.3
+    version: 1.0.4
     status: experimental
   - id: docker-agent-config
     product: docker-agent
@@ -166,7 +161,7 @@ skills:
   - id: docker-docs
     product: all
     path: skills/docker-docs
-    version: 0.1.0
+    version: 0.2.0
     status: experimental
   - id: docker-destructive-guardrails
     product: all

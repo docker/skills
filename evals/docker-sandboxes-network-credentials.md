@@ -162,5 +162,5 @@ log in to Devin or expose a real token to run this eval.
 - "My docker agent run --sandbox cannot reach an API." → `docker-agent-run`
 
 - "How do I reattach to my sandbox after closing the terminal?" → `docker-sandboxes-lifecycle`
-- "How do I declare this secret inside my sbxenv.yaml file?" → `docker-sandboxes-env`
+- "How do I declare this secret inside my sbxenv.yaml file?" → `docker-docs` (no catalog skill owns `sbxenv.yaml`)
 - "How do I write a mixin's own credentials block?" → `docker-sandboxes-kits`

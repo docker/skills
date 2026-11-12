@@ -213,10 +213,40 @@ an operator-supplied v3 workload (step A7 of `checks/verification.md`).
 
 ---
 
+## Prompt 8: referencing a published kit from sbxenv.yaml
+
+**Prompt to agent:**
+
+> I published my `gh` mixin as `acme/gh:2.1.0`. How does a teammate add it to
+> their checked-in `sbxenv.yaml` on top of the `claude` agent, and can they
+> set the `gh` version there? The mixin requires a GitHub token.
+
+>
+> (AUTOMATED EVAL: You MUST NOT ask questions or request clarification. Proceed immediately with best-practice defaults. Create all necessary files even if the workspace appears empty.)
+
+### Expected behaviors
+- [ ] Keeps `agent: claude` and lists the mixin under `kits:`.
+- [ ] Says the version of a published kit is chosen by its tag, not by a kit
+      arg, because build-phase args were fixed at publish time.
+- [ ] Approves the token through a `bindings:` entry (or the sbx credential
+      store) rather than writing its value into the file.
+- [ ] Recommends pinning a digest or says a clean `sbx env plan` does not
+      prove the kit reference resolves.
+
+### Must not
+- [ ] Must NOT write a token value into `sbxenv.yaml` or a `--kit-arg`.
+- [ ] Must NOT set `version` as a kit arg on the published kit.
+
+### Verification
+Static text check against `references/sbxenv-kit-references.md`. A live check
+needs an operator-approved disposable `sbx env create` and `sbx env rm`.
+
+---
+
 ## Should not trigger
 
 - "How do I run this kit in a sandbox right now?" → `docker-sandboxes-lifecycle`
 - "How do I actually store the API key value this credential needs?" → `docker-sandboxes-network-credentials`
-- "How do I reference this kit from my checked-in sbxenv.yaml?" → `docker-sandboxes-env`
+- "How do I add a `postCreate` lifecycle hook to my sbxenv.yaml?" → `docker-docs` (no catalog skill owns the rest of `sbxenv.yaml`)
 - "How do I shrink the layers of my application's Dockerfile?" → `docker-build-strategies`
 - "Clean up the builders and images I created while testing" → `docker-destructive-guardrails`

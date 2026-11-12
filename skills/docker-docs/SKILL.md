@@ -43,7 +43,7 @@ Do not use this skill when:
 - A more specific Docker skill owns the workflow: `docker-project-foundations`,
   `docker-build-strategies`, `docker-compose-patterns`,
   `docker-sandboxes-lifecycle`, `docker-sandboxes-network-credentials`,
-  `docker-sandboxes-env`, `docker-sandboxes-kits`, `docker-agent-config`,
+  `docker-sandboxes-kits`, `docker-agent-config`,
   `docker-agent-run`, `docker-agent-deploy`, or
   `docker-destructive-guardrails`. Use that skill for the procedure, and use
   this one only to check a detail against current docs.
@@ -159,8 +159,10 @@ user's wording might match more than one product.
 - `docker-project-foundations`, `docker-build-strategies`, and
   `docker-compose-patterns` own containerizing projects, Dockerfiles, and
   Compose files.
-- `docker-sandboxes-lifecycle`, `docker-sandboxes-network-credentials`,
-  `docker-sandboxes-env`, and `docker-sandboxes-kits` own `sbx` workflows.
+- `docker-sandboxes-lifecycle`, `docker-sandboxes-network-credentials`, and
+  `docker-sandboxes-kits` own `sbx` workflows. No skill in this catalog owns
+  `sbxenv.yaml` environment files beyond their kit references; answer those
+  from the Docker Docs environment files page.
 - `docker-agent-config`, `docker-agent-run`, and `docker-agent-deploy` own
   Docker Agent workflows.
 - `docker-destructive-guardrails` owns confirmation before destructive Docker
