@@ -43,6 +43,7 @@ EVALS_ROOT = REPO_ROOT / "evals"
 SKILLS_ROOT = REPO_ROOT / "skills"
 DEFAULT_OUT = REPO_ROOT / ".eval-judge"
 JUDGE_ATTEMPTS = 3  # retries for malformed judge JSON or transient API errors
+JUDGE_PREFILL = '{"evaluations": ['  # Anthropic judge reply starts here
 
 
 class JudgeAPIError(RuntimeError):
@@ -323,6 +324,8 @@ def call_judge(prompt: str, model: str) -> dict[str, Any]:
             "model": model,
             "max_completion_tokens": 4096,
             "messages": [{"role": "user", "content": prompt}],
+            # Force a JSON object reply instead of a prose analysis
+            "response_format": {"type": "json_object"},
         }).encode()
         
         req = urllib.request.Request(
@@ -341,7 +344,12 @@ def call_judge(prompt: str, model: str) -> dict[str, Any]:
         body = json.dumps({
             "model": model,
             "max_tokens": 4096,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [
+                {"role": "user", "content": prompt},
+                # Prefill: the reply must continue a JSON object, so the judge can't
+                # answer with a prose analysis (seen in CI: 3 prose replies in a row)
+                {"role": "assistant", "content": JUDGE_PREFILL},
+            ],
         }).encode()
         
         req = urllib.request.Request(
@@ -367,6 +375,7 @@ def call_judge(prompt: str, model: str) -> dict[str, Any]:
         stop = choice.get("finish_reason")
     else:
         text = (result.get("content") or [{}])[0].get("text", "") or ""
+        text = JUDGE_PREFILL + text  # the prefill is not echoed back
         stop = result.get("stop_reason")
     try:
         return parse_judge_json(text)

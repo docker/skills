@@ -609,7 +609,32 @@ class JudgeRetryTests(unittest.TestCase):
             with self.assertRaises(json.JSONDecodeError) as ctx:
                 eval_judge.call_judge("p", "claude-sonnet-4-5")
         self.assertIn("stop_reason=max_tokens", str(ctx.exception))
-        self.assertIn("reply_chars=0", str(ctx.exception))
+        self.assertIn(f"reply_chars={len(eval_judge.JUDGE_PREFILL)}", str(ctx.exception))
+
+    def _capture_request(self, model, reply):
+        import io, json
+        from unittest import mock
+        resp = mock.MagicMock()
+        resp.__enter__.return_value = io.BytesIO(json.dumps(reply).encode())
+        with mock.patch("urllib.request.urlopen", return_value=resp) as m, \
+             mock.patch.dict(eval_judge.os.environ, {"ANTHROPIC_API_KEY": "k", "DOCKER_GATEWAY_TOKEN": "t"}), \
+             mock.patch.object(eval_judge, "refresh_docker_gateway_token"):
+            parsed = eval_judge.call_judge("p", model)
+        return json.loads(m.call_args.args[0].data), parsed
+
+    def test_anthropic_request_prefills_json_and_reply_is_completed(self):
+        reply = {"content": [{"text": '{"criterion_number": 1, "criterion_type": "expected", "passed": true}]}'}],
+                 "stop_reason": "end_turn"}
+        body, parsed = self._capture_request("claude-sonnet-4-5", reply)
+        self.assertEqual(body["messages"][-1], {"role": "assistant", "content": eval_judge.JUDGE_PREFILL})
+        self.assertEqual(parsed["evaluations"][0]["passed"], True)
+
+    def test_gateway_request_asks_for_json_object(self):
+        reply = {"choices": [{"message": {"content": '{"evaluations": []}'}, "finish_reason": "stop"}]}
+        body, parsed = self._capture_request("gpt-6-luna", reply)
+        self.assertEqual(body["response_format"], {"type": "json_object"})
+        self.assertEqual(body["messages"][-1]["role"], "user")
+        self.assertEqual(parsed, {"evaluations": []})
     def test_retries_after_malformed_json(self):
         import json
         from unittest import mock
