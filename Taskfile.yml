@@ -77,12 +77,6 @@ tasks:
       - task: eval:judge
         vars: { CLI_ARGS: "--skill docker-project-foundations {{.CLI_ARGS}}" }
 
-  eval:docker-sandboxes-env:
-    desc: Run evals for docker-sandboxes-env skill
-    cmds:
-      - task: eval:judge
-        vars: { CLI_ARGS: "--skill docker-sandboxes-env {{.CLI_ARGS}}" }
-
   eval:docker-sandboxes-kits:
     desc: Run evals for docker-sandboxes-kits skill
     cmds:

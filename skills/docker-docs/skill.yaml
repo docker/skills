@@ -1,6 +1,6 @@
 schema: v1
 id: docker-docs
-version: 0.1.0
+version: 0.2.0
 title: Docker Docs
 description: Answer questions about any Docker product from current, cited official Docker documentation, using the Docker docs MCP search tool or the docs.docker.com llms.txt and Markdown fallback.
 owns:
@@ -23,7 +23,6 @@ delegates_to:
   - docker-compose-patterns
   - docker-sandboxes-lifecycle
   - docker-sandboxes-network-credentials
-  - docker-sandboxes-env
   - docker-sandboxes-kits
   - docker-agent-config
   - docker-agent-run

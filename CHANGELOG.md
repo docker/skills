@@ -26,7 +26,6 @@ for distribution releases.
   and force-removes only resources created during the run that the agent's
   own CLI calls named or the scenario declares in `cleanup.owned_names`, so a
   failed `sbx ls` or a concurrently created sandbox is never removed.
-  `docker-sandboxes-env` 0.2.1 declares its scenario-owned sandbox name.
 
 - Kit verification examples preserve the parent working directory, compare
   complete tool versions literally, audit only manifest-referenced layers
@@ -37,9 +36,26 @@ for distribution releases.
   than treating recorded CLI `Image:` labels as public image references.
   Regression tests retain scanning of real image syntax in plain-text examples.
 
+### Removed
+
+- Removed the experimental `docker-sandboxes-env` skill and its evaluation
+  runbook. The kit-reference rules it held now live in `docker-sandboxes-kits`.
+  No skill in this catalog owns the rest of `sbxenv.yaml`; `docker-docs`
+  answers those questions from the Docker Docs environment files page.
+
 ### Changed
 
-- `docker-sandboxes-env` 0.2.0: adds a create/update workflow for `sbxenv.yaml` adapted from docker/sandbox-kit-spec's `sbxenv` skill, including the `scripts/kits.py` live Docker Hub helper for kit selection, version-ordered upgrades, and digest pinning; refreshes the guidance for sbx v0.51.0 (`--force` replaces `-y`/`--auto-approve`, interactive `env exec` creation, user defaults, MCP command approval, recreate-on-change rules, and the complete field reference); notes that `sbx env plan` does not verify kit references; adds the `scaffold-pin-plan` live scenario and recorded runtime results for sbx v0.51.0; the helper refuses to report a pin without a registry digest.
+- `docker-sandboxes-kits` 1.0.4 now owns referencing, configuring, and pinning a
+  kit from an `sbxenv.yaml` `agent:`/`kits:` entry. A new
+  `references/sbxenv-kit-references.md` covers reference shapes, handles,
+  create-phase args, `kit.allowedSources`, the capability-to-field mapping
+  (`bindings:`, `mounts:`, `ports:`), and why a clean `sbx env plan` is not
+  proof that a kit exists or installs. It adds evaluation Prompt 8.
+- `docker-sandboxes-lifecycle` 0.1.1, `docker-sandboxes-network-credentials`
+  0.1.1, and `docker-docs` 0.2.0 route `sbxenv.yaml` questions to `docker-docs`
+  and kit references to `docker-sandboxes-kits` instead of the removed skill.
+  The `docker-docs` product map lists `sbxenv.yaml`, `sbx env`, and `sbx mcp`
+  as Docker Sandboxes terms.
 - `docker-sandboxes-kits` 1.0.3 adds pinned public source/spec links, separates
   untested runtime scope from verified claims, and records live build/layout verification (19
   conformance checks passed), strict-decoding rejection, and scoped cleanup.
@@ -51,7 +67,7 @@ for distribution releases.
   original failures, the workload-name workaround and scoped cleanup.
 
 - `docker-sandboxes-kits` (experimental) now covers v3 kit descriptors only and
-  is versioned 1.0.3, including the major routing change and verification fixes. It teaches the v3 workflow
+  was versioned 1.0.3 for the major routing change and verification fixes (now 1.0.4; see above). It teaches the v3 workflow
   (`# syntax=docker/sandbox-kit:3`, workload or mixin, typed capabilities,
   `docker buildx`, `kit-tck`, `sbx kit inspect`, publishing and signing), with
   recipes, a complete declaration-only mixin asset, and a v3 verification

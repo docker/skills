@@ -19,11 +19,10 @@
     },
     {
       "title": "Docker Sandboxes",
-      "description": "Run AI coding agents in isolated microVMs with the sbx CLI, including network policy, credentials, environments, and kits.",
+      "description": "Run AI coding agents in isolated microVMs with the sbx CLI, including network policy, credentials, and kits.",
       "skills": [
         "docker-sandboxes-lifecycle",
         "docker-sandboxes-network-credentials",
-        "docker-sandboxes-env",
         "docker-sandboxes-kits"
       ]
     },

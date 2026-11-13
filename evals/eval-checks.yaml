@@ -632,113 +632,6 @@
       type: file_must_not_match
       pattern: '(?i)use\s+`\$\{env\.VAR\}`\s+interpolation\s+instead'
 
-# ─── docker-sandboxes-env ───────────────────────────────────────────────────
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 1: checked-in reproducible environment"
-  skip: true
-  skip_reason: No fixtures-clone asset; host initialization and approval require manual evaluation
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 2: my agent keeps editing its own environment file"
-  skip: true
-  skip_reason: No subdirectory-protection asset; mount rename behavior requires runtime verification
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 3: preRemove hook fails, teardown blocked?"
-  skip: true
-  skip_reason: No teardown asset; warning-only failure and destroy-plan drift require manual verification
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 4: quick sanity check with no credentials on hand"
-  asset: skills/docker-sandboxes-env/assets/sbxenv.yaml
-  checks:
-    - id: se-schema
-      description: Environment schema version is the string "1"
-      type: yaml_value_equals
-      key: schemaVersion
-      value: "1"
-    - id: se-agent
-      description: Minimal environment uses the credential-free shell agent
-      type: yaml_value_equals
-      key: agent
-      value: shell
-    - id: se-workspace
-      description: File is located at the workspace mount root
-      type: yaml_value_equals
-      key: workspace
-      value: .
-    - id: se-no-secrets
-      description: Minimal environment declares no service secrets
-      type: yaml_key_absent
-      key: secrets
-    - id: se-no-registries
-      description: Minimal environment declares no registry credentials
-      type: yaml_key_absent
-      key: registries
-    - id: se-no-bindings
-      description: Minimal environment changes no global credential bindings
-      type: yaml_key_absent
-      key: bindings
-    - id: se-no-hooks
-      description: Minimal environment runs no host lifecycle commands
-      type: yaml_key_absent
-      key: lifecycle
-    - id: se-no-writable-env
-      description: Minimal environment retains default environment-file protection
-      type: yaml_key_absent
-      key: sandboxOptions.writableEnvFiles
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 5: literal secrets in plan output"
-  skip: true
-  skip_reason: No literal-secret asset; plan and state redaction require a manual source check
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 6: seed fixtures once after creation"
-  skip: true
-  skip_reason: No postCreate asset; hook ordering and rerun behavior require the manual runbook
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 7: non-interactive CI approval"
-  skip: true
-  skip_reason: No CI asset; non-interactive approval and untrusted-input refusal require manual evaluation
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 8: scaffold an environment for this repository"
-  skip: true
-  skip_reason: Kit selection depends on the live Docker Hub catalog and agent behavior; use the helper step in checks/verification.md and a manual run
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 9: upgrade the kits in an existing sbxenv.yaml"
-  asset: skills/docker-sandboxes-env/scripts/kits.py
-  checks:
-    - id: se-kits-version-order
-      description: Helper picks the highest release by version order, not Hub push order
-      type: file_match
-      pattern: 'max\(candidates, key=lambda c: \(_sort_key\(c\[1\]\)'
-    - id: se-kits-prerelease-gate
-      description: Prereleases are considered only when the current tag is one
-      type: file_match
-      pattern: 'allow_pre or v\[1\] is None'
-    - id: se-kits-release-tags-only
-      description: Moving tags such as latest are not parsed as releases
-      type: file_match
-      pattern: 'RELEASE_TAG = re\.compile\(r"\^\(v\?\)'
-    - id: se-kits-failure-exit
-      description: Any failed lookup makes the helper exit nonzero
-      type: file_match
-      pattern: 'return 1 if failed else 0'
-    - id: se-kits-no-plain-http
-      description: Helper hard-codes no plain-HTTP endpoints (server-provided URLs are not scheme-checked)
-      type: file_must_not_match
-      pattern: 'http://'
-
-- eval: docker-sandboxes-env
-  prompt: "Prompt 10: env exec in automation with no sandbox yet"
-  skip: true
-  skip_reason: No exec asset; missing-sandbox behavior and exit status require the manual runbook step 6
-
 # ─── docker-sandboxes-kits ──────────────────────────────────────────────────
 
 # v3 prompts (1-7) assert checked-in v3 assets and skill text, not live model behavior,
@@ -1252,6 +1145,48 @@
       description: Recipes do not copy a permission-bypass launch flag
       type: file_must_not_match
       pattern: 'dangerously-skip-permissions'
+
+- eval: docker-sandboxes-kits
+  prompt: "Prompt 8: referencing a published kit from sbxenv.yaml"
+  assets:
+    skill: skills/docker-sandboxes-kits/SKILL.md
+    sbxenv: skills/docker-sandboxes-kits/references/sbxenv-kit-references.md
+  checks:
+    - id: sk3-p8-one-workload-handle
+      description: Reference says agent is a built-in or the handle of the single workload kit
+      type: file_match
+      asset_key: sbxenv
+      pattern: 'exactly one workload and any number of\s+mixins'
+    - id: sk3-p8-create-phase-only
+      description: Reference says a published kit accepts only create-phase args
+      type: file_match
+      asset_key: sbxenv
+      pattern: 'published \(OCI\) kit accepts only create-phase args'
+    - id: sk3-p8-pin-digest
+      description: Reference recommends tag plus digest because tags are republished
+      type: file_match
+      asset_key: sbxenv
+      pattern: 'Prefer `tag@sha256:<digest>`'
+    - id: sk3-p8-binding-required
+      description: Reference maps a required credential to a bindings entry
+      type: file_match
+      asset_key: sbxenv
+      pattern: '`credential@1` \(required\) \| A `bindings\.<service>` entry'
+    - id: sk3-p8-plan-not-proof
+      description: Reference says sbx env plan does not resolve kit references
+      type: file_match
+      asset_key: sbxenv
+      pattern: '`sbx env plan` does \*\*not\*\* resolve kit references'
+    - id: sk3-p8-skill-section
+      description: SKILL.md links the sbxenv reference
+      type: file_match
+      asset_key: skill
+      pattern: '`references/sbxenv-kit-references\.md`'
+    - id: sk3-p8-no-env-skill-route
+      description: SKILL.md no longer routes to the removed docker-sandboxes-env skill
+      type: file_must_not_match
+      asset_key: skill
+      pattern: 'docker-sandboxes-env'
 
 - eval: docker-sandboxes-kits
   prompt: "Routing metadata (static checks)"

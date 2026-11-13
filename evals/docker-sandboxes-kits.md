@@ -245,10 +245,50 @@ an operator-supplied v3 workload (step A7 of `checks/verification.md`).
 
 ---
 
+## Prompt 8: referencing a published kit from sbxenv.yaml
+
+**Prompt to agent:**
+
+> I published my `gh` mixin as `acme/gh:2.1.0`. How does a teammate add it to
+> their checked-in `sbxenv.yaml` on top of the `claude` agent, and can they
+> set the `gh` version there? The mixin requires a GitHub token.
+
+### Expected behaviors
+- [ ] Keeps `agent: claude` (a built-in or the handle of the single workload)
+      and lists the mixin under `kits:` as a bare reference or
+      `{source, args}`.
+- [ ] Recommends pinning `acme/gh:2.1.0@sha256:<digest>` because tags can be
+      republished.
+- [ ] Says a published kit accepts only create-phase args; the build-phase
+      `version` was fixed at publish time, so a different version means a
+      different tag.
+- [ ] Says a required `credential@1` needs a `bindings:` entry naming only the
+      chosen mechanism, and that the token value lives in the sbx credential
+      store, not in the file.
+- [ ] Says `sbx env plan` does not resolve kit references, so only a
+      disposable `sbx env create` proves the composition installs.
+- [ ] Routes lifecycle hooks, approval, merging, and the `secrets:` block
+      format to Docker Docs (`docker-docs`), and storing the token value to
+      `docker-sandboxes-network-credentials`.
+
+### Must not
+- [ ] Must NOT route to `docker-sandboxes-env`, which is no longer in this
+      catalog.
+- [ ] Must NOT set `version` as a kit arg on the published kit.
+- [ ] Must NOT write a token value into the file or a `--kit-arg`.
+- [ ] Must NOT present a clean `sbx env plan` as proof the kit exists.
+
+### Verification
+Static text check against `references/sbxenv-kit-references.md` and the
+skill's "referencing a kit from sbxenv.yaml" guidance. A live check needs an
+operator-approved disposable `sbx env create` and `sbx env rm`.
+
+---
+
 ## Should not trigger
 
 - "How do I run this kit in a sandbox right now?" → `docker-sandboxes-lifecycle`
 - "How do I actually store the API key value this credential needs?" → `docker-sandboxes-network-credentials`
-- "How do I reference this kit from my checked-in sbxenv.yaml?" → `docker-sandboxes-env`
+- "How do I add a `postCreate` lifecycle hook to my sbxenv.yaml?" → `docker-docs` (no catalog skill owns the rest of `sbxenv.yaml`)
 - "How do I shrink the layers of my application's Dockerfile?" → `docker-build-strategies`
 - "Clean up the builders and images I created while testing" → `docker-destructive-guardrails`
