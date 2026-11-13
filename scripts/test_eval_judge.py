@@ -539,6 +539,25 @@ class IncompleteJudgeVerdictTests(unittest.TestCase):
         results, _ = self._judge([{"evaluations": "oops"}] * 3)
         self.assertFalse(any(r.passed for r in results))
 
+    def test_non_boolean_verdicts_never_pass(self):
+        for bad in ("false", "true", None, 0, 1, [], {}):
+            reply = {"evaluations": [
+                self._ev("expected", 1, passed=bad),
+                self._ev("expected", 2, passed=True),
+                self._ev("must_not", 1, violated=bad),
+            ]}
+            results, calls = self._judge([reply] * 3)
+            self.assertEqual(calls, eval_judge.JUDGE_ATTEMPTS, bad)
+            self.assertEqual([r.passed for r in results], [False, True, False], bad)
+            self.assertIn("No judge verdict", results[0].reasoning)
+
+    def test_bad_violated_falls_back_to_boolean_passed(self):
+        reply = {"evaluations": [self._ev("expected", 1, passed=True), self._ev("expected", 2, passed=True),
+                                 self._ev("must_not", 1, violated="no", passed=True)]}
+        results, calls = self._judge([reply])
+        self.assertEqual(calls, 1)
+        self.assertTrue(all(r.passed for r in results))
+
 
 class PrunePassingTests(unittest.TestCase):
     PASSING = "## Prompt 1: ok\n\n**Prompt to agent:**\n\n> A\n\n### Expected behaviors\n- [ ] x\n\n"

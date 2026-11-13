@@ -555,12 +555,14 @@ def _map_verdicts(result: dict[str, Any], expected: list[str],
             continue
         if not 0 <= idx < len(criteria_list) or (is_must_not, idx) in verdicts:
             continue
-        if is_must_not and "violated" in ev:
-            passed = not bool(ev["violated"])
-        elif "passed" in ev:
-            passed = bool(ev["passed"])
+        # Only real JSON booleans count: "false" (truthy string) or null would
+        # otherwise flip a verdict; anything else is treated as missing
+        if is_must_not and isinstance(ev.get("violated"), bool):
+            passed = not ev["violated"]
+        elif isinstance(ev.get("passed"), bool):
+            passed = ev["passed"]
         else:
-            continue  # no verdict field at all
+            continue  # no usable verdict
         verdicts[(is_must_not, idx)] = JudgeResult(
             criteria_list[idx], passed, ev.get("reasoning", ""), is_must_not)
     return verdicts
