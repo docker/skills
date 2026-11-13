@@ -54,6 +54,17 @@ class SkillEvalsWorkflowTests(unittest.TestCase):
         # docker-destructive-guardrails should not be in the ALL_SKILLS list
         self.assertNotIn('"docker-destructive-guardrails"', WORKFLOW)
 
+    def test_untrusted_values_not_interpolated_into_shell(self):
+        # matrix.skill comes from PR directory names and inputs.skill from users:
+        # they must reach run: scripts only through env vars, never ${{ }} in shell
+        for line in WORKFLOW.splitlines():
+            stripped = line.strip()
+            if stripped.startswith(("- name:", "name:", "skill:", "SKILL:", "INPUT_SKILL:")):
+                continue
+            self.assertNotIn("${{ matrix.skill }}", stripped, line)
+            self.assertNotIn("${{ inputs.skill }}", stripped, line)
+        self.assertIn("SKILL_ID_RE='^[a-z0-9][a-z0-9-]*$'", WORKFLOW)
+
     def test_kits_excluded_from_ci(self):
         # docker-sandboxes-kits is excluded until its signing guidance matches docs.docker.com
         self.assertNotIn('"docker-sandboxes-kits"', WORKFLOW)

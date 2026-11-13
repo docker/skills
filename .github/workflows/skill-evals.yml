@@ -61,7 +61,13 @@ jobs:
 
       - name: Detect changed skills
         id: detect
+        env:
+          # Untrusted values reach the shell only through env vars, never ${{ }} interpolation
+          INPUT_SKILL: ${{ inputs.skill }}
         run: |
+          # Skill IDs as used in catalog.yaml; anything else (e.g. a crafted directory
+          # name like `$(cmd)`) is rejected before it can reach a matrix job
+          SKILL_ID_RE='^[a-z0-9][a-z0-9-]*$'
           # All skills except:
           # - docker-destructive-guardrails (too flaky for CI)
           # - docker-sandboxes-kits (skill/eval out of sync with docs.docker.com on v3 kit
@@ -69,8 +75,12 @@ jobs:
           ALL_SKILLS='["docker-agent-config","docker-agent-deploy","docker-agent-run","docker-build-strategies","docker-compose-patterns","docker-docs","docker-project-foundations","docker-sandboxes-env","docker-sandboxes-lifecycle","docker-sandboxes-mcp-gateway","docker-sandboxes-network-credentials"]'
           
           # If workflow_dispatch with specific skill, use that
-          if [ -n "${{ inputs.skill }}" ]; then
-            echo "skills=[\"${{ inputs.skill }}\"]" >> $GITHUB_OUTPUT
+          if [ -n "$INPUT_SKILL" ]; then
+            if ! printf '%s\n' "$INPUT_SKILL" | grep -qE "$SKILL_ID_RE"; then
+              echo "::error::Invalid skill id: must match $SKILL_ID_RE"
+              exit 1
+            fi
+            jq -cn --arg s "$INPUT_SKILL" '"skills=" + ([$s] | tojson)' -r >> "$GITHUB_OUTPUT"
             echo "run_all=false" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -109,6 +119,11 @@ jobs:
           
           # Extract specific skills that changed
           SKILLS=$(echo "$CHANGED_FILES" | grep -oE '^skills/[^/]+' | sed 's|skills/||' | sort -u | grep -vE '^(docker-destructive-guardrails|docker-sandboxes-kits)$' || true)
+          INVALID=$(printf '%s\n' "$SKILLS" | grep -vE "$SKILL_ID_RE" | grep -v '^$' || true)
+          if [ -n "$INVALID" ]; then
+            echo "::warning::Ignoring changed directories under skills/ that are not valid skill ids"
+            SKILLS=$(printf '%s\n' "$SKILLS" | grep -E "$SKILL_ID_RE" || true)
+          fi
           
           if [ -z "$SKILLS" ]; then
             echo "No skill changes detected"
@@ -194,6 +209,7 @@ jobs:
       - name: Run eval for ${{ matrix.skill }} (Claude)
         id: eval
         env:
+          SKILL: ${{ matrix.skill }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # For the sbx re-login after a retry reset; stripped from the agent's environment.
           DOCKERPUBLICBOT_READ_PAT: ${{ secrets.DOCKERPUBLICBOT_READ_PAT }}
@@ -207,13 +223,13 @@ jobs:
             --prune-passing \
             --model "$INPUT_MODEL" \
             --repeat "$INPUT_REPEAT" \
-            --skill "${{ matrix.skill }}"; then
+            --skill "$SKILL"; then
             echo "Eval passed on first attempt"
           else
             echo "::warning::First attempt failed, retrying..."
             echo "retried=true" >> "$GITHUB_OUTPUT"
             # Start the retry from a clean sbx baseline, whatever the first attempt left behind
-            if [[ "${{ matrix.skill }}" == docker-sandboxes-* ]]; then
+            if [[ "$SKILL" == docker-sandboxes-* ]]; then
               scripts/ci_sbx_baseline.sh --reset
             fi
             .venv/bin/python scripts/eval_judge.py \
@@ -221,7 +237,7 @@ jobs:
               --prune-passing \
               --model "$INPUT_MODEL" \
               --repeat "$INPUT_REPEAT" \
-              --skill "${{ matrix.skill }}"
+              --skill "$SKILL"
           fi
 
       # Only failed jobs or jobs that needed a retry; --prune-passing already
@@ -327,6 +343,7 @@ jobs:
       - name: Run eval for ${{ matrix.skill }} (Codex)
         id: eval
         env:
+          SKILL: ${{ matrix.skill }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # Lets eval_judge.py re-mint the ~15-minute gateway token during long jobs and
           # re-login sbx after a retry reset; stripped from the agent's environment.
@@ -341,13 +358,13 @@ jobs:
             --prune-passing \
             --model "$INPUT_MODEL" \
             --repeat "$INPUT_REPEAT" \
-            --skill "${{ matrix.skill }}"; then
+            --skill "$SKILL"; then
             echo "Eval passed on first attempt"
           else
             echo "::warning::First attempt failed, retrying..."
             echo "retried=true" >> "$GITHUB_OUTPUT"
             # Start the retry from a clean sbx baseline, whatever the first attempt left behind
-            if [[ "${{ matrix.skill }}" == docker-sandboxes-* ]]; then
+            if [[ "$SKILL" == docker-sandboxes-* ]]; then
               scripts/ci_sbx_baseline.sh --reset
             fi
             .venv/bin/python scripts/eval_judge.py \
@@ -355,7 +372,7 @@ jobs:
               --prune-passing \
               --model "$INPUT_MODEL" \
               --repeat "$INPUT_REPEAT" \
-              --skill "${{ matrix.skill }}"
+              --skill "$SKILL"
           fi
 
       # Only failed jobs or jobs that needed a retry; --prune-passing already
