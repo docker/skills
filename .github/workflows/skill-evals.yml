@@ -72,7 +72,7 @@ jobs:
           # - docker-destructive-guardrails (too flaky for CI)
           # - docker-sandboxes-kits (skill/eval out of sync with docs.docker.com on v3 kit
           #   signing: docs use `sbx kit sign`, skill says cosign on the digest)
-          ALL_SKILLS='["docker-agent-config","docker-agent-deploy","docker-agent-run","docker-build-strategies","docker-compose-patterns","docker-docs","docker-project-foundations","docker-sandboxes-env","docker-sandboxes-lifecycle","docker-sandboxes-mcp-gateway","docker-sandboxes-network-credentials"]'
+          ALL_SKILLS='["docker-agent-config","docker-agent-deploy","docker-agent-run","docker-build-strategies","docker-compose-patterns","docker-docs","docker-project-foundations","docker-sandboxes-env","docker-sandboxes-lifecycle","docker-sandboxes-network-credentials"]'
           
           # If workflow_dispatch with specific skill, use that
           if [ -n "$INPUT_SKILL" ]; then
