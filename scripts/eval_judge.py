@@ -473,6 +473,10 @@ MUST NOT (must not violate any):
 4. **Order doesn't matter**: If a criterion says "explain A before mentioning B", as long as
    both A and B are present in the response, consider the criterion satisfied.
 
+5. **Command results**: A "TOOL RESULT (exit code N, ...)" or "TOOL RESULT (error)" marks a
+   failed tool call. When a criterion requires a command to succeed, a run with a non-zero
+   exit code or an error result does not satisfy it, whatever the output looks like.
+
 ## Task
 
 For each criterion, output a JSON evaluation. Write the reasoning FIRST, then the verdict.
@@ -808,7 +812,9 @@ def transcript_to_text(path: Path) -> str:
                     text = block.get("content", "")
                     if isinstance(text, list):
                         text = "\n".join(b.get("text", "") for b in text if isinstance(b, dict))
-                    lines.append(f"TOOL RESULT: {text[:1000]}{'...' if len(str(text)) > 1000 else ''}")
+                    # Keep the failure flag so the judge can tell failed tool calls apart
+                    status = " (error)" if block.get("is_error") else ""
+                    lines.append(f"TOOL RESULT{status}: {text[:1000]}{'...' if len(str(text)) > 1000 else ''}")
     
     return "\n\n".join(lines)
 
@@ -844,7 +850,17 @@ def codex_transcript_to_text(path: Path) -> str:
                     if actual_command.endswith("'") or actual_command.endswith('"'):
                         actual_command = actual_command[:-1]
                 lines.append(f'TOOL CALL [Bash]: {{\n  "command": "{actual_command}"\n}}')
-                lines.append(f"TOOL RESULT: {output[:1000]}{'...' if len(str(output)) > 1000 else ''}")
+                # Keep the exit code so the judge can tell a failed command from a
+                # successful one with the same (or no) output
+                exit_code = item.get("exit_code")
+                status = item.get("status")
+                details = []
+                if exit_code is not None:
+                    details.append(f"exit code {exit_code}")
+                if status and status != "completed":
+                    details.append(str(status))
+                suffix = f" ({', '.join(details)})" if details else ""
+                lines.append(f"TOOL RESULT{suffix}: {output[:1000]}{'...' if len(str(output)) > 1000 else ''}")
             elif item_type == "skill_read":
                 skill_path = item.get("skill_path", "")
                 # Extract skill name from path

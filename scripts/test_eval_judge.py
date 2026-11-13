@@ -259,6 +259,30 @@ class CodexTranscriptToTextTests(unittest.TestCase):
         self.assertIn("ls -la", text)
         self.assertIn("TOOL RESULT: file1 file2", text)
 
+    def _convert(self, *events):
+        import json
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
+            f.write("".join(json.dumps(e) + "\n" for e in events))
+        return eval_judge.codex_transcript_to_text(Path(f.name))
+
+    def test_command_exit_code_is_kept(self):
+        ok = {"type": "item.completed", "item": {"type": "command_execution", "command": "sbx env plan",
+              "aggregated_output": "", "exit_code": 0, "status": "completed"}}
+        bad = {"type": "item.completed", "item": {"type": "command_execution", "command": "sbx env plan",
+               "aggregated_output": "", "exit_code": 1, "status": "failed"}}
+        self.assertIn("TOOL RESULT (exit code 0): ", self._convert(ok))
+        self.assertIn("TOOL RESULT (exit code 1, failed): ", self._convert(bad))
+
+    def test_claude_tool_error_is_kept(self):
+        import json
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
+            f.write(json.dumps({"type": "user", "message": {"content": [
+                {"type": "tool_result", "content": "boom", "is_error": True},
+                {"type": "tool_result", "content": "fine"}]}}) + "\n")
+        text = eval_judge.transcript_to_text(Path(f.name))
+        self.assertIn("TOOL RESULT (error): boom", text)
+        self.assertIn("TOOL RESULT: fine", text)
+
     def test_converts_skill_read(self):
         with tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False) as f:
             f.write('{"type":"item.completed","item":{"type":"skill_read","skill_path":"/path/to/.agents/skills/docker-sandboxes-lifecycle/SKILL.md"}}\n')
