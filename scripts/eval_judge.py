@@ -19,7 +19,7 @@ Usage:
   python3 scripts/eval_judge.py --skill docker-sandboxes-lifecycle
   python3 scripts/eval_judge.py --skill docker-sandboxes-lifecycle --prompt 1
   python3 scripts/eval_judge.py --list                    # show available evals
-  python3 scripts/eval_judge.py --regrade .eval-judge/<run>/...  # re-grade offline
+  python3 scripts/eval_judge.py --regrade .eval-judge/<run>/...  # re-grade without re-running the agent (live judge)
 """
 
 from __future__ import annotations
@@ -947,7 +947,8 @@ def load_saved_workspace_files(run_dir: Path) -> dict[str, str]:
 
 
 def regrade(run_dir: Path, args: argparse.Namespace) -> list[JudgeResult]:
-    """Re-grade a saved run offline, with the same inputs as the original verdict."""
+    """Re-grade a saved run without re-running the agent, with the same inputs
+    as the original verdict. The judge is still called live."""
     meta = json.loads((run_dir / "run.json").read_text())
     transcript = (run_dir / "transcript.txt").read_text()
     previous = {}
@@ -1025,7 +1026,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="Also run prompts marked '**Skip in CI:**' (e.g. need real MCP servers)")
     parser.add_argument("--prune-passing", action="store_true",
                         help="Delete a prompt's artifacts when it passes, keeping only failures (used in CI)")
-    parser.add_argument("--regrade", type=Path, help="Re-grade saved run")
+    parser.add_argument("--regrade", type=Path,
+                        help="Re-grade a saved run without re-running the agent (calls the live judge)")
     parser.add_argument("--list", action="store_true", help="List evals")
     args = parser.parse_args(argv)
     

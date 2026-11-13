@@ -98,7 +98,9 @@ python3 scripts/eval_judge.py --skill docker-sandboxes-lifecycle
 # Run a specific prompt
 python3 scripts/eval_judge.py --skill docker-sandboxes-lifecycle --prompt 1
 
-# Re-grade a saved run offline (reuses its saved workspace files)
+# Re-grade a saved run without re-running the agent (reuses its saved transcript
+# and workspace files; still calls the live judge, so it needs network access and
+# ANTHROPIC_API_KEY, or the gateway token for a gpt-*/luna --judge-model)
 python3 scripts/eval_judge.py --regrade .eval-judge/<timestamp>/<skill>/prompt-N/1
 ```
 
