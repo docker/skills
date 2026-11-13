@@ -173,8 +173,3 @@ skills:
     path: skills/docker-destructive-guardrails
     version: 0.1.0
     status: stable
-  - id: docker-sandboxes-mcp-gateway
-    path: skills/docker-sandboxes-mcp-gateway
-    version: 0.1.0
-    product: docker-sandboxes
-    status: experimental
