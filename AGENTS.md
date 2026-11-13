@@ -41,7 +41,7 @@ are required; validation runs in pinned container images.
   not a live model evaluation.
 - `task eval:skills`: opt-in live model evaluation. It runs scenarios in
   `skills/*/evals/` with Claude Code against the real `sbx` CLI; see
-  [evals/README.md](evals/README.md#live-skill-scenarios). It needs `claude`,
+  [evals/README.md](evals/README.md#llm-as-judge-evaluations). It needs `claude`,
   `sbx` authenticated, and optionally model credentials. Runs separately
   from offline `task`/`task ci`.
 - `task links`: check local Markdown destinations and heading anchors.

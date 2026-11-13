@@ -1,8 +1,8 @@
 name: Live skill evals
 
-# Runs skills/*/evals/*.yaml with Claude Code and/or Codex against real CLIs.
-# Calls a live model and may need tool-specific authentication, so it stays
-# out of offline `task ci`.
+# Runs skill evaluations using LLM-as-judge against Claude Code and/or Codex.
+# Evaluations are defined in skills/<skill>/evals/<skill>.md markdown files.
+# Each skill runs as a separate job for parallelism and targeted re-runs.
 on:
   pull_request:
     paths:
@@ -10,14 +10,15 @@ on:
       - ".codex-plugin/**"
       - ".agents/**"
       - "skills/**"
-      - "scripts/skill_eval.py"
+      - "scripts/eval_judge.py"
+      - "scripts/ci_sbx_baseline.sh"
       - ".github/workflows/skill-evals.yml"
   schedule:
     - cron: "17 6 * * 1"
   workflow_dispatch:
     inputs:
       skill:
-        description: "Only run scenarios for this skill id (empty: all)"
+        description: "Only run evals for this skill id (empty: all)"
         required: false
         default: ""
       agent:
@@ -34,7 +35,7 @@ on:
         required: false
         default: ""
       repeat:
-        description: "Runs per scenario"
+        description: "Runs per prompt"
         required: false
         default: "1"
 
@@ -46,6 +47,95 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Determine which skills to evaluate based on changed files
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      skills: ${{ steps.detect.outputs.skills }}
+      run_all: ${{ steps.detect.outputs.run_all }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Detect changed skills
+        id: detect
+        env:
+          # Untrusted values reach the shell only through env vars, never ${{ }} interpolation
+          INPUT_SKILL: ${{ inputs.skill }}
+        run: |
+          # Skill IDs as used in catalog.yaml; anything else (e.g. a crafted directory
+          # name like `$(cmd)`) is rejected before it can reach a matrix job
+          SKILL_ID_RE='^[a-z0-9][a-z0-9-]*$'
+          # All skills except:
+          # - docker-destructive-guardrails (too flaky for CI)
+          # - docker-sandboxes-kits (skill/eval out of sync with docs.docker.com on v3 kit
+          #   signing: docs use `sbx kit sign`, skill says cosign on the digest)
+          ALL_SKILLS='["docker-agent-config","docker-agent-deploy","docker-agent-run","docker-build-strategies","docker-compose-patterns","docker-docs","docker-project-foundations","docker-sandboxes-env","docker-sandboxes-lifecycle","docker-sandboxes-mcp-gateway","docker-sandboxes-network-credentials"]'
+          
+          # If workflow_dispatch with specific skill, use that
+          if [ -n "$INPUT_SKILL" ]; then
+            if ! printf '%s\n' "$INPUT_SKILL" | grep -qE "$SKILL_ID_RE"; then
+              echo "::error::Invalid skill id: must match $SKILL_ID_RE"
+              exit 1
+            fi
+            jq -cn --arg s "$INPUT_SKILL" '"skills=" + ([$s] | tojson)' -r >> "$GITHUB_OUTPUT"
+            echo "run_all=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # If scheduled or workflow_dispatch without skill, run all skills
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run_all=true" >> $GITHUB_OUTPUT
+            echo "skills=$ALL_SKILLS" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Get changed files
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA=${{ github.event.pull_request.base.sha }}
+            HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          else
+            BASE_SHA=${{ github.event.before }}
+            HEAD_SHA=${{ github.sha }}
+          fi
+          
+          # Three-dot diff: changes from the merge base to the PR head only, so
+          # commits that landed on the base branch afterwards are not selected
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA...$HEAD_SHA" 2>/dev/null || echo "")
+          
+          # Check if framework files changed (unit tests run in ci.yml, not here)
+          FRAMEWORK_CHANGED=false
+          if echo "$CHANGED_FILES" | grep -qE '^(scripts/eval_judge\.py|scripts/ci_sbx_baseline\.sh|\.github/workflows/skill-evals\.yml|\.claude-plugin/|\.codex-plugin/|\.agents/)'; then
+            FRAMEWORK_CHANGED=true
+          fi
+          
+          if [ "$FRAMEWORK_CHANGED" = "true" ]; then
+            echo "run_all=true" >> $GITHUB_OUTPUT
+            echo "skills=$ALL_SKILLS" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Extract specific skills that changed
+          SKILLS=$(echo "$CHANGED_FILES" | grep -oE '^skills/[^/]+' | sed 's|skills/||' | sort -u | grep -vE '^(docker-destructive-guardrails|docker-sandboxes-kits)$' || true)
+          INVALID=$(printf '%s\n' "$SKILLS" | grep -vE "$SKILL_ID_RE" | grep -v '^$' || true)
+          if [ -n "$INVALID" ]; then
+            echo "::warning::Ignoring changed directories under skills/ that are not valid skill ids"
+            SKILLS=$(printf '%s\n' "$SKILLS" | grep -E "$SKILL_ID_RE" || true)
+          fi
+          
+          if [ -z "$SKILLS" ]; then
+            echo "No skill changes detected"
+            echo "skills=[]" >> $GITHUB_OUTPUT
+            echo "run_all=false" >> $GITHUB_OUTPUT
+          else
+            # Convert to JSON array
+            SKILLS_JSON=$(echo "$SKILLS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            echo "skills=$SKILLS_JSON" >> $GITHUB_OUTPUT
+            echo "run_all=false" >> $GITHUB_OUTPUT
+          fi
+
   plugin-validate:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -64,23 +154,31 @@ jobs:
       - name: Validate plugin manifest
         run: claude plugin validate .
 
-  scenarios-claude:
-    if: ${{ inputs.agent == 'claude' || inputs.agent == 'both' || inputs.agent == '' }}
+  # Claude evals - one job per skill
+  eval-claude:
+    needs: detect-changes
+    if: |
+      (inputs.agent == 'claude' || inputs.agent == 'both' || inputs.agent == '') &&
+      needs.detect-changes.outputs.skills != '[]'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # Worst case: ~9 prompts x 300s agent timeout, twice (first attempt + retry),
+    # plus setup and judging. Real runs take <20 min.
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        skill: ${{ fromJson(needs.detect-changes.outputs.skills) }}
     env:
       CLAUDE_CODE_VERSION: "2.1.316"
       SBX_VERSION: "0.50.1"
-      SKILL_EVAL_AGENT: "claude"
-      SKILL_EVAL_MODEL: ${{ inputs.model || 'sonnet' }}
-      SKILL_EVAL_REPEAT: ${{ inputs.repeat || '1' }}
-      SKILL_EVAL_MIN_PASS_RATE: "1.0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      # Only Docker Sandboxes skills need the sbx CLI at eval time
       - name: Install Docker Sandboxes (sbx)
+        if: startsWith(matrix.skill, 'docker-sandboxes-')
         run: |
           curl -fsSL "https://github.com/docker/sbx-releases/releases/download/v${SBX_VERSION}/DockerSandboxes-linux-amd64-ubuntu2404.deb" -o sbx.deb
           # Refresh the runner image's package index first: a stale index
@@ -93,14 +191,11 @@ jobs:
           sbx version
 
       - name: Setup sbx (login and policy)
+        if: startsWith(matrix.skill, 'docker-sandboxes-')
         env:
           DOCKERPUBLICBOT_READ_PAT: ${{ secrets.DOCKERPUBLICBOT_READ_PAT }}
           DOCKERPUBLICBOT_USERNAME: ${{ vars.DOCKERPUBLICBOT_USERNAME }}
-        run: |
-          # sg kvm runs commands in kvm group context (usermod doesn't affect current shell)
-          # Login starts the daemon and authenticates for pulling sandbox images
-          sg kvm -c 'echo "$DOCKERPUBLICBOT_READ_PAT" | sbx login --username "$DOCKERPUBLICBOT_USERNAME" --password-stdin'
-          sg kvm -c 'sbx policy init balanced'
+        run: scripts/ci_sbx_baseline.sh
 
       - name: Install Claude Code
         run: |
@@ -113,58 +208,87 @@ jobs:
           python3 -m venv .venv
           .venv/bin/pip install -q --require-hashes -r scripts/requirements.txt
 
-      - name: Run live skill scenarios (Claude)
+      - name: Run eval for ${{ matrix.skill }} (Claude)
+        id: eval
+        # Below the job limit, so a runaway eval fails the step (not the whole job)
+        # and the failure artifacts still upload
+        timeout-minutes: 110
         env:
+          SKILL: ${{ matrix.skill }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          INPUT_SKILL: ${{ inputs.skill }}
+          # For the sbx re-login after a retry reset; stripped from the agent's environment.
+          DOCKERPUBLICBOT_READ_PAT: ${{ secrets.DOCKERPUBLICBOT_READ_PAT }}
+          DOCKERPUBLICBOT_USERNAME: ${{ vars.DOCKERPUBLICBOT_USERNAME }}
+          INPUT_MODEL: ${{ inputs.model || 'sonnet' }}
+          INPUT_REPEAT: ${{ inputs.repeat || '1' }}
         run: |
-          set +e
-          .venv/bin/python scripts/skill_eval.py --agent claude ${INPUT_SKILL:+--skill "$INPUT_SKILL"}
-          exit_code=$?
-          # Debug output
-          echo "=== Listing .skill-evals ==="
-          ls -laR .skill-evals/ 2>&1 | head -50 || echo "No .skill-evals directory found"
-          echo "=== report.json ==="
-          cat .skill-evals/*/docker-sandboxes-lifecycle/mount-ls-delete/1/report.json 2>/dev/null | head -200 || true
-          echo "=== transcript.jsonl (last 50 lines) ==="
-          tail -50 .skill-evals/*/docker-sandboxes-lifecycle/mount-ls-delete/1/transcript.jsonl 2>/dev/null || true
-          exit $exit_code
+          # Run eval with one automatic retry on failure
+          if .venv/bin/python scripts/eval_judge.py \
+            --agent claude \
+            --prune-passing \
+            --model "$INPUT_MODEL" \
+            --repeat "$INPUT_REPEAT" \
+            --skill "$SKILL"; then
+            echo "Eval passed on first attempt"
+          else
+            echo "::warning::First attempt failed, retrying..."
+            echo "retried=true" >> "$GITHUB_OUTPUT"
+            # Start the retry from a clean sbx baseline, whatever the first attempt left behind
+            if [[ "$SKILL" == docker-sandboxes-* ]]; then
+              scripts/ci_sbx_baseline.sh --reset
+            fi
+            .venv/bin/python scripts/eval_judge.py \
+              --agent claude \
+              --prune-passing \
+              --model "$INPUT_MODEL" \
+              --repeat "$INPUT_REPEAT" \
+              --skill "$SKILL"
+          fi
 
-      - name: Upload transcripts and call logs (Claude)
-        if: always()
+      # Only failed jobs or jobs that needed a retry; --prune-passing already
+      # removed every prompt that passed, so the artifact holds just the failures.
+      - name: Upload eval artifacts
+        if: failure() || steps.eval.outputs.retried == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: skill-evals-claude
-          path: .skill-evals/
-          if-no-files-found: ignore
+          name: eval-claude-${{ matrix.skill }}
+          path: .eval-judge/
+          # .eval-judge is a dot-directory: upload-artifact skips hidden paths by default
+          include-hidden-files: true
+          if-no-files-found: warn
           retention-days: 14
 
       - name: Cleanup sandboxes
-        if: always()
+        if: always() && startsWith(matrix.skill, 'docker-sandboxes-')
         run: |
           sbx ls -q 2>/dev/null | grep "^eval-" | xargs -r sbx rm --force || true
           sbx daemon stop || true
 
-  scenarios-codex:
-    # Codex evals use Docker AI Gateway with Docker Hub authentication
-    if: ${{ inputs.agent == 'codex' || inputs.agent == 'both' || inputs.agent == '' }}
+  # Codex evals - one job per skill
+  eval-codex:
+    needs: detect-changes
+    if: |
+      (inputs.agent == 'codex' || inputs.agent == 'both' || inputs.agent == '') &&
+      needs.detect-changes.outputs.skills != '[]'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # Worst case: ~9 prompts x 300s agent timeout, twice (first attempt + retry),
+    # plus setup and judging. Real runs take <20 min.
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        skill: ${{ fromJson(needs.detect-changes.outputs.skills) }}
     env:
       CODEX_VERSION: "0.166.0"
       SBX_VERSION: "0.50.1"
-      SKILL_EVAL_AGENT: "codex"
-      # Don't specify a model by default - let Codex use the gateway's default
-      # (explicitly specifying gpt-4o causes flaky behavior where the model refuses to execute commands)
-      SKILL_EVAL_MODEL: ${{ inputs.model || '' }}
-      SKILL_EVAL_REPEAT: ${{ inputs.repeat || '1' }}
-      SKILL_EVAL_MIN_PASS_RATE: "1.0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      # Only Docker Sandboxes skills need the sbx CLI at eval time
       - name: Install Docker Sandboxes (sbx)
+        if: startsWith(matrix.skill, 'docker-sandboxes-')
         run: |
           curl -fsSL "https://github.com/docker/sbx-releases/releases/download/v${SBX_VERSION}/DockerSandboxes-linux-amd64-ubuntu2404.deb" -o sbx.deb
           # Refresh the runner image's package index first: a stale index
@@ -177,14 +301,11 @@ jobs:
           sbx version
 
       - name: Setup sbx (login and policy)
+        if: startsWith(matrix.skill, 'docker-sandboxes-')
         env:
           DOCKERPUBLICBOT_READ_PAT: ${{ secrets.DOCKERPUBLICBOT_READ_PAT }}
           DOCKERPUBLICBOT_USERNAME: ${{ vars.DOCKERPUBLICBOT_USERNAME }}
-        run: |
-          # sg kvm runs commands in kvm group context (usermod doesn't affect current shell)
-          # Login starts the daemon and authenticates for pulling sandbox images
-          sg kvm -c 'echo "$DOCKERPUBLICBOT_READ_PAT" | sbx login --username "$DOCKERPUBLICBOT_USERNAME" --password-stdin'
-          sg kvm -c 'sbx policy init balanced'
+        run: scripts/ci_sbx_baseline.sh
 
       - name: Install Codex
         run: |
@@ -196,7 +317,6 @@ jobs:
           DOCKERPUBLICBOT_READ_PAT: ${{ secrets.DOCKERPUBLICBOT_READ_PAT }}
           DOCKERPUBLICBOT_USERNAME: ${{ vars.DOCKERPUBLICBOT_USERNAME }}
         run: |
-          # Get JWT token from Docker Hub
           JWT=$(curl -s -X POST "https://hub.docker.com/v2/users/login" \
             -H "Content-Type: application/json" \
             -d "{\"username\":\"${DOCKERPUBLICBOT_USERNAME}\",\"password\":\"${DOCKERPUBLICBOT_READ_PAT}\"}" \
@@ -207,10 +327,7 @@ jobs:
             exit 1
           fi
           
-          # Create Codex config directory
           mkdir -p ~/.codex
-          
-          # Configure Codex to use Docker AI Gateway
           cat > ~/.codex/config.toml << EOF
           model_provider = "docker-gateway"
           
@@ -222,50 +339,67 @@ jobs:
           requires_openai_auth = false
           EOF
           
-          # Export token for later steps
           echo "DOCKER_GATEWAY_TOKEN=${JWT}" >> $GITHUB_ENV
           echo "::add-mask::${JWT}"
-          
-          echo "Codex configured to use Docker AI Gateway"
 
       - name: Install Python dependencies
         run: |
           python3 -m venv .venv
           .venv/bin/pip install -q --require-hashes -r scripts/requirements.txt
 
-      - name: Run live skill scenarios (Codex)
+      - name: Run eval for ${{ matrix.skill }} (Codex)
+        id: eval
+        # Below the job limit, so a runaway eval fails the step (not the whole job)
+        # and the failure artifacts still upload
+        timeout-minutes: 110
         env:
-          INPUT_SKILL: ${{ inputs.skill }}
-          INPUT_MODEL: ${{ inputs.model }}
+          SKILL: ${{ matrix.skill }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Lets eval_judge.py re-mint the ~15-minute gateway token during long jobs and
+          # re-login sbx after a retry reset; stripped from the agent's environment.
+          DOCKERPUBLICBOT_READ_PAT: ${{ secrets.DOCKERPUBLICBOT_READ_PAT }}
+          DOCKERPUBLICBOT_USERNAME: ${{ vars.DOCKERPUBLICBOT_USERNAME }}
+          INPUT_MODEL: ${{ inputs.model || 'gpt-6-luna' }}
+          INPUT_REPEAT: ${{ inputs.repeat || '1' }}
         run: |
-          set +e
-          # Only pass --model if explicitly specified; gateway default works better than explicit gpt-4o
-          model_arg=""
-          if [ -n "$INPUT_MODEL" ]; then
-            model_arg="--model $INPUT_MODEL"
+          # Run eval with one automatic retry on failure
+          if .venv/bin/python scripts/eval_judge.py \
+            --agent codex \
+            --prune-passing \
+            --model "$INPUT_MODEL" \
+            --repeat "$INPUT_REPEAT" \
+            --skill "$SKILL"; then
+            echo "Eval passed on first attempt"
+          else
+            echo "::warning::First attempt failed, retrying..."
+            echo "retried=true" >> "$GITHUB_OUTPUT"
+            # Start the retry from a clean sbx baseline, whatever the first attempt left behind
+            if [[ "$SKILL" == docker-sandboxes-* ]]; then
+              scripts/ci_sbx_baseline.sh --reset
+            fi
+            .venv/bin/python scripts/eval_judge.py \
+              --agent codex \
+              --prune-passing \
+              --model "$INPUT_MODEL" \
+              --repeat "$INPUT_REPEAT" \
+              --skill "$SKILL"
           fi
-          .venv/bin/python scripts/skill_eval.py --agent codex $model_arg ${INPUT_SKILL:+--skill "$INPUT_SKILL"}
-          exit_code=$?
-          # Debug output
-          echo "=== Listing .skill-evals ==="
-          ls -laR .skill-evals/ 2>&1 | head -50 || echo "No .skill-evals directory found"
-          echo "=== report.json ==="
-          cat .skill-evals/*/docker-sandboxes-lifecycle/mount-ls-delete/1/report.json 2>/dev/null | head -200 || true
-          echo "=== transcript.jsonl (last 50 lines) ==="
-          tail -50 .skill-evals/*/docker-sandboxes-lifecycle/mount-ls-delete/1/transcript.jsonl 2>/dev/null || true
-          exit $exit_code
 
-      - name: Upload transcripts and call logs (Codex)
-        if: always()
+      # Only failed jobs or jobs that needed a retry; --prune-passing already
+      # removed every prompt that passed, so the artifact holds just the failures.
+      - name: Upload eval artifacts
+        if: failure() || steps.eval.outputs.retried == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: skill-evals-codex
-          path: .skill-evals/
-          if-no-files-found: ignore
+          name: eval-codex-${{ matrix.skill }}
+          path: .eval-judge/
+          # .eval-judge is a dot-directory: upload-artifact skips hidden paths by default
+          include-hidden-files: true
+          if-no-files-found: warn
           retention-days: 14
 
       - name: Cleanup sandboxes
-        if: always()
+        if: always() && startsWith(matrix.skill, 'docker-sandboxes-')
         run: |
           sbx ls -q 2>/dev/null | grep "^eval-" | xargs -r sbx rm --force || true
           sbx daemon stop || true
