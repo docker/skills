@@ -46,3 +46,8 @@ jobs:
         # --profile directory also fails when the Claude plugin directory would
         # refuse a submission (e.g. missing README, unusable MCP or hooks file).
         run: claude plugin validate . --strict --profile directory
+
+      - name: Install the plugin and check what a Claude Code session loads
+        # Installs the plugin from this checkout with the pinned CLI, as the live
+        # evals do, and checks the skills and MCP server a session sees. No model call.
+        run: python3 scripts/eval_judge.py --agent claude --check-install

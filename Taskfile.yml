@@ -22,7 +22,7 @@ tasks:
       - docker run --rm -v "{{.ROOT_DIR}}:/work" -w /work python@sha256:739e7213785e88c0f702dcdc12c0973afcbd606dbf021a589cab77d6b00b579d sh -c "pip install -q --require-hashes -r scripts/requirements.txt && python3 scripts/eval_check.py"
 
   eval:judge:
-    desc: Run LLM-as-judge evaluations for all skills (calls a live model; needs claude/codex and ANTHROPIC_API_KEY)
+    desc: Run LLM-as-judge evaluations (calls a live model; needs npm and ANTHROPIC_API_KEY). Installs the pinned agent CLI under .eval-tools/ and the plugin from this checkout, as CI does
     cmds:
       - python3 -m venv .venv
       - .venv/bin/pip install -q --require-hashes -r scripts/requirements.txt

@@ -36,7 +36,9 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+
+import eval_setup
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EVALS_ROOT = REPO_ROOT / "evals"
@@ -77,6 +79,9 @@ class EvalPrompt:
     skip_reason: str | None = None
     # Files written into the agent's workspace before the run ("**Fixtures:**" block)
     fixtures: dict[str, str] = dataclasses.field(default_factory=dict)
+    # Set by "**Prompt to agent (MCP server not connected):**": the run must
+    # exercise the fallback, so the plugin's MCP server is not loaded
+    mcp_disabled: bool = False
 
     @property
     def id(self) -> str:
@@ -132,12 +137,17 @@ def parse_eval_markdown(path: Path) -> list[EvalPrompt]:
         # "Prompt to agent", including ones separated by plain blank lines
         # (e.g. the AUTOMATED EVAL suffix).
         prompt_match = re.search(
-            r'\*\*Prompt to agent:\*\*\s*\n((?:>.*(?:\n|$)|[ \t]*\n(?=[ \t]*\n*>))+)', section
+            r'\*\*Prompt to agent(?: \((?P<mode>[^)\n]*)\))?:\*\*\s*\n'
+            r'(?P<text>(?:>.*(?:\n|$)|[ \t]*\n(?=[ \t]*\n*>))+)', section
         )
         if not prompt_match:
             continue
+        mode = (prompt_match.group('mode') or '').strip().lower()
+        if mode and mode != 'mcp server not connected':
+            raise EvalError(f"{path}: prompt {num}: unknown prompt mode {mode!r}; "
+                            "only '(MCP server not connected)' is supported")
         paragraphs, current = [], []
-        for line in prompt_match.group(1).split('\n'):
+        for line in prompt_match.group('text').split('\n'):
             stripped = line.strip()
             # Drop the "> " marker but keep indentation (code blocks in prompts)
             text = re.sub(r'^>[ ]?', '', stripped).rstrip() if stripped.startswith('>') else ''
@@ -159,7 +169,8 @@ def parse_eval_markdown(path: Path) -> list[EvalPrompt]:
         skip_match = re.search(r'^\*\*Skip in CI:\*\*\s*(.+?)\s*$', section, re.MULTILINE)
         prompts.append(EvalPrompt(path, skill, num, title, prompt_text, expected, must_not,
                                   skip_match.group(1) if skip_match else None,
-                                  _parse_fixtures(section, path, num)))
+                                  _parse_fixtures(section, path, num),
+                                  mcp_disabled=bool(mode)))
     
     return prompts
 
@@ -570,8 +581,12 @@ def _map_verdicts(result: dict[str, Any], expected: list[str],
 
 # ─── agent runner ────────────────────────────────────────────────────────────
 
-def prepare_workspace(eval_prompt: EvalPrompt, agent: str) -> Path:
-    """Create workspace with skills installed."""
+def prepare_workspace(eval_prompt: EvalPrompt, agent: str, install_mode: str = "plugin") -> Path:
+    """Create the agent's workspace: fixtures, plus the skills in copy mode.
+
+    In plugin mode the skills come from the installed plugin (see
+    eval_setup.py), so the workspace holds only what the prompt provides.
+    """
     root = Path(tempfile.mkdtemp(prefix=f"eval-{eval_prompt.prompt_num}-"))
     workspace = root / "workspace"
     workspace.mkdir()
@@ -587,7 +602,10 @@ def prepare_workspace(eval_prompt: EvalPrompt, agent: str) -> Path:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content)
     
-    # Claude uses .claude/skills/, Codex uses .agents/skills/
+    if install_mode == "plugin":
+        return root
+    
+    # Copy mode: Claude uses .claude/skills/, Codex uses .agents/skills/
     if agent == "codex":
         skills_dir = workspace / ".agents" / "skills"
     else:
@@ -712,7 +730,8 @@ def agent_completion_error(result: AgentRunResult, transcript_path: Path, agent:
 def run_agent(eval_prompt: EvalPrompt, args: argparse.Namespace, run_dir: Path) -> AgentRunResult:
     """Run the agent and return transcript + workspace files."""
     run_dir.mkdir(parents=True, exist_ok=True)
-    root = prepare_workspace(eval_prompt, args.agent)
+    install_mode = getattr(args, "install_mode", "copy")
+    root = prepare_workspace(eval_prompt, args.agent, install_mode)
     workspace = root / "workspace"
     
     # Build command based on agent type
@@ -732,10 +751,17 @@ def run_agent(eval_prompt: EvalPrompt, args: argparse.Namespace, run_dir: Path) 
             "--output-format", "stream-json", "--verbose",
             "--permission-mode", "dontAsk",
             "--allowedTools", "Skill", "Read", "Glob", "Grep", "Bash", "Write", "Edit",
+        ]
+        if install_mode == "plugin" and not eval_prompt.mcp_disabled:
+            cmd += [eval_setup.CLAUDE_MCP_TOOLS]  # the plugin's docs MCP server, as users get it
+        cmd += [
             "--disallowedTools", "WebFetch", "WebSearch", "Task",
             "--max-turns", str(DEFAULT_LIMITS["max_turns"]),
             "--max-budget-usd", str(DEFAULT_LIMITS["max_budget_usd"]),
         ]
+        if eval_prompt.mcp_disabled:
+            # No --mcp-config: loads no MCP server at all, the plugin's included
+            cmd += ["--strict-mcp-config"]
         if args.model:
             cmd += ["--model", args.model]
     
@@ -756,6 +782,7 @@ def run_agent(eval_prompt: EvalPrompt, args: argparse.Namespace, run_dir: Path) 
     transcript_path = run_dir / "transcript.jsonl"
     refresh_docker_gateway_token()  # long jobs outlive the ~15-minute gateway token
     env = {k: v for k, v in os.environ.items() if v and k not in HUB_CREDENTIAL_VARS}
+    env.update(getattr(args, "agent_env", None) or {})
     
     exit_code: int | None = None
     timed_out = False
@@ -1009,6 +1036,46 @@ def prune_run_dir(run_dir: Path, out_root: Path) -> None:
         parent = parent.parent
 
 
+def setup_agent(args: argparse.Namespace) -> Callable[[], None]:
+    """Resolve the agent CLI and, in plugin mode, install the plugin.
+
+    Sets args.agent_bin and args.agent_env; returns a cleanup function.
+    Raises eval_setup.SetupError when the CLI or the install is unusable.
+    """
+    if args.agent_bin:
+        if not shutil.which(args.agent_bin):
+            raise eval_setup.SetupError(f"{args.agent_bin} not found")
+        version = eval_setup.check_min_version(args.agent, args.agent_bin)
+    elif args.agent in eval_setup.NPM_PACKAGES:
+        version = eval_setup.resolve_version(args.agent, args.cli_version)
+        args.agent_bin = str(eval_setup.ensure_cli(args.agent, version))
+    else:
+        # Codex: installed by the caller until plugin installs support it
+        args.agent_bin = args.agent
+        if not shutil.which(args.agent_bin):
+            raise eval_setup.SetupError(f"{args.agent_bin} not found")
+        version = eval_setup.check_min_version(args.agent, args.agent_bin)
+    print(f"Agent CLI: {args.agent_bin} ({version})", flush=True)
+    
+    args.agent_env = {}
+    if args.install_mode == "plugin" and args.agent != "claude":
+        print(f"Plugin install mode is not supported for {args.agent} yet; copying skills", flush=True)
+        args.install_mode = "copy"
+    if args.install_mode != "plugin":
+        return lambda: None
+    
+    root = Path(tempfile.mkdtemp(prefix="eval-agent-"))
+    cleanup = lambda: shutil.rmtree(root, ignore_errors=True)  # noqa: E731
+    try:
+        preflight_cwd = root / "preflight"
+        preflight_cwd.mkdir()
+        args.agent_env = eval_setup.setup_claude_plugin(args.agent_bin, root / "claude-config", preflight_cwd)
+    except BaseException:
+        cleanup()
+        raise
+    return cleanup
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--skill", help="Run only this skill's eval")
@@ -1019,7 +1086,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repeat", type=int, default=1, help="Runs per prompt")
     parser.add_argument("--pass-threshold", type=float, default=1.0,
                         help="Minimum pass rate (0.0-1.0) to exit successfully (default: 1.0 = all must pass)")
-    parser.add_argument("--agent-bin", help="Agent CLI binary (default: 'claude' or 'codex')")
+    parser.add_argument("--agent-bin",
+                        help="Use this agent CLI instead of installing one; must not be older than the pinned version")
+    parser.add_argument("--cli-version", default="pinned",
+                        help="Agent CLI version to install: 'pinned' (scripts/eval_cli_versions.json), "
+                             "'latest', or X.Y.Z (default: pinned)")
+    parser.add_argument("--install-mode", choices=["plugin", "copy"], default="plugin",
+                        help="'plugin' installs the plugin from this checkout as users get it (default); "
+                             "'copy' copies skills/ into each workspace")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--keep", action="store_true", help="Keep workspaces")
     parser.add_argument("--include-skipped", action="store_true",
@@ -1029,17 +1103,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--regrade", type=Path,
                         help="Re-grade a saved run without re-running the agent (calls the live judge)")
     parser.add_argument("--list", action="store_true", help="List evals")
+    parser.add_argument("--check-install", action="store_true",
+                        help="Install the agent CLI and the plugin, check what a session loads, and exit "
+                             "(no model call, no API key needed)")
     args = parser.parse_args(argv)
     
     # Set default model based on agent if not specified
     if args.model is None:
         args.model = "sonnet" if args.agent == "claude" else "gpt-6-luna"
-    
-    # Set defaults based on agent
-    if args.agent_bin is None:
-        args.agent_bin = "codex" if args.agent == "codex" else "claude"
-    if args.model is None:
-        args.model = "" if args.agent == "codex" else "sonnet"
     
     if args.list:
         try:
@@ -1056,6 +1127,14 @@ def main(argv: list[str] | None = None) -> int:
         print_results(str(args.regrade), results, args.regrade)
         return 0 if all(r.passed for r in results) else 1
     
+    if args.check_install:
+        try:
+            setup_agent(args)()
+        except eval_setup.SetupError as e:
+            print(f"Agent setup failed: {e}", file=sys.stderr)
+            return 1
+        return 0
+    
     try:
         prompts = discover_evals(args.skill, args.prompt)
     except EvalError as e:
@@ -1065,14 +1144,23 @@ def main(argv: list[str] | None = None) -> int:
         print("No evals found", file=sys.stderr)
         return 2
     
-    if not shutil.which(args.agent_bin):
-        print(f"{args.agent_bin} not found", file=sys.stderr)
-        return 2
-    
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print("ANTHROPIC_API_KEY required", file=sys.stderr)
         return 2
     
+    try:
+        cleanup = setup_agent(args)
+    except eval_setup.SetupError as e:
+        print(f"Agent setup failed: {e}", file=sys.stderr)
+        return 2
+    try:
+        return run_prompts(prompts, args)
+    finally:
+        cleanup()
+
+
+def run_prompts(prompts: list[EvalPrompt], args: argparse.Namespace) -> int:
+    """Run and grade every prompt, print the summary, and return the exit code."""
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     all_results = []  # (label, results, duration_secs)
     skill_times: dict[str, list[float]] = {}  # skill -> list of durations

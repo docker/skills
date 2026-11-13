@@ -108,10 +108,38 @@ Or use the task:
 task eval:judge -- --skill docker-sandboxes-lifecycle --prompt 1
 ```
 
+### How the agent gets the skills
+
+Each run installs the plugin the way users get it, so the evals also cover
+the plugin manifests, the namespaced skill names (`docker-skills:<id>`), and
+the plugin's `docker-docs` MCP server:
+
+1. The agent CLI is installed from npm into `.eval-tools/<agent>-<version>/`
+   at the version pinned in
+   [`scripts/eval_cli_versions.json`](../scripts/eval_cli_versions.json).
+   `--cli-version latest` or `--cli-version X.Y.Z` picks another release;
+   `--agent-bin` uses an existing CLI, which must not be older than the pin.
+   Pull requests use the pin, and the weekly run uses the latest release.
+2. The CLI adds this checkout as a marketplace and installs `docker-skills`
+   into a throwaway config directory (`CLAUDE_CONFIG_DIR`), so your own
+   plugins and settings stay out of the run, and your `sbx` and Docker
+   logins keep working.
+3. A headless session, started with an invalid API key so no model is
+   called, must load exactly the skills under `skills/` and the MCP server.
+   Otherwise the run stops before the first prompt.
+
+`--check-install` runs only these steps and needs no API key; CI runs it on
+every pull request. A prompt labeled `**Prompt to agent (MCP server not
+connected):**` runs without the MCP server, to cover the fallback.
+`--install-mode copy` restores the previous behavior of copying `skills/`
+into each workspace. Plugin installs are not yet supported for Codex, which
+still uses copy mode.
+
 ### Requirements
 
-- Claude Code CLI (`claude`) or Codex CLI (`codex`)
-- `ANTHROPIC_API_KEY` environment variable (for the LLM judge)
+- npm, to install the pinned Claude Code CLI; or a Codex CLI (`codex`)
+- `ANTHROPIC_API_KEY` environment variable (for the LLM judge, and for Claude
+  Code unless it uses `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`)
 
 ### Output
 

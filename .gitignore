@@ -6,6 +6,7 @@
 .data/
 .skill-evals/
 .eval-judge/
+.eval-tools/
 
 # Environment, credentials, and key material
 .env
