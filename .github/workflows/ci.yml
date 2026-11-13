@@ -23,3 +23,24 @@ jobs:
         env:
           VERSION_CHECK_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: bash scripts/ci.sh
+
+  marketplace-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLAUDE_CODE_VERSION: "2.1.316"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Claude Code
+        run: |
+          npm install --global --ignore-scripts "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+          node "$(npm root --global)/@anthropic-ai/claude-code/install.cjs"
+
+      - name: Validate plugin and marketplace manifests
+        # Deterministic and offline (no model call), so it runs on every PR.
+        # --strict fails on warnings (unknown fields, missing metadata) that
+        # Claude Code otherwise silently ignores at load time.
+        run: claude plugin validate . --strict

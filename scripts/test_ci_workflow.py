@@ -48,6 +48,18 @@ class CIWorkflowTests(unittest.TestCase):
         self.assertIn('-v "{{.ROOT_DIR}}:/work:ro"', taskfile)
         self.assertNotIn("check_external_links.py", CI_SCRIPT)
 
+    def test_marketplace_validation_runs_strict_on_every_pull_request(self):
+        job = WORKFLOW[WORKFLOW.index("  marketplace-validation:"):]
+        self.assertRegex(job, r'CLAUDE_CODE_VERSION: "\d+\.\d+\.\d+"')
+        self.assertIn("--ignore-scripts", job)
+        self.assertIn("persist-credentials: false", job)
+        self.assertIn("run: claude plugin validate . --strict", job)
+        # Manifest-only changes must not trigger live evals, which never read them
+        evals = (REPO_ROOT / ".github" / "workflows" / "skill-evals.yml").read_text()
+        self.assertNotIn("plugin validate", evals)
+        for path in (".claude-plugin", ".codex-plugin", ".agents/"):
+            self.assertNotIn(path, evals)
+
     def test_python_dependency_is_fully_pinned(self):
         requirements_in = (REPO_ROOT / "scripts" / "requirements.in").read_text()
         requirements = (REPO_ROOT / "scripts" / "requirements.txt").read_text()
