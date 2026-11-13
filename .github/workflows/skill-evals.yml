@@ -161,7 +161,9 @@ jobs:
       (inputs.agent == 'claude' || inputs.agent == 'both' || inputs.agent == '') &&
       needs.detect-changes.outputs.skills != '[]'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Worst case: ~9 prompts x 300s agent timeout, twice (first attempt + retry),
+    # plus setup and judging. Real runs take <20 min.
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -208,6 +210,9 @@ jobs:
 
       - name: Run eval for ${{ matrix.skill }} (Claude)
         id: eval
+        # Below the job limit, so a runaway eval fails the step (not the whole job)
+        # and the failure artifacts still upload
+        timeout-minutes: 110
         env:
           SKILL: ${{ matrix.skill }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -266,7 +271,9 @@ jobs:
       (inputs.agent == 'codex' || inputs.agent == 'both' || inputs.agent == '') &&
       needs.detect-changes.outputs.skills != '[]'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Worst case: ~9 prompts x 300s agent timeout, twice (first attempt + retry),
+    # plus setup and judging. Real runs take <20 min.
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -342,6 +349,9 @@ jobs:
 
       - name: Run eval for ${{ matrix.skill }} (Codex)
         id: eval
+        # Below the job limit, so a runaway eval fails the step (not the whole job)
+        # and the failure artifacts still upload
+        timeout-minutes: 110
         env:
           SKILL: ${{ matrix.skill }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
