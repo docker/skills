@@ -83,7 +83,7 @@ head -1 Dockerfile | grep -q 'syntax=docker/dockerfile' && echo "PASS" || echo "
 - [ ] Build stage uses a Node.js image for compiling
 - [ ] Runtime stage uses a slim or Alpine-based image (e.g., `node:20-slim` or `node:20-alpine`)
 - [ ] Shows `package.json` and `package-lock.json` copied before source (layer caching)
-- [ ] Uses `npm ci` instead of `npm install` for reproducible builds
+- [ ] Uses `npm ci` instead of `npm install` for reproducible builds, or mentions that `npm ci` requires a lockfile (`package-lock.json`)
 - [ ] Only production dependencies and built output are in the runtime stage
 - [ ] Recommends or shows a `.dockerignore`
 - [ ] Sets a non-root user in the runtime stage
@@ -93,7 +93,7 @@ head -1 Dockerfile | grep -q 'syntax=docker/dockerfile' && echo "PASS" || echo "
 - [ ] Must NOT keep the single-stage pattern with the full `node:20` image as final
 - [ ] Must NOT copy `node_modules/` from the host (should install inside the build stage)
 - [ ] Must NOT leave the application running as root
-- [ ] Must NOT use `npm install` in production (should use `npm ci`)
+- [ ] Must NOT use `npm install` in production (should use `npm ci`) without mentioning that `npm ci` requires a lockfile
 - [ ] Must NOT use `latest` as a base image tag
 - [ ] Must NOT `COPY .npmrc` (or `.pypirc`, `.netrc`, `pip.conf`, `settings.xml`, `~/.aws/credentials`, SSH keys) into any stage — credential files belong in `--mount=type=secret`.
 - [ ] Must NOT pass credentials via `ARG ..._TOKEN` / `..._KEY` / `..._SECRET` / `..._PASSWORD` (visible in `docker history`).

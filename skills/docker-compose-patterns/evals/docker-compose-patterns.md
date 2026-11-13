@@ -169,7 +169,7 @@ docker compose down -v
 - [ ] Override sets the `api` service to build from source instead of using a prebuilt image (using `build:` directive)
 - [ ] Override adds a bind mount or `develop.watch` for live-reloading application source code
 - [ ] Override sets `NODE_ENV` to `development`
-- [ ] Agent explains that Compose automatically merges `compose.yaml` and `compose.override.yaml`
+- [ ] Agent mentions that Compose automatically merges `compose.yaml` and `compose.override.yaml`
 
 ### Must not
 
