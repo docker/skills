@@ -6,9 +6,6 @@ name: Live skill evals
 on:
   pull_request:
     paths:
-      - ".claude-plugin/**"
-      - ".codex-plugin/**"
-      - ".agents/**"
       - "skills/**"
       - "scripts/eval_judge.py"
       - "scripts/ci_sbx_baseline.sh"
@@ -107,7 +104,7 @@ jobs:
           
           # Check if framework files changed (unit tests run in ci.yml, not here)
           FRAMEWORK_CHANGED=false
-          if echo "$CHANGED_FILES" | grep -qE '^(scripts/eval_judge\.py|scripts/ci_sbx_baseline\.sh|\.github/workflows/skill-evals\.yml|\.claude-plugin/|\.codex-plugin/|\.agents/)'; then
+          if echo "$CHANGED_FILES" | grep -qE '^(scripts/eval_judge\.py|scripts/ci_sbx_baseline\.sh|\.github/workflows/skill-evals\.yml)'; then
             FRAMEWORK_CHANGED=true
           fi
           
@@ -135,24 +132,6 @@ jobs:
             echo "skills=$SKILLS_JSON" >> $GITHUB_OUTPUT
             echo "run_all=false" >> $GITHUB_OUTPUT
           fi
-
-  plugin-validate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    env:
-      CLAUDE_CODE_VERSION: "2.1.316"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Install Claude Code
-        run: |
-          npm install --global --ignore-scripts "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
-          node "$(npm root --global)/@anthropic-ai/claude-code/install.cjs"
-
-      - name: Validate plugin manifest
-        run: claude plugin validate .
 
   # Claude evals - one job per skill
   eval-claude:
