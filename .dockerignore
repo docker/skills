@@ -17,6 +17,8 @@ CLAUDE.md
 **/.sbx
 **/.data
 **/.skill-evals
+**/.eval-judge
+**/.eval-tools
 **/.venv
 **/.env
 **/.env.*
