@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 import unittest
 import xml.etree.ElementTree as ET
@@ -56,7 +57,7 @@ class ClaudeMarketplaceControlsTests(unittest.TestCase):
 
 
 class ClaudePluginIconTests(unittest.TestCase):
-    def test_checked_in_icon_is_plain_square_docker_mark(self):
+    def test_checked_in_icon_is_flat_docker_mark_for_both_themes(self):
         root = Path(__file__).resolve().parent.parent
         plugin = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
         self.assertEqual(plugin["icon"], "./.claude-plugin/docker.svg")
@@ -69,17 +70,40 @@ class ClaudePluginIconTests(unittest.TestCase):
 
         svg = ET.fromstring(content)
         self.assertEqual(svg.tag, "{http://www.w3.org/2000/svg}svg")
-        self.assertEqual(svg.attrib, {"width": "340", "height": "340", "viewBox": "0 -36 340 340"})
-        self.assertEqual(len(svg), 1)
-        path = svg[0]
+        self.assertEqual(svg.attrib, {"width": "340", "height": "340", "viewBox": "0 0 340 340"})
+        self.assertEqual(len(svg), 2)
+        style, path = svg
+        # A flat whale with no tile: black on light hosts, white under a dark color scheme.
+        self.assertEqual(style.tag, "{http://www.w3.org/2000/svg}style")
+        self.assertEqual(
+            style.text, "path{fill:#101010}@media (prefers-color-scheme:dark){path{fill:#fff}}"
+        )
         self.assertEqual(path.tag, "{http://www.w3.org/2000/svg}path")
         self.assertEqual(len(path), 0)
-        self.assertEqual(set(path.attrib), {"d", "fill"})
-        self.assertEqual(path.attrib["fill"], "#2560ff")
-        self.assertTrue(path.attrib["d"].startswith("M334,110.1"))
+        self.assertEqual(set(path.attrib), {"d", "transform"})
+        self.assertTrue(path.attrib["d"].startswith("M1077.76,0c"))
+        # The whole symbol (1251.74 x 754.67) is centered in the 340 x 340 icon.
+        tx, ty, scale = (
+            float(v) for v in re.fullmatch(
+                r"translate\(([-\d.]+) ([-\d.]+)\) scale\(([-\d.]+)\)", path.attrib["transform"]
+            ).groups()
+        )
+        self.assertAlmostEqual(tx + 1251.74 * scale / 2, 170, delta=0.5)
+        self.assertAlmostEqual(ty + 754.67 * scale / 2, 170, delta=0.5)
+        self.assertGreaterEqual(tx, 0)
+        self.assertGreaterEqual(ty, 0)
+        self.assertLessEqual(tx + 1251.74 * scale, 340.01)
+        self.assertLessEqual(ty + 754.67 * scale, 340.01)
         self.assertFalse((svg.text or "").strip())
         self.assertFalse((path.text or "").strip())
         self.assertFalse((path.tail or "").strip())
+
+    def test_resources_icon_matches_plugin_icon(self):
+        root = Path(__file__).resolve().parent.parent
+        self.assertEqual(
+            (root / "resources/docker.svg").read_bytes(),
+            (root / ".claude-plugin/docker.svg").read_bytes(),
+        )
 
 
 class ClaudePluginListingLinkTests(unittest.TestCase):

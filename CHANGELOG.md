@@ -45,6 +45,8 @@ for distribution releases.
 
 ### Changed
 
+- The plugin icon is now the new Docker logo, black by default and white
+  under a dark color scheme.
 - `docker-sandboxes-kits` 1.0.4 now owns referencing, configuring, and pinning a
   kit from an `sbxenv.yaml` `agent:`/`kits:` entry. A new
   `references/sbxenv-kit-references.md` covers reference shapes, handles,
