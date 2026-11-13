@@ -189,7 +189,10 @@ def discover_evals(skill_name: str | None, prompt_num: int | None) -> list[EvalP
     
     Looks for eval files in two places:
       1. skills/<skill>/evals/<skill>.md (preferred)
-      2. evals/<skill>.md (legacy)
+      2. evals/<skill>.md (legacy, only when there is no preferred file)
+
+    An invalid eval file raises EvalError: a broken preferred file must never
+    silently fall back to the legacy runbook.
     """
     prompts = []
     seen_skills = set()
@@ -203,11 +206,10 @@ def discover_evals(skill_name: str | None, prompt_num: int | None) -> list[EvalP
         
         eval_file = skill_dir / "evals" / f"{skill_dir.name}.md"
         if eval_file.exists():
-            try:
-                prompts.extend(parse_eval_markdown(eval_file))
-                seen_skills.add(skill_dir.name)
-            except EvalError as e:
-                print(f"Warning: {e}", file=sys.stderr)
+            # Mark the skill as seen before parsing, so a parse error is not
+            # papered over by the legacy copy
+            seen_skills.add(skill_dir.name)
+            prompts.extend(parse_eval_markdown(eval_file))
     
     # Then, check evals/<skill>.md (legacy location)
     for md in sorted(EVALS_ROOT.glob("*.md")):
@@ -218,10 +220,7 @@ def discover_evals(skill_name: str | None, prompt_num: int | None) -> list[EvalP
             continue
         if skill_name and md.stem != skill_name:
             continue
-        try:
-            prompts.extend(parse_eval_markdown(md))
-        except EvalError as e:
-            print(f"Warning: {e}", file=sys.stderr)
+        prompts.extend(parse_eval_markdown(md))
     
     if prompt_num is not None:
         prompts = [p for p in prompts if p.prompt_num == prompt_num]
@@ -1023,7 +1022,12 @@ def main(argv: list[str] | None = None) -> int:
         args.model = "" if args.agent == "codex" else "sonnet"
     
     if args.list:
-        for p in discover_evals(args.skill, args.prompt):
+        try:
+            listed = discover_evals(args.skill, args.prompt)
+        except EvalError as e:
+            print(f"Invalid eval file: {e}", file=sys.stderr)
+            return 2
+        for p in listed:
             print(f"{p.id}: {p.title} ({len(p.expected_behaviors)} expected, {len(p.must_not)} must-not)")
         return 0
     
@@ -1032,7 +1036,11 @@ def main(argv: list[str] | None = None) -> int:
         print_results(str(args.regrade), results, args.regrade)
         return 0 if all(r.passed for r in results) else 1
     
-    prompts = discover_evals(args.skill, args.prompt)
+    try:
+        prompts = discover_evals(args.skill, args.prompt)
+    except EvalError as e:
+        print(f"Invalid eval file: {e}", file=sys.stderr)
+        return 2
     if not prompts:
         print("No evals found", file=sys.stderr)
         return 2

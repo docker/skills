@@ -194,6 +194,36 @@ class DiscoverEvalsTests(unittest.TestCase):
         # Should be from the skills directory
         self.assertIn("skills/docker-sandboxes-lifecycle/evals", str(list(eval_files)[0]))
 
+    def _layout(self, preferred_body, legacy_body="## Prompt 1: legacy\n\n**Prompt to agent:**\n\n> old\n\n### Expected behaviors\n- [ ] x\n"):
+        from unittest import mock
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(eval_judge.shutil.rmtree, root, True)
+        (root / "skills" / "s" / "evals").mkdir(parents=True)
+        (root / "evals").mkdir()
+        (root / "skills" / "s" / "evals" / "s.md").write_text("# Eval: s\n\n" + preferred_body)
+        (root / "evals" / "s.md").write_text("# Eval: s\n\n" + legacy_body)
+        return mock.patch.multiple(eval_judge, SKILLS_ROOT=root / "skills", EVALS_ROOT=root / "evals")
+
+    def test_invalid_preferred_eval_does_not_fall_back_to_legacy(self):
+        broken = ("## Prompt 1: new\n\n**Prompt to agent:**\n\n> new\n\n**Fixtures:**\n\n"
+                  "`../escape.txt`:\n```\nx\n```\n\n### Expected behaviors\n- [ ] y\n")
+        with self._layout(broken):
+            with self.assertRaises(eval_judge.EvalError):
+                eval_judge.discover_evals("s", None)
+
+    def test_valid_preferred_eval_shadows_legacy(self):
+        ok = "## Prompt 1: new\n\n**Prompt to agent:**\n\n> new\n\n### Expected behaviors\n- [ ] y\n"
+        with self._layout(ok):
+            prompts = eval_judge.discover_evals("s", None)
+        self.assertEqual([p.title for p in prompts], ["new"])
+
+    def test_main_reports_invalid_eval_with_exit_2(self):
+        from unittest import mock
+        broken = "## Prompt 1: new\n\n**Prompt to agent:**\n\n> new\n\n**Fixtures:**\n\nnone\n\n### Expected behaviors\n- [ ] y\n"
+        with self._layout(broken), mock.patch.dict(eval_judge.os.environ, {"ANTHROPIC_API_KEY": "k"}):
+            self.assertEqual(eval_judge.main(["--skill", "s"]), 2)
+            self.assertEqual(eval_judge.main(["--list", "--skill", "s"]), 2)
+
 
 class TranscriptToTextTests(unittest.TestCase):
     def test_converts_assistant_text(self):
