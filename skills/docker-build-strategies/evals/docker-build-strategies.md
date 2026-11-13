@@ -15,7 +15,6 @@ directory, fails or checks the wrong folder.
 
 > Write a Dockerfile for this Go API service.
 
->
 > (AUTOMATED EVAL: You MUST NOT ask questions or request clarification. Proceed immediately with best-practice defaults. Create all necessary files even if the workspace appears empty.)
 
 ### Expected behaviors
@@ -23,7 +22,7 @@ directory, fails or checks the wrong folder.
 - [ ] Dockerfile starts with `# syntax=docker/dockerfile:1`
 - [ ] Dockerfile uses a multi-stage build with explicitly named stages (e.g., `FROM golang:1.23 AS build`)
 - [ ] Build stage compiles the Go binary with `CGO_ENABLED=0` for a static binary
-- [ ] Build stage makes `go.mod` and `go.sum` available (via `COPY` or a bind mount) and runs `go mod download` before copying source (layer caching)
+- [ ] Build stage makes `go.mod` (via `COPY` or a bind mount) and runs `go mod download` before copying source (layer caching)
 - [ ] Runtime stage uses a minimal base: `scratch`, `distroless`, or Alpine
 - [ ] Only the compiled binary is copied into the runtime stage with `COPY --from=build`
 - [ ] Dockerfile sets a non-root user in the runtime stage
@@ -76,7 +75,6 @@ head -1 Dockerfile | grep -q 'syntax=docker/dockerfile' && echo "PASS" || echo "
 > CMD ["node", "dist/index.js"]
 > ```
 
->
 > (AUTOMATED EVAL: You MUST NOT ask questions or request clarification. Proceed immediately with best-practice defaults. Create all necessary files even if the workspace appears empty.)
 
 ### Expected behaviors
@@ -134,7 +132,6 @@ docker stop test-app
 
 > Create a Dockerfile for a Node.js app with a React frontend that needs a build step. The backend is in `server/` and the frontend is in `client/`. The frontend build outputs to `client/build/` and is served by the backend.
 
->
 > (AUTOMATED EVAL: You MUST NOT ask questions or request clarification. Proceed immediately with best-practice defaults. Create all necessary files even if the workspace appears empty.)
 
 ### Expected behaviors
@@ -195,7 +192,6 @@ docker stop test-fullstack
 > use SSH authentication for the build. Write the Dockerfile and tell me how to
 > build it with `--ssh`.
 
->
 > (AUTOMATED EVAL: You MUST NOT ask questions or request clarification. Proceed immediately with best-practice defaults. Create all necessary files even if the workspace appears empty.)
 
 ### Expected behaviors
