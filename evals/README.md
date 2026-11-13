@@ -93,7 +93,7 @@ python3 scripts/eval_judge.py --skill docker-sandboxes-lifecycle --prompt 1
 
 # Re-grade a saved run without re-running the agent (reuses its saved transcript
 # and workspace files; still calls the live judge, so it needs network access and
-# ANTHROPIC_API_KEY, or the gateway token for a gpt-*/luna --judge-model)
+# a Docker AI Gateway token)
 python3 scripts/eval_judge.py --regrade .eval-judge/<timestamp>/<skill>/prompt-N/1
 ```
 
@@ -106,7 +106,16 @@ task eval:judge -- --skill docker-sandboxes-lifecycle --prompt 1
 ### Requirements
 
 - Claude Code CLI (`claude`) or Codex CLI (`codex`)
-- `ANTHROPIC_API_KEY` environment variable (for the LLM judge)
+- A Docker AI Gateway token, used by Claude Code and the LLM judge (no
+  `ANTHROPIC_API_KEY` needed). Locally it is read from Docker Desktop's
+  credential store (sign in to Docker Desktop); otherwise set
+  `DOCKER_GATEWAY_TOKEN`. In CI the harness mints it from Docker Hub
+  credentials (`DOCKERPUBLICBOT_USERNAME`/`DOCKERPUBLICBOT_READ_PAT`).
+  Claude Code runs with an empty `CLAUDE_CONFIG_DIR` and `--setting-sources
+  project`, with `ANTHROPIC_*`/`CLAUDE_CODE_OAUTH_*` variables stripped, so a
+  local Claude login, API key, or `apiKeyHelper` is never used.
+  Codex still needs a `docker-gateway` model provider in `~/.codex/config.toml`
+  (see `.github/workflows/skill-evals.yml`).
 
 ### Output
 

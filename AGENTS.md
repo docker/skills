@@ -44,8 +44,9 @@ are required; validation runs in pinned container images.
   an LLM judge; see
   [evals/README.md](evals/README.md#llm-as-judge-evaluations). Filter with
   `task eval:judge -- --skill <id> [--prompt N]`. It needs `claude` or `codex`,
-  `ANTHROPIC_API_KEY`, and an authenticated `sbx` for sandbox skills. Runs
-  separately from offline `task`/`task ci`.
+  a Docker AI Gateway token (read from Docker Desktop locally, minted from Hub
+  credentials in CI; no `ANTHROPIC_API_KEY`), and an authenticated `sbx` for
+  sandbox skills. Runs separately from offline `task`/`task ci`.
 - `task links`: check local Markdown destinations and heading anchors.
 - `task links:external`: opt-in live HTTPS link check; runs separately from
   offline `task`/`task ci` in a pinned container.

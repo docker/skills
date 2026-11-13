@@ -152,7 +152,7 @@ class SkipInCiTests(unittest.TestCase):
         with mock.patch.object(eval_judge, "discover_evals", return_value=prompts), \
              mock.patch.object(eval_judge, "run_and_grade", side_effect=fake_run), \
              mock.patch.object(eval_judge.shutil, "which", return_value="/usr/bin/claude"), \
-             mock.patch.dict(eval_judge.os.environ, {"ANTHROPIC_API_KEY": "k"}), \
+             mock.patch.dict(eval_judge.os.environ, {"DOCKER_GATEWAY_TOKEN": "t"}), \
              tempfile.TemporaryDirectory() as out:
             rc = eval_judge.main(["--out", out] + extra)
         return rc, ran
@@ -215,7 +215,7 @@ class DiscoverEvalsTests(unittest.TestCase):
     def test_main_reports_invalid_eval_with_exit_2(self):
         from unittest import mock
         broken = "## Prompt 1: new\n\n**Prompt to agent:**\n\n> new\n\n**Fixtures:**\n\nnone\n\n### Expected behaviors\n- [ ] y\n"
-        with self._layout(broken), mock.patch.dict(eval_judge.os.environ, {"ANTHROPIC_API_KEY": "k"}):
+        with self._layout(broken), mock.patch.dict(eval_judge.os.environ, {"DOCKER_GATEWAY_TOKEN": "t"}):
             self.assertEqual(eval_judge.main(["--skill", "s"]), 2)
             self.assertEqual(eval_judge.main(["--list", "--skill", "s"]), 2)
 
@@ -583,7 +583,7 @@ class PrunePassingTests(unittest.TestCase):
         with mock.patch.object(eval_judge, "discover_evals", return_value=prompts), \
              mock.patch.object(eval_judge, "run_and_grade", side_effect=fake_run), \
              mock.patch.object(eval_judge.shutil, "which", return_value="/usr/bin/claude"), \
-             mock.patch.dict(eval_judge.os.environ, {"ANTHROPIC_API_KEY": "k"}):
+             mock.patch.dict(eval_judge.os.environ, {"DOCKER_GATEWAY_TOKEN": "t"}):
             rc = eval_judge.main(["--out", str(out)] + extra)
         files = sorted(p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file())
         return rc, out, files
@@ -668,6 +668,43 @@ class GatewayTokenRefreshTests(unittest.TestCase):
         self.assertIn("DOCKER_GATEWAY_TOKEN", env)
 
 
+class AgentGatewayEnvTests(unittest.TestCase):
+    def _agent_env(self, agent):
+        import argparse
+        from unittest import mock
+        ep = eval_judge.EvalPrompt(skill="s", eval_file=eval_judge.REPO_ROOT / "evals" / "x.md",
+                                   prompt_num=1, title="t", prompt="p",
+                                   expected_behaviors=[], must_not=[])
+        args = argparse.Namespace(agent=agent, agent_bin=agent, model="")
+        run_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(eval_judge.shutil.rmtree, run_dir, True)
+        with mock.patch.dict(eval_judge.os.environ, {"DOCKER_GATEWAY_TOKEN": "t", "ANTHROPIC_API_KEY": "k",
+                                                     "CLAUDE_CODE_OAUTH_TOKEN": "o", "CLAUDE_CODE_USE_BEDROCK": "1",
+                                                     "CLAUDE_CONFIG_DIR": "/home/me/.claude"}), \
+             mock.patch.object(eval_judge, "refresh_docker_gateway_token"), \
+             mock.patch.object(eval_judge.subprocess, "run", return_value=mock.Mock(returncode=0)) as run:
+            result = eval_judge.run_agent(ep, args, run_dir)
+        eval_judge.shutil.rmtree(result.workspace_path, True)
+        self.workspace_root = result.workspace_path
+        return run.call_args.args[0], run.call_args.kwargs["env"]
+
+    def test_claude_uses_gateway_not_api_key(self):
+        cmd, env = self._agent_env("claude")
+        self.assertNotIn("ANTHROPIC_API_KEY", env)
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
+        self.assertNotIn("CLAUDE_CODE_USE_BEDROCK", env)
+        self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(self.workspace_root / "claude-config"))
+        self.assertEqual(env["ANTHROPIC_BASE_URL"], eval_judge.GATEWAY_ANTHROPIC_URL)
+        self.assertEqual(env["ANTHROPIC_AUTH_TOKEN"], "t")
+        self.assertEqual(cmd[cmd.index("--setting-sources") + 1], "project")
+
+    def test_codex_gets_gateway_token(self):
+        _, env = self._agent_env("codex")
+        self.assertEqual(env["DOCKER_GATEWAY_TOKEN"], "t")
+        self.assertNotIn("ANTHROPIC_AUTH_TOKEN", env)
+        self.assertEqual(env["CLAUDE_CONFIG_DIR"], "/home/me/.claude")  # codex env untouched
+
+
 class ParseJudgeJsonTests(unittest.TestCase):
     def test_plain_json(self):
         self.assertEqual(eval_judge.parse_judge_json('{"evaluations": []}'), {"evaluations": []})
@@ -702,7 +739,7 @@ class JudgeRetryTests(unittest.TestCase):
         resp.__enter__.return_value = io.BytesIO(json.dumps(
             {"content": [], "stop_reason": "max_tokens"}).encode())
         with mock.patch("urllib.request.urlopen", return_value=resp), \
-             mock.patch.dict(eval_judge.os.environ, {"ANTHROPIC_API_KEY": "k"}):
+             mock.patch.dict(eval_judge.os.environ, {"DOCKER_GATEWAY_TOKEN": "t"}):
             with self.assertRaises(json.JSONDecodeError) as ctx:
                 eval_judge.call_judge("p", "claude-sonnet-4-5")
         self.assertIn("stop_reason=max_tokens", str(ctx.exception))
@@ -714,10 +751,18 @@ class JudgeRetryTests(unittest.TestCase):
         resp = mock.MagicMock()
         resp.__enter__.return_value = io.BytesIO(json.dumps(reply).encode())
         with mock.patch("urllib.request.urlopen", return_value=resp) as m, \
-             mock.patch.dict(eval_judge.os.environ, {"ANTHROPIC_API_KEY": "k", "DOCKER_GATEWAY_TOKEN": "t"}), \
+             mock.patch.dict(eval_judge.os.environ, {"DOCKER_GATEWAY_TOKEN": "t"}), \
              mock.patch.object(eval_judge, "refresh_docker_gateway_token"):
             parsed = eval_judge.call_judge("p", model)
+        self.last_request = m.call_args.args[0]
         return json.loads(m.call_args.args[0].data), parsed
+
+    def test_claude_judge_uses_gateway_anthropic_endpoint(self):
+        reply = {"content": [{"text": ']}'}], "stop_reason": "end_turn"}
+        self._capture_request("claude-sonnet-4-5", reply)
+        self.assertEqual(self.last_request.full_url, f"{eval_judge.GATEWAY_ANTHROPIC_URL}/v1/messages")
+        self.assertEqual(self.last_request.get_header("Authorization"), "Bearer t")
+        self.assertIsNone(self.last_request.get_header("X-api-key"))
 
     def test_anthropic_request_prefills_json_and_reply_is_completed(self):
         reply = {"content": [{"text": '{"criterion_number": 1, "criterion_type": "expected", "passed": true}]}'}],
