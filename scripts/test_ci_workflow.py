@@ -1,4 +1,5 @@
 import pathlib
+import re
 import unittest
 
 
@@ -53,7 +54,14 @@ class CIWorkflowTests(unittest.TestCase):
         self.assertRegex(job, r'CLAUDE_CODE_VERSION: "\d+\.\d+\.\d+"')
         self.assertIn("--ignore-scripts", job)
         self.assertIn("persist-credentials: false", job)
-        self.assertIn("run: claude plugin validate . --strict", job)
+        self.assertIn("run: claude plugin validate . --strict --profile directory", job)
+        # The release plan job must run the same check with the same pinned version
+        release = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text()
+        plan = release[release.index("  plan:"):release.index("\n  tag:")]
+        self.assertIn("run: claude plugin validate . --strict --profile directory", plan)
+        self.assertIn("--ignore-scripts", plan)
+        version = re.search(r'CLAUDE_CODE_VERSION: "(\d+\.\d+\.\d+)"', job).group(1)
+        self.assertIn(f'CLAUDE_CODE_VERSION: "{version}"', plan)
         # Manifest-only changes must not trigger live evals, which never read them
         evals = (REPO_ROOT / ".github" / "workflows" / "skill-evals.yml").read_text()
         self.assertNotIn("plugin validate", evals)

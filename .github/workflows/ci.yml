@@ -43,4 +43,6 @@ jobs:
         # Deterministic and offline (no model call), so it runs on every PR.
         # --strict fails on warnings (unknown fields, missing metadata) that
         # Claude Code otherwise silently ignores at load time.
-        run: claude plugin validate . --strict
+        # --profile directory also fails when the Claude plugin directory would
+        # refuse a submission (e.g. missing README, unusable MCP or hooks file).
+        run: claude plugin validate . --strict --profile directory
