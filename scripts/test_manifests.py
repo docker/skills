@@ -57,7 +57,7 @@ class ClaudeMarketplaceControlsTests(unittest.TestCase):
 
 
 class ClaudePluginIconTests(unittest.TestCase):
-    def test_checked_in_icon_is_flat_docker_mark_for_both_themes(self):
+    def test_checked_in_icon_is_docker_tile(self):
         root = Path(__file__).resolve().parent.parent
         plugin = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
         self.assertEqual(plugin["icon"], "./.claude-plugin/docker.svg")
@@ -67,34 +67,38 @@ class ClaudePluginIconTests(unittest.TestCase):
         text = content.decode("utf-8")
         self.assertTrue(text.startswith("<svg "))
         self.assertNotRegex(text, r"(?i)<!|<\?|\b(?:xmlns:|xlink:|url\s*\(|(?:href|on[a-z]+)\s*=)")
+        # No <style>: directory icon validation rejects it.
+        self.assertNotIn("<style", text)
 
         svg = ET.fromstring(content)
         self.assertEqual(svg.tag, "{http://www.w3.org/2000/svg}svg")
         self.assertEqual(svg.attrib, {"width": "340", "height": "340", "viewBox": "0 0 340 340"})
         self.assertEqual(len(svg), 2)
-        style, path = svg
-        # A flat whale with no tile: black on light hosts, white under a dark color scheme.
-        self.assertEqual(style.tag, "{http://www.w3.org/2000/svg}style")
-        self.assertEqual(
-            style.text, "path{fill:#101010}@media (prefers-color-scheme:dark){path{fill:#fff}}"
-        )
+        tile, path = svg
+        # The 2026 Docker tile: the black whale on a full-bleed #6172FF square, which reads on
+        # light and dark hosts alike.
+        self.assertEqual(tile.tag, "{http://www.w3.org/2000/svg}rect")
+        self.assertEqual(tile.attrib, {"width": "340", "height": "340", "fill": "#6172FF"})
         self.assertEqual(path.tag, "{http://www.w3.org/2000/svg}path")
         self.assertEqual(len(path), 0)
-        self.assertEqual(set(path.attrib), {"d", "transform"})
+        self.assertEqual(set(path.attrib), {"d", "fill", "transform"})
+        self.assertEqual(path.attrib["fill"], "#101010")
         self.assertTrue(path.attrib["d"].startswith("M1077.76,0c"))
-        # The whole symbol (1251.74 x 754.67) is centered in the 340 x 340 icon.
+        # Same geometry as the 2026 tile export (512 px: whale box from 120.5, 166, scale 0.2485):
+        # the whale is about 61% of the tile wide and centered on its mass, so its box sits a
+        # little right of and below center because of the tail.
         tx, ty, scale = (
             float(v) for v in re.fullmatch(
                 r"translate\(([-\d.]+) ([-\d.]+)\) scale\(([-\d.]+)\)", path.attrib["transform"]
             ).groups()
         )
-        self.assertAlmostEqual(tx + 1251.74 * scale / 2, 170, delta=0.5)
-        self.assertAlmostEqual(ty + 754.67 * scale / 2, 170, delta=0.5)
+        self.assertAlmostEqual(scale / 340, 0.2485 / 512, delta=1e-6)
+        self.assertAlmostEqual(tx / 340, 120.5 / 512, delta=0.001)
+        self.assertAlmostEqual(ty / 340, 166 / 512, delta=0.001)
         self.assertGreaterEqual(tx, 0)
-        self.assertGreaterEqual(ty, 0)
         self.assertLessEqual(tx + 1251.74 * scale, 340.01)
-        self.assertLessEqual(ty + 754.67 * scale, 340.01)
         self.assertFalse((svg.text or "").strip())
+        self.assertFalse((tile.tail or "").strip())
         self.assertFalse((path.text or "").strip())
         self.assertFalse((path.tail or "").strip())
 
