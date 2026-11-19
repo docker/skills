@@ -45,6 +45,8 @@ for distribution releases.
 
 ### Changed
 
+- The plugin icon is now the new Docker logo: the black whale on a #6172FF
+  tile, which reads on light and dark backgrounds.
 - `docker-sandboxes-kits` 1.0.4 now owns referencing, configuring, and pinning a
   kit from an `sbxenv.yaml` `agent:`/`kits:` entry. A new
   `references/sbxenv-kit-references.md` covers reference shapes, handles,
