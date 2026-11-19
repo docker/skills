@@ -151,7 +151,7 @@ class SkipInCiTests(unittest.TestCase):
             return [eval_judge.JudgeResult("y", True, "")]
         with mock.patch.object(eval_judge, "discover_evals", return_value=prompts), \
              mock.patch.object(eval_judge, "run_and_grade", side_effect=fake_run), \
-             mock.patch.object(eval_judge.shutil, "which", return_value="/usr/bin/claude"), \
+             mock.patch.object(eval_judge, "setup_agent", return_value=lambda: None), \
              mock.patch.dict(eval_judge.os.environ, {"ANTHROPIC_API_KEY": "k"}), \
              tempfile.TemporaryDirectory() as out:
             rc = eval_judge.main(["--out", out] + extra)
@@ -442,6 +442,127 @@ class FixtureTests(unittest.TestCase):
         self.addCleanup(eval_judge.shutil.rmtree, root, True)
         self.assertTrue((root / "workspace" / "README.md").exists())
 
+    def test_plugin_mode_workspace_has_no_skills(self):
+        root = eval_judge.prepare_workspace(self._parse(""), "claude", "plugin")
+        self.addCleanup(eval_judge.shutil.rmtree, root, True)
+        ws = root / "workspace"
+        self.assertFalse((ws / ".claude").exists())
+        self.assertFalse((ws / ".agents").exists())
+
+    def test_copy_mode_copies_skills(self):
+        root = eval_judge.prepare_workspace(self._parse(""), "claude", "copy")
+        self.addCleanup(eval_judge.shutil.rmtree, root, True)
+        self.assertTrue((root / "workspace" / ".claude" / "skills" / "docker-docs" / "SKILL.md").exists())
+
+
+class McpModeTests(unittest.TestCase):
+    def _parse(self, label):
+        md = (f"# Eval: s\n\n## Prompt 1: t\n\n**Prompt to agent{label}:**\n\n> Do it.\n\n"
+              "### Expected behaviors\n- [ ] x\n")
+        f = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False)
+        f.write(md)
+        f.close()
+        return eval_judge.parse_eval_markdown(Path(f.name))
+
+    def test_mcp_enabled_by_default(self):
+        self.assertFalse(self._parse("")[0].mcp_disabled)
+
+    def test_parses_mcp_not_connected(self):
+        prompts = self._parse(" (MCP server not connected)")
+        self.assertEqual(len(prompts), 1)
+        self.assertTrue(prompts[0].mcp_disabled)
+        self.assertEqual(prompts[0].prompt, "Do it.")
+
+    def test_rejects_unknown_mode(self):
+        with self.assertRaises(eval_judge.EvalError):
+            self._parse(" (something else)")
+
+    def test_real_docker_docs_fallback_prompt_runs_without_mcp(self):
+        prompts = eval_judge.discover_evals("docker-docs", 2)
+        self.assertEqual(len(prompts), 1)
+        self.assertTrue(prompts[0].mcp_disabled)
+
+    def _claude_cmd(self, prompt_num, install_mode="plugin"):
+        from unittest import mock
+        import argparse
+        ep = eval_judge.discover_evals("docker-docs", prompt_num)[0]
+        args = argparse.Namespace(agent="claude", agent_bin="claude", model="sonnet",
+                                  install_mode=install_mode, agent_env={"CLAUDE_CONFIG_DIR": "/cfg"})
+        run_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(eval_judge.shutil.rmtree, run_dir, True)
+        with mock.patch.object(eval_judge.subprocess, "run", return_value=mock.Mock(returncode=0)) as run, \
+             mock.patch.object(eval_judge, "refresh_docker_gateway_token"), \
+             mock.patch.dict(eval_judge.os.environ, {"DOCKERPUBLICBOT_READ_PAT": "secret"}):
+            result = eval_judge.run_agent(ep, args, run_dir)
+        self.addCleanup(eval_judge.shutil.rmtree, result.workspace_path, True)
+        return run.call_args.args[0], run.call_args.kwargs["env"]
+
+    def test_plugin_mode_allows_mcp_tools_and_isolates_config(self):
+        cmd, env = self._claude_cmd(1)
+        allowed = cmd[cmd.index("--allowedTools"):cmd.index("--disallowedTools")]
+        self.assertIn("mcp__plugin_docker-skills_docker-docs", allowed)
+        self.assertNotIn("--strict-mcp-config", cmd)
+        self.assertEqual(env["CLAUDE_CONFIG_DIR"], "/cfg")
+        self.assertNotIn("DOCKERPUBLICBOT_READ_PAT", env)
+
+    def test_mcp_not_connected_loads_no_mcp_server(self):
+        cmd, _ = self._claude_cmd(2)
+        self.assertIn("--strict-mcp-config", cmd)
+        self.assertNotIn("mcp__plugin_docker-skills_docker-docs", cmd)
+
+    def test_copy_mode_allows_no_mcp_tools(self):
+        cmd, _ = self._claude_cmd(1, install_mode="copy")
+        self.assertNotIn("mcp__plugin_docker-skills_docker-docs", cmd)
+
+
+class SetupAgentTests(unittest.TestCase):
+    def _args(self, **kw):
+        import argparse
+        base = dict(agent="claude", agent_bin=None, cli_version="pinned", install_mode="plugin")
+        base.update(kw)
+        return argparse.Namespace(**base)
+
+    def test_installs_pinned_cli_and_plugin(self):
+        from unittest import mock
+        args = self._args()
+        with mock.patch.object(eval_judge.eval_setup, "ensure_cli", return_value=Path("/t/claude")) as ensure, \
+             mock.patch.object(eval_judge.eval_setup, "setup_claude_plugin",
+                               return_value={"CLAUDE_CONFIG_DIR": "/x"}) as install:
+            cleanup = eval_judge.setup_agent(args)
+        cleanup()
+        ensure.assert_called_once_with("claude", eval_judge.eval_setup.pinned_version("claude"))
+        install.assert_called_once()
+        self.assertEqual(args.agent_bin, "/t/claude")
+        self.assertEqual(args.agent_env, {"CLAUDE_CONFIG_DIR": "/x"})
+
+    def test_copy_mode_skips_plugin_install(self):
+        from unittest import mock
+        args = self._args(install_mode="copy")
+        with mock.patch.object(eval_judge.eval_setup, "ensure_cli", return_value=Path("/t/claude")), \
+             mock.patch.object(eval_judge.eval_setup, "setup_claude_plugin") as install:
+            eval_judge.setup_agent(args)()
+        install.assert_not_called()
+        self.assertEqual(args.agent_env, {})
+
+    def test_agent_bin_older_than_pinned_is_refused(self):
+        from unittest import mock
+        args = self._args(agent_bin="claude")
+        with mock.patch.object(eval_judge.shutil, "which", return_value="/usr/bin/claude"), \
+             mock.patch.object(eval_judge.eval_setup, "cli_version", return_value="2.1.72"):
+            with self.assertRaises(eval_judge.eval_setup.SetupError) as ctx:
+                eval_judge.setup_agent(args)
+        self.assertIn("older than the pinned", str(ctx.exception))
+
+    def test_main_reports_setup_failure_with_exit_2(self):
+        from unittest import mock
+        prompts = [eval_judge.EvalPrompt(Path("x.md"), "s", 1, "t", "p", ["x"], [])]
+        with mock.patch.object(eval_judge, "discover_evals", return_value=prompts), \
+             mock.patch.object(eval_judge, "setup_agent", side_effect=eval_judge.eval_setup.SetupError("boom")), \
+             mock.patch.object(eval_judge, "run_and_grade") as run, \
+             mock.patch.dict(eval_judge.os.environ, {"ANTHROPIC_API_KEY": "k"}):
+            self.assertEqual(eval_judge.main([]), 2)
+        run.assert_not_called()
+
 
 class RegradeTests(unittest.TestCase):
     def _run_dir(self, previous_report):
@@ -579,7 +700,7 @@ class PrunePassingTests(unittest.TestCase):
         self.addCleanup(eval_judge.shutil.rmtree, out, True)
         with mock.patch.object(eval_judge, "discover_evals", return_value=prompts), \
              mock.patch.object(eval_judge, "run_and_grade", side_effect=fake_run), \
-             mock.patch.object(eval_judge.shutil, "which", return_value="/usr/bin/claude"), \
+             mock.patch.object(eval_judge, "setup_agent", return_value=lambda: None), \
              mock.patch.dict(eval_judge.os.environ, {"ANTHROPIC_API_KEY": "k"}):
             rc = eval_judge.main(["--out", str(out)] + extra)
         files = sorted(p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file())

@@ -24,10 +24,22 @@ class SkillEvalsWorkflowTests(unittest.TestCase):
     def test_actions_and_tools_are_pinned(self):
         for ref in re.findall(r"uses: \S+@(\S+)", WORKFLOW):
             self.assertRegex(ref, r"^[0-9a-f]{40}$")
-        self.assertRegex(WORKFLOW, r'CLAUDE_CODE_VERSION: "\d+\.\d+\.\d+"')
         self.assertRegex(WORKFLOW, r'SBX_VERSION: "\d+\.\d+\.\d+"')
-        self.assertIn("--ignore-scripts", WORKFLOW)
         self.assertIn("pip install -q --require-hashes -r scripts/requirements.txt", WORKFLOW)
+
+    def test_claude_cli_and_plugin_come_from_eval_judge(self):
+        # eval_judge.py installs the pinned (or, weekly, latest) CLI and the plugin, as locally
+        claude_job = WORKFLOW[WORKFLOW.index("  eval-claude:"):WORKFLOW.index("  eval-codex:")]
+        self.assertNotIn("npm install", claude_job)
+        self.assertEqual(claude_job.count('--cli-version "$CLI_VERSION"'), 2)  # first attempt and retry
+        self.assertIn(
+            "CLI_VERSION: ${{ inputs.cli_version || (github.event_name == 'schedule' && 'latest' || 'pinned') }}",
+            claude_job,
+        )
+        self.assertIn("cli_version:", WORKFLOW)
+        for path in ("scripts/eval_setup.py", "scripts/eval_cli_versions.json"):
+            self.assertIn(f'- "{path}"', WORKFLOW)
+            self.assertIn(path.replace(".", "\\."), WORKFLOW)
 
     def test_inputs_reach_the_shell_only_through_env(self):
         # Check that run: lines don't have direct ${{ }} interpolation
