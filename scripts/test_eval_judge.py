@@ -328,6 +328,14 @@ class JudgeVerdictMappingTests(unittest.TestCase):
         ])
         self.assertTrue(self._must_not(results).passed)
 
+    def test_non_string_reasoning_is_coerced_to_text(self):
+        results = self._judge([
+            {**self.EXPECTED_OK, "reasoning": ["ran", "sbx run"]},
+            {"criterion_number": 1, "criterion_type": "must_not", "violated": False, "reasoning": None},
+        ])
+        self.assertEqual(results[0].reasoning, '["ran", "sbx run"]')
+        self.assertEqual(results[1].reasoning, "")
+
 
 class AgentCompletionTests(unittest.TestCase):
     """A run the agent did not finish never passes."""
@@ -596,6 +604,27 @@ class PrunePassingTests(unittest.TestCase):
     def test_no_prune_by_default(self):
         _, _, files = self._run(self.PASSING + self.FAILING, [])
         self.assertEqual(len(files), 2)
+
+
+class PrintResultsTests(unittest.TestCase):
+    def test_reasoning_printed_for_passes_and_failures(self):
+        import io
+        from contextlib import redirect_stdout
+        results = [
+            eval_judge.JudgeResult("uses sbx run", True, "Ran `sbx run claude`\nexit code 0"),
+            eval_judge.JudgeResult("no docker run", False, "Ran `docker run`", True),
+            eval_judge.JudgeResult("no evidence", True, ""),
+        ]
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            eval_judge.print_results("s/prompt-1", results, Path("/nonexistent"))
+        lines = buf.getvalue().splitlines()
+        checks = [i for i, l in enumerate(lines) if l.startswith("  ✓") or l.startswith("  ✗")]
+        # Each reasoning sits on the single line right under its own check
+        self.assertEqual(lines[checks[0] + 1], "      → Ran `sbx run claude` exit code 0")
+        self.assertEqual(lines[checks[1] + 1], "      → Ran `docker run`")
+        self.assertEqual(lines[checks[2] + 1], "  artifacts: pruned (passed)")  # no empty arrow
+        self.assertEqual(sum(l.startswith("      →") for l in lines), 2)
 
 
 class GatewayTokenRefreshTests(unittest.TestCase):
