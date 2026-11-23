@@ -452,6 +452,9 @@ MUST NOT (must not violate any):
 ## Task
 
 For each criterion, output a JSON evaluation. Write the reasoning FIRST, then the verdict.
+The reasoning is a single line citing concrete evidence from the transcript or files
+(e.g. the command run, a quoted phrase, or the relevant file line), whether the
+criterion passed or failed.
 
 For EXPECTED behaviors: set "passed": true if the agent satisfied the criterion (semantically).
 For MUST NOT items: set "violated": true ONLY if the agent actually did the forbidden thing.
@@ -460,8 +463,8 @@ If the agent avoided it (or did the opposite), set "violated": false.
 Return JSON:
 {{
   "evaluations": [
-    {{"criterion_number": 1, "criterion_type": "expected", "reasoning": "brief why", "passed": true/false}},
-    {{"criterion_number": 1, "criterion_type": "must_not", "reasoning": "brief why", "violated": true/false}},
+    {{"criterion_number": 1, "criterion_type": "expected", "reasoning": "one-line evidence", "passed": true/false}},
+    {{"criterion_number": 1, "criterion_type": "must_not", "reasoning": "one-line evidence", "violated": true/false}},
     ...
   ]
 }}
@@ -535,8 +538,15 @@ def _map_verdicts(result: dict[str, Any], expected: list[str],
             passed = ev["passed"]
         else:
             continue  # no usable verdict
+        # The reasoning is printed and saved as one line of text: coerce
+        # non-string values (e.g. a JSON list) instead of crashing later
+        reasoning = ev.get("reasoning")
+        if reasoning is None:
+            reasoning = ""
+        elif not isinstance(reasoning, str):
+            reasoning = json.dumps(reasoning)
         verdicts[(is_must_not, idx)] = JudgeResult(
-            criteria_list[idx], passed, ev.get("reasoning", ""), is_must_not)
+            criteria_list[idx], passed, reasoning, is_must_not)
     return verdicts
 
 
@@ -963,8 +973,9 @@ def print_results(label: str, results: list[JudgeResult], run_dir: Path, duratio
         prefix = "must-not" if r.is_must_not else "expected"
         short = r.criterion[:70] + ("..." if len(r.criterion) > 70 else "")
         print(f"  {mark} [{prefix}] {short}")
-        if not r.passed and r.reasoning:
-            print(f"      → {r.reasoning}")
+        if r.reasoning:
+            # One line per criterion: evidence for passes, explanation for failures
+            print(f"      → {' '.join(r.reasoning.split())}")
     print(f"  artifacts: {run_dir}" if run_dir.exists() else "  artifacts: pruned (passed)")
 
 
