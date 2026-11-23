@@ -6,28 +6,21 @@
 
 # Docker project foundations
 /skills/docker-project-foundations/ @docker/compose-maintainers @docker/gordon
-/evals/docker-project-foundations.md @docker/compose-maintainers @docker/gordon
 
 # Docker Compose patterns
 /skills/docker-compose-patterns/ @docker/compose-maintainers @docker/gordon
-/evals/docker-compose-patterns.md @docker/compose-maintainers @docker/gordon
 
 # Docker build strategies
 /skills/docker-build-strategies/ @docker/compose-maintainers @docker/gordon
-/evals/docker-build-strategies.md @docker/compose-maintainers @docker/gordon
 
 # Docker Agent skills and evaluations
 /skills/docker-agent-*/ @docker/ai-agent-team @docker/gordon
-/evals/docker-agent-*.md @docker/ai-agent-team @docker/gordon
 
 # Docker Sandboxes skills and evaluations
 /skills/docker-sandboxes-*/ @docker/coding-agent-sandboxes @docker/gordon
-/evals/docker-sandboxes-*.md @docker/coding-agent-sandboxes @docker/gordon
 
 # Docker destructive command guardrails
 /skills/docker-destructive-guardrails/ @docker/compose-maintainers @docker/gordon
-/evals/docker-destructive-guardrails.md @docker/compose-maintainers @docker/gordon
 
 # Docker documentation retrieval
 /skills/docker-docs/ @docker/gordon
-/evals/docker-docs.md @docker/gordon

@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """Run skill evaluations using LLM-as-judge.
 
-This script reads evaluation prompts from skill eval.md files and runs each
-prompt through Claude Code or Codex, using an LLM judge to grade the full
-transcript against the expected behaviors and must-not criteria.
-
-Eval files are discovered from:
-  1. skills/<skill>/evals/<skill>.md (preferred location)
-  2. evals/<skill>.md (legacy location)
+This script reads evaluation prompts from skills/<skill>/evals/<skill>.md files
+and runs each prompt through Claude Code or Codex, using an LLM judge to grade
+the full transcript against the expected behaviors and must-not criteria.
 
 The LLM judge approach replaces complex CLI step matching - the judge
 can evaluate both knowledge-based responses AND whether correct commands
@@ -39,7 +35,6 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-EVALS_ROOT = REPO_ROOT / "evals"
 SKILLS_ROOT = REPO_ROOT / "skills"
 DEFAULT_OUT = REPO_ROOT / ".eval-judge"
 JUDGE_ATTEMPTS = 3  # retries for malformed judge JSON or transient API errors
@@ -185,19 +180,10 @@ def _parse_fixtures(section: str, path: Path, num: int) -> dict[str, str]:
 
 
 def discover_evals(skill_name: str | None, prompt_num: int | None) -> list[EvalPrompt]:
-    """Find all eval prompts, optionally filtered by skill name.
-    
-    Looks for eval files in two places:
-      1. skills/<skill>/evals/<skill>.md (preferred)
-      2. evals/<skill>.md (legacy, only when there is no preferred file)
-
-    An invalid eval file raises EvalError: a broken preferred file must never
-    silently fall back to the legacy runbook.
+    """Find all eval prompts in skills/<skill>/evals/<skill>.md, optionally
+    filtered by skill name. An invalid eval file raises EvalError.
     """
     prompts = []
-    seen_skills = set()
-    
-    # First, check skills/<skill>/evals/<skill>.md (preferred location)
     for skill_dir in sorted(SKILLS_ROOT.iterdir()):
         if not skill_dir.is_dir() or skill_dir.name.startswith("."):
             continue
@@ -206,22 +192,8 @@ def discover_evals(skill_name: str | None, prompt_num: int | None) -> list[EvalP
         
         eval_file = skill_dir / "evals" / f"{skill_dir.name}.md"
         if eval_file.exists():
-            # Mark the skill as seen before parsing, so a parse error is not
-            # papered over by the legacy copy
-            seen_skills.add(skill_dir.name)
             prompts.extend(parse_eval_markdown(eval_file))
-    
-    # Then, check evals/<skill>.md (legacy location)
-    for md in sorted(EVALS_ROOT.glob("*.md")):
-        if md.name == "README.md":
-            continue
-        # Skip if we already found this skill in the skills directory
-        if md.stem in seen_skills:
-            continue
-        if skill_name and md.stem != skill_name:
-            continue
-        prompts.extend(parse_eval_markdown(md))
-    
+
     if prompt_num is not None:
         prompts = [p for p in prompts if p.prompt_num == prompt_num]
     return prompts

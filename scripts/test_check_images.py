@@ -30,7 +30,7 @@ class InventoryTests(unittest.TestCase):
                 "    image: myapp:1.0\n    image: ${IMAGE}\n```\n"
                 "> image: nginx:1.27\n> image: redis\n"
                 "Read `image: redis:7` and use image: redis:7.\n")
-        found = inventory.extract("evals/example.md", text)
+        found = inventory.extract("skills/s/evals/example.md", text)
         self.assertEqual([(x.line, x.image) for x in found], [(5, "postgres:17"), (9, "nginx:1.27"), (10, "redis")])
         self.assertEqual([x.image for x in inventory.extract("skills/s/assets/compose.yaml", "services:\n  db:\n    image: redis:7\n")], ["redis:7"])
 
@@ -44,13 +44,13 @@ class InventoryTests(unittest.TestCase):
     def test_plain_text_examples_still_inventory_real_image_syntax(self):
         text = ("```text\nimage: redis:7\nFROM alpine:3.20\n"
                 "# syntax=docker/dockerfile:1\n```\n")
-        self.assertEqual([o.image for o in inventory.extract("evals/example.md", text)],
+        self.assertEqual([o.image for o in inventory.extract("skills/s/evals/example.md", text)],
                          ["redis:7", "alpine:3.20", "docker/dockerfile:1"])
         self.assertEqual([o.image for o in inventory.extract("skills/s/assets/compose.yaml",
                          "image: redis:7\nImage: local-only:1\n")], ["redis:7"])
 
     def test_bare_eval_images_and_non_pulled_names(self):
-        path = "evals/docker-compose-patterns.md"
+        path = "skills/docker-compose-patterns/evals/docker-compose-patterns.md"
         content = (inventory.ROOT / path).read_text(encoding="utf-8")
         self.assertEqual([item.image for item in inventory.extract(path, content)
                           if item.image in {"postgres", "redis"}], ["postgres", "redis"])
@@ -65,17 +65,17 @@ class InventoryTests(unittest.TestCase):
         text = ("```dockerfile\nFROM golang:1.23 as Builder\nFROM builder AS Runtime\n"
                 "COPY --from=BUILDER /src /src\nCOPY --from=0 /src /src\n"
                 "from alpine:3.20 as Final\nFROM final\n```")
-        self.assertEqual([item.image for item in inventory.extract("evals/example.md", text)],
+        self.assertEqual([item.image for item in inventory.extract("skills/s/evals/example.md", text)],
                          ["golang:1.23", "alpine:3.20"])
 
     def test_scope_and_full_inventory(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            for name in ("skills/s/SKILL.md", "skills/s/assets/compose.yaml", "evals/s.md", "evals/README.md", "skills/s/scripts/x.py"):
+            for name in ("skills/s/SKILL.md", "skills/s/assets/compose.yaml", "skills/s/evals/s.md", "evals/README.md", "skills/s/scripts/x.py"):
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("```dockerfile\nFROM node:22\n```\n")
-            self.assertEqual(inventory.files(root), ["evals/s.md", "skills/s/SKILL.md", "skills/s/assets/compose.yaml"])
+            self.assertEqual(inventory.files(root), ["skills/s/SKILL.md", "skills/s/assets/compose.yaml", "skills/s/evals/s.md"])
             self.assertEqual(len(inventory.occurrences(root)), 3)
 
     def test_pr_added_occurrences_and_head_content(self):

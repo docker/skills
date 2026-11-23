@@ -39,11 +39,13 @@ are required; validation runs in pinned container images.
   structure, frontmatter, catalog membership, manifests, ownership, and files.
 - `task eval`: run deterministic checks against checked-in skill assets. This is
   not a live model evaluation.
-- `task eval:skills`: opt-in live model evaluation. It runs scenarios in
-  `skills/*/evals/` with Claude Code against the real `sbx` CLI; see
-  [evals/README.md](evals/README.md#llm-as-judge-evaluations). It needs `claude`,
-  `sbx` authenticated, and optionally model credentials. Runs separately
-  from offline `task`/`task ci`.
+- `task eval:judge`: opt-in live model evaluation. It runs the prompts in
+  `skills/*/evals/<skill>.md` through Claude Code or Codex and grades them with
+  an LLM judge; see
+  [evals/README.md](evals/README.md#llm-as-judge-evaluations). Filter with
+  `task eval:judge -- --skill <id> [--prompt N]`. It needs `claude` or `codex`,
+  `ANTHROPIC_API_KEY`, and an authenticated `sbx` for sandbox skills. Runs
+  separately from offline `task`/`task ci`.
 - `task links`: check local Markdown destinations and heading anchors.
 - `task links:external`: opt-in live HTTPS link check; runs separately from
   offline `task`/`task ci` in a pinned container.
@@ -74,8 +76,8 @@ Keep these repository-wide contracts intact:
   entry, and every catalog path exists.
 - Each skill contains `SKILL.md`, `skill.yaml`, and `agents/openai.yaml`; IDs and
   versions agree with the catalog and required metadata is present.
-- Every catalogued skill has `evals/<skill-id>.md` and specific skill plus eval
-  ownership rules in `.github/CODEOWNERS`.
+- Every catalogued skill has `skills/<skill-id>/evals/<skill-id>.md` and a specific
+  ownership rule covering the skill directory in `.github/CODEOWNERS`.
 - Every skill includes the required sections enforced by `scripts/validate.py`,
   uses only supported top-level frontmatter fields, and keeps `SKILL.md` at or
   below 500 lines.
@@ -116,8 +118,8 @@ For a new skill:
 1. Create `skills/<skill-id>/` following a neighboring skill's structure.
 2. Add matching `SKILL.md`, `skill.yaml`, and `agents/openai.yaml` metadata.
 3. Register the skill's product, version, and status in `catalog.yaml`.
-4. Add its runbook to `evals/<skill-id>.md`.
-5. Add specific `.github/CODEOWNERS` rules for both the skill and runbook.
+4. Add its runbook to `skills/<skill-id>/evals/<skill-id>.md`.
+5. Add a specific `.github/CODEOWNERS` rule for the skill directory.
 6. Add or update focused assets, checks, references, and validator tests.
 7. Run `task catalog`, review every generated change, then run `task`.
 

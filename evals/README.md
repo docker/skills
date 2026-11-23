@@ -1,6 +1,10 @@
 # Evaluation Runbooks
 
-This directory contains evaluation runbooks for each Docker skill. Each runbook documents representative prompts, expected agent behaviors, and verification commands.
+Evaluation runbooks live with the skill they test, in
+`skills/<skill>/evals/<skill>.md`. Each runbook documents representative
+prompts, expected agent behaviors, and verification commands. This directory
+holds this guide and [`eval-checks.yaml`](eval-checks.yaml), the static
+assertions run by `task eval`.
 
 ## Approach
 
@@ -12,15 +16,6 @@ execute these prompts, start sandboxes, or prove agent behavior. Asset
 checks and verification-snippet safety checks complement, but do not
 replace, the evaluations below.
 
-## Eval file locations
-
-Eval files can be placed in two locations:
-
-1. **`skills/<skill>/evals/<skill>.md`** (preferred) - Keep the eval with the skill it tests
-2. **`evals/<skill>.md`** (legacy) - Original location, still supported
-
-The eval runner prefers `skills/<skill>/evals/<skill>.md` if both exist.
-
 ## Runbooks
 
 One runbook per catalogued skill. The table is generated from [`catalog.yaml`](../catalog.yaml) by `task catalog`.
@@ -28,17 +23,17 @@ One runbook per catalogued skill. The table is generated from [`catalog.yaml`](.
 <!-- catalog-start -->
 | Skill | Runbook |
 |-------|---------|
-| docker-project-foundations | [docker-project-foundations.md](docker-project-foundations.md) |
-| docker-build-strategies | [docker-build-strategies.md](docker-build-strategies.md) |
-| docker-compose-patterns | [docker-compose-patterns.md](docker-compose-patterns.md) |
-| docker-sandboxes-lifecycle | [docker-sandboxes-lifecycle.md](docker-sandboxes-lifecycle.md) |
-| docker-sandboxes-network-credentials | [docker-sandboxes-network-credentials.md](docker-sandboxes-network-credentials.md) |
-| docker-sandboxes-kits | [docker-sandboxes-kits.md](docker-sandboxes-kits.md) |
-| docker-agent-config | [docker-agent-config.md](docker-agent-config.md) |
-| docker-agent-run | [docker-agent-run.md](docker-agent-run.md) |
-| docker-agent-deploy | [docker-agent-deploy.md](docker-agent-deploy.md) |
-| docker-docs | [docker-docs.md](docker-docs.md) |
-| docker-destructive-guardrails | [docker-destructive-guardrails.md](docker-destructive-guardrails.md) |
+| docker-project-foundations | [docker-project-foundations.md](../skills/docker-project-foundations/evals/docker-project-foundations.md) |
+| docker-build-strategies | [docker-build-strategies.md](../skills/docker-build-strategies/evals/docker-build-strategies.md) |
+| docker-compose-patterns | [docker-compose-patterns.md](../skills/docker-compose-patterns/evals/docker-compose-patterns.md) |
+| docker-sandboxes-lifecycle | [docker-sandboxes-lifecycle.md](../skills/docker-sandboxes-lifecycle/evals/docker-sandboxes-lifecycle.md) |
+| docker-sandboxes-network-credentials | [docker-sandboxes-network-credentials.md](../skills/docker-sandboxes-network-credentials/evals/docker-sandboxes-network-credentials.md) |
+| docker-sandboxes-kits | [docker-sandboxes-kits.md](../skills/docker-sandboxes-kits/evals/docker-sandboxes-kits.md) |
+| docker-agent-config | [docker-agent-config.md](../skills/docker-agent-config/evals/docker-agent-config.md) |
+| docker-agent-run | [docker-agent-run.md](../skills/docker-agent-run/evals/docker-agent-run.md) |
+| docker-agent-deploy | [docker-agent-deploy.md](../skills/docker-agent-deploy/evals/docker-agent-deploy.md) |
+| docker-docs | [docker-docs.md](../skills/docker-docs/evals/docker-docs.md) |
+| docker-destructive-guardrails | [docker-destructive-guardrails.md](../skills/docker-destructive-guardrails/evals/docker-destructive-guardrails.md) |
 <!-- catalog-end -->
 
 ## Runbook format

@@ -170,7 +170,7 @@ class SkipInCiTests(unittest.TestCase):
 
 class DiscoverEvalsTests(unittest.TestCase):
     def test_discovers_real_evals(self):
-        # Should find evals in skills/ and evals/ directories
+        # Should find evals in skills/<skill>/evals/ directories
         prompts = eval_judge.discover_evals(None, None)
         self.assertTrue(len(prompts) > 0)
 
@@ -182,10 +182,7 @@ class DiscoverEvalsTests(unittest.TestCase):
         prompts = eval_judge.discover_evals("docker-sandboxes-lifecycle", 1)
         self.assertTrue(all(p.prompt_num == 1 for p in prompts))
     
-    def test_prefers_skills_dir_over_evals_dir(self):
-        # If <skill>.md exists in skills/<skill>/evals/, it should be used over evals/<skill>.md
-        # We can test this by checking that docker-sandboxes-lifecycle is found
-        # (it exists in both places now)
+    def test_reads_skills_evals_dir(self):
         prompts = eval_judge.discover_evals("docker-sandboxes-lifecycle", None)
         self.assertTrue(len(prompts) > 0)
         # All prompts should come from the same file
@@ -194,24 +191,22 @@ class DiscoverEvalsTests(unittest.TestCase):
         # Should be from the skills directory
         self.assertIn("skills/docker-sandboxes-lifecycle/evals", str(list(eval_files)[0]))
 
-    def _layout(self, preferred_body, legacy_body="## Prompt 1: legacy\n\n**Prompt to agent:**\n\n> old\n\n### Expected behaviors\n- [ ] x\n"):
+    def _layout(self, body):
         from unittest import mock
         root = Path(tempfile.mkdtemp())
         self.addCleanup(eval_judge.shutil.rmtree, root, True)
         (root / "skills" / "s" / "evals").mkdir(parents=True)
-        (root / "evals").mkdir()
-        (root / "skills" / "s" / "evals" / "s.md").write_text("# Eval: s\n\n" + preferred_body)
-        (root / "evals" / "s.md").write_text("# Eval: s\n\n" + legacy_body)
-        return mock.patch.multiple(eval_judge, SKILLS_ROOT=root / "skills", EVALS_ROOT=root / "evals")
+        (root / "skills" / "s" / "evals" / "s.md").write_text("# Eval: s\n\n" + body)
+        return mock.patch.multiple(eval_judge, SKILLS_ROOT=root / "skills")
 
-    def test_invalid_preferred_eval_does_not_fall_back_to_legacy(self):
+    def test_invalid_eval_raises(self):
         broken = ("## Prompt 1: new\n\n**Prompt to agent:**\n\n> new\n\n**Fixtures:**\n\n"
                   "`../escape.txt`:\n```\nx\n```\n\n### Expected behaviors\n- [ ] y\n")
         with self._layout(broken):
             with self.assertRaises(eval_judge.EvalError):
                 eval_judge.discover_evals("s", None)
 
-    def test_valid_preferred_eval_shadows_legacy(self):
+    def test_valid_eval_is_parsed(self):
         ok = "## Prompt 1: new\n\n**Prompt to agent:**\n\n> new\n\n### Expected behaviors\n- [ ] y\n"
         with self._layout(ok):
             prompts = eval_judge.discover_evals("s", None)

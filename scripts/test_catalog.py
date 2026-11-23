@@ -218,8 +218,8 @@ class RenderTests(unittest.TestCase):
     def test_evals_table_lists_every_skill_overview_first(self):
         table = render_evals_table(CATALOG)
         lines = table.strip().splitlines()
-        self.assertEqual(lines[2], "| docker | [docker.md](docker.md) |")
-        self.assertEqual(lines[3], "| build-a | [build-a.md](build-a.md) |")
+        self.assertEqual(lines[2], "| docker | [docker.md](../skills/docker/evals/docker.md) |")
+        self.assertEqual(lines[3], "| build-a | [build-a.md](../skills/build-a/evals/build-a.md) |")
         self.assertEqual(len(lines), 5)
 
     def test_skills_index_has_one_grouping_per_product_plus_start_here(self):

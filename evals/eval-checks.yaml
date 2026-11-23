@@ -1,4 +1,4 @@
-# Eval checks — machine-readable definitions extracted from evals/*.md
+# Eval checks — machine-readable definitions extracted from skills/*/evals/*.md
 # Each check maps an eval prompt criterion to a static assertion on an asset file.
 # Skipped prompts (no matching asset) are listed with skip: true.
 
@@ -422,7 +422,7 @@
     dockerfile: skills/docker-project-foundations/assets/Dockerfile.simple
     compose: skills/docker-project-foundations/assets/compose-dev.yaml
     dockerignore: skills/docker-project-foundations/assets/dockerignore-example
-    runbook: evals/docker-project-foundations.md
+    runbook: skills/docker-project-foundations/evals/docker-project-foundations.md
   checks:
     # .dockerignore checks
     - id: fp-p1-ignore-nodemodules
@@ -579,10 +579,10 @@
       pattern: 'does not publish unauthenticated Redis to the host'
 
     - id: fp-p1-runbook-postgres-loopback
-      description: Runbook records deliberate Postgres loopback access
+      description: Runbook only allows Postgres unpublished or published on loopback
       type: file_match
       asset_key: runbook
-      pattern: 'publishes Postgres on loopback only for local development tools'
+      pattern: 'does not publish Postgres to the host, or publishes on loopback only'
 
     - id: fp-p1-bind-mount
       description: Bind mount or Compose Watch for live code reload
@@ -1264,6 +1264,11 @@
   skip: true
   skip_reason: No read-only asset; mount readability and write protection require runtime verification
 
+- eval: docker-sandboxes-lifecycle
+  prompt: "Prompt 8: mount a directory, inspect it, and tear down"
+  skip: true
+  skip_reason: No mount asset; mounting, inspecting, and removing a sandbox require runtime verification
+
 # ─── docker-sandboxes-network-credentials ─────────────────────────────────────
 
 - eval: docker-sandboxes-network-credentials
@@ -1294,7 +1299,7 @@
 # These assert test-fixture hygiene, not runtime behavior or agent responses.
 - eval: docker-sandboxes-lifecycle
   prompt: "Verification snippet safety (static checks)"
-  asset: evals/docker-sandboxes-lifecycle.md
+  asset: skills/docker-sandboxes-lifecycle/evals/docker-sandboxes-lifecycle.md
   checks:
     - id: sl-disposable-clone
       description: Clone verification uses the disposable repository and shell agent
@@ -1320,7 +1325,7 @@
 - eval: docker-sandboxes-network-credentials
   prompt: "Verification credential safety (static checks)"
   assets:
-    eval: evals/docker-sandboxes-network-credentials.md
+    eval: skills/docker-sandboxes-network-credentials/evals/docker-sandboxes-network-credentials.md
     integration: skills/docker-sandboxes-network-credentials/checks/verification.md
   checks:
     - id: sn-dummy-service-token
