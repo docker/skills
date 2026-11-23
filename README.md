@@ -227,7 +227,7 @@ skills/               — Canonical skill directories (SKILL.md + supporting fil
 catalog.yaml          — Distribution version and skill registry: product families, skill ids, per-skill versions, and status
 skills.sh.json        — Product-grouped index read by the skills CLI (generated from catalog.yaml)
 scripts/render_catalog.py — Renders catalog tables, skills.sh.json, and plugin manifest versions from catalog.yaml
-evals/                — Evaluation runbooks
+evals/                — Eval docs and static asset checks (eval-checks.yaml); runbooks live in skills/<id>/evals/
 .claude-plugin/       — Claude Code plugin + marketplace manifests
 .codex-plugin/        — Codex plugin manifest
 .agents/plugins/      — Codex marketplace manifest

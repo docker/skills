@@ -168,7 +168,7 @@ else:
 # --- 3b. Every catalogued skill has an evaluation runbook ---
 print("==> Checking evaluation runbooks")
 for skill in catalog["skills"]:
-    runbook = os.path.join("evals", skill["id"] + ".md")
+    runbook = os.path.join("skills", skill["id"], "evals", skill["id"] + ".md")
     if not os.path.isfile(runbook):
         error("missing evaluation runbook " + runbook)
     else:

@@ -183,7 +183,7 @@ class ComposeDevelopmentDefaultCoverageTests(unittest.TestCase):
             ),
             (
                 "fp-p1-runbook-postgres-loopback",
-                "publishes Postgres on loopback only for local development tools",
+                "does not publish Postgres to the host, or publishes on loopback only",
             ),
         ):
             with self.subTest(check=check_id):
@@ -241,7 +241,7 @@ class SandboxPromptCoverageTests(unittest.TestCase):
         cls.groups = yaml.safe_load(Path(CHECKS_FILE).read_text(encoding="utf-8"))
 
     def test_each_prompt_has_one_check_group_or_explicit_skip(self):
-        paths = sorted(Path(REPO_ROOT, "evals").glob("docker-sandboxes-*.md"))
+        paths = sorted(Path(REPO_ROOT, "skills").glob("docker-sandboxes-*/evals/docker-sandboxes-*.md"))
         self.assertTrue(paths)
         for path in paths:
             with self.subTest(eval=path.stem):

@@ -362,7 +362,8 @@ def render_evals_table(catalog: dict[str, Any]) -> str:
     rows = ["| Skill | Runbook |", "|-------|---------|"]
     for skill in ordered_skills(catalog):
         runbook = skill["id"] + ".md"
-        rows.append("| " + skill["id"] + " | [" + runbook + "](" + runbook + ") |")
+        link = "../skills/" + skill["id"] + "/evals/" + runbook
+        rows.append("| " + skill["id"] + " | [" + runbook + "](" + link + ") |")
     return "\n".join(rows) + "\n"
 
 

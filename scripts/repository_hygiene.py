@@ -63,11 +63,12 @@ def _specific(pattern: str, expected_prefix: str) -> bool:
         "skills/*/**",
         "skills/*/SKILL.md",
         "skills/**/SKILL.md",
-        "evals/**",
-        "evals/",
-        "evals/*",
-        "evals/*.md",
-        "evals/**.md",
+        "skills/*/evals/",
+        "skills/*/evals/**",
+        "skills/*/evals/*.md",
+        "skills/**/evals/",
+        "skills/**/*.md",
+        "skills/**.md",
     }
 
 
@@ -93,12 +94,12 @@ def validate_codeowners(root: str | Path, catalog: dict[str, Any]) -> list[str]:
         if not isinstance(skill, dict) or not isinstance(skill.get("id"), str):
             continue
         skill_id = skill["id"]
-        for path, prefix in (
-            (f"skills/{skill_id}/SKILL.md", "skills/"),
-            (f"evals/{skill_id}.md", "evals/"),
+        for path in (
+            f"skills/{skill_id}/SKILL.md",
+            f"skills/{skill_id}/evals/{skill_id}.md",
         ):
             rule = _owner_rule(rules, path)
-            if rule is None or not rule[1] or not _specific(rule[0], prefix):
+            if rule is None or not rule[1] or not _specific(rule[0], "skills/"):
                 errors.append(
                     f"{path} must be matched by a specific non-catchall CODEOWNERS rule with an owner"
                 )

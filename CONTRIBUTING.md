@@ -25,8 +25,8 @@ problem or suggestion has already been reported.
      - Run `task catalog` to regenerate the README skill table and installation
        inventory, the `evals/README.md` runbook table, and `skills.sh.json`.
        Do not edit those sections by hand; CI fails when they drift from the catalog.
-     - Add an evaluation runbook at `evals/<skill-id>.md`.
-     - Ensure both the skill and its evaluation runbook are covered by
+     - Add an evaluation runbook at `skills/<skill-id>/evals/<skill-id>.md`.
+     - Ensure the skill directory (including its evaluation runbook) is covered by
        specific family rules in `.github/CODEOWNERS`, adding rules when
        needed; the repository-wide fallback is not a substitute for a domain
        owner.

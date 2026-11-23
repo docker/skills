@@ -61,18 +61,26 @@ class RepositoryHygieneTests(unittest.TestCase):
         self.write_codeowners(
             "* @fallback\n"
             "/skills/test-*/ @team\n"
-            "/evals/test-*.md @team\n"
         )
         self.assertEqual(validate_codeowners(self.root, self.catalog), [])
+
+    def test_codeowners_requires_eval_coverage(self):
+        self.write_codeowners("* @fallback\n/skills/test-skill/SKILL.md @team\n")
+        self.assertEqual(
+            validate_codeowners(self.root, self.catalog),
+            ["skills/test-skill/evals/test-skill.md must be matched by a specific "
+             "non-catchall CODEOWNERS rule with an owner"],
+        )
 
     def test_codeowners_rejects_catchalls_empty_owners_and_later_overrides(self):
         cases = (
             "* @fallback\n",
-            "/skills/*/ @team\n/evals/*.md @team\n",
-            "/skills/*/SKILL.md @team\n/evals/**.md @team\n",
-            "/skills/ @team\n/evals/ @team\n",
-            "/skills/test-skill/\n/evals/test-skill.md\n",
-            "/skills/test-skill/ @team\n/evals/test-skill.md @team\n* @fallback\n",
+            "/skills/*/ @team\n",
+            "/skills/*/SKILL.md @team\n/skills/*/evals/*.md @team\n",
+            "/skills/**/SKILL.md @team\n/skills/**/*.md @team\n",
+            "/skills/ @team\n",
+            "/skills/test-skill/\n",
+            "/skills/test-skill/ @team\n* @fallback\n",
         )
         for content in cases:
             with self.subTest(content=content):

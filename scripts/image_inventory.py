@@ -31,8 +31,6 @@ class Occurrence:
 
 def eligible(path: str) -> bool:
     parts = Path(path).parts
-    if path.startswith("evals/"):
-        return len(parts) == 2 and path.endswith(".md") and path != "evals/README.md"
     if len(parts) < 3 or parts[0] != "skills":
         return False
     return (path.endswith(".md") or parts[-1].startswith("Dockerfile")
@@ -40,8 +38,8 @@ def eligible(path: str) -> bool:
 
 
 def files(root: Path) -> list[str]:
-    return sorted(p.relative_to(root).as_posix() for directory in ("skills", "evals")
-                  for p in (root / directory).rglob("*") if p.is_file() and not p.is_symlink()
+    return sorted(p.relative_to(root).as_posix() for p in (root / "skills").rglob("*")
+                  if p.is_file() and not p.is_symlink()
                   and eligible(p.relative_to(root).as_posix()))
 
 
