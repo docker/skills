@@ -258,8 +258,46 @@ def refresh_docker_gateway_token(force: bool = False) -> None:
         _gateway_token_minted_at = now
 
 
+# Docker Desktop backend sockets (macOS, Linux, WSL) serving a fresh Hub token
+# at /registry/token; the credential store copy can be expired
+DESKTOP_BACKEND_SOCKETS = (
+    "~/Library/Containers/com.docker.docker/Data/backend.sock",
+    "~/.docker/desktop/backend.sock",
+    "/var/run/docker-cli.sock",
+)
+
+
+def _desktop_backend_token() -> str | None:
+    """Ask a running Docker Desktop for a fresh Hub token (None if unavailable)."""
+    import http.client
+    import socket
+
+    for raw in DESKTOP_BACKEND_SOCKETS:
+        path = os.path.expanduser(raw)
+        if not os.path.exists(path):
+            continue
+        conn = http.client.HTTPConnection("localhost", timeout=5)
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            sock.settimeout(5)
+            sock.connect(path)
+            conn.sock = sock
+            conn.request("GET", "/registry/token")
+            resp = conn.getresponse()
+            body = resp.read().decode().strip()
+            if resp.status == 200:
+                token = body.strip('"')
+                if token:
+                    return token
+        except OSError:
+            pass
+        finally:
+            conn.close()
+    return None
+
+
 def get_docker_gateway_token() -> str:
-    """Get Docker Gateway token from Docker Desktop credentials or environment."""
+    """Get the gateway token: Hub bot credentials (CI), DOCKER_GATEWAY_TOKEN, then Docker Desktop."""
     import subprocess
     
     refresh_docker_gateway_token()
@@ -268,7 +306,12 @@ def get_docker_gateway_token() -> str:
     if token:
         return token
     
-    # Try to get from Docker Desktop credential store
+    # A running Docker Desktop mints a fresh token on request
+    token = _desktop_backend_token()
+    if token:
+        return token
+    
+    # Fall back to Docker Desktop's credential store (may hold an expired token)
     try:
         result = subprocess.run(
             ["docker-credential-desktop", "get"],

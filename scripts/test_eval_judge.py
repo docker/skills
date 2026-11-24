@@ -705,6 +705,57 @@ class AgentGatewayEnvTests(unittest.TestCase):
         self.assertEqual(env["CLAUDE_CONFIG_DIR"], "/home/me/.claude")  # codex env untouched
 
 
+class DesktopTokenTests(unittest.TestCase):
+    def _serve(self, status, body):
+        import http.server, socketserver, threading
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                ok = self.path == "/registry/token"
+                self.send_response(status if ok else 404)
+                self.end_headers()
+                self.wfile.write(body.encode() if ok else b"")
+
+            def log_message(self, *a):
+                pass
+
+        class Server(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
+            def get_request(self):
+                req, _ = super().get_request()
+                return req, ("local", 0)  # BaseHTTPRequestHandler expects a (host, port) address
+
+        d = tempfile.mkdtemp(dir="/tmp")  # short path: AF_UNIX paths are length-limited
+        self.addCleanup(eval_judge.shutil.rmtree, d, True)
+        path = eval_judge.os.path.join(d, "backend.sock")
+        srv = Server(path, Handler)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.server_close)
+        self.addCleanup(srv.shutdown)
+        return path
+
+    def _token(self, sockets, env_token=None):
+        from unittest import mock
+        with mock.patch.object(eval_judge, "DESKTOP_BACKEND_SOCKETS", sockets), \
+             mock.patch.object(eval_judge, "refresh_docker_gateway_token"), \
+             mock.patch.dict(eval_judge.os.environ, {}), \
+             mock.patch.object(eval_judge.subprocess, "run",
+                               return_value=mock.Mock(returncode=0, stdout='{"Secret": "stale"}')):
+            eval_judge.os.environ.pop("DOCKER_GATEWAY_TOKEN", None)
+            if env_token:
+                eval_judge.os.environ["DOCKER_GATEWAY_TOKEN"] = env_token
+            return eval_judge.get_docker_gateway_token()
+
+    def test_running_desktop_wins_over_credential_store(self):
+        self.assertEqual(self._token((self._serve(200, '"fresh"\n'),)), "fresh")
+
+    def test_env_token_wins_over_desktop(self):
+        sock = self._serve(200, '"fresh"')
+        self.assertEqual(self._token((sock,), "env"), "env")
+
+    def test_falls_back_to_credential_store(self):
+        self.assertEqual(self._token(("/nonexistent/backend.sock", self._serve(500, ""))), "stale")
+
+
 class ParseJudgeJsonTests(unittest.TestCase):
     def test_plain_json(self):
         self.assertEqual(eval_judge.parse_judge_json('{"evaluations": []}'), {"evaluations": []})
