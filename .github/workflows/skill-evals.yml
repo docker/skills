@@ -194,8 +194,9 @@ jobs:
         timeout-minutes: 110
         env:
           SKILL: ${{ matrix.skill }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # For the sbx re-login after a retry reset; stripped from the agent's environment.
+          # Lets eval_judge.py mint and re-mint the ~15-minute Docker AI Gateway token that
+          # Claude Code and the judge use, and re-login sbx after a retry reset; stripped
+          # from the agent's environment.
           DOCKERPUBLICBOT_READ_PAT: ${{ secrets.DOCKERPUBLICBOT_READ_PAT }}
           DOCKERPUBLICBOT_USERNAME: ${{ vars.DOCKERPUBLICBOT_USERNAME }}
           INPUT_MODEL: ${{ inputs.model || 'sonnet' }}
@@ -333,7 +334,6 @@ jobs:
         timeout-minutes: 110
         env:
           SKILL: ${{ matrix.skill }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # Lets eval_judge.py re-mint the ~15-minute gateway token during long jobs and
           # re-login sbx after a retry reset; stripped from the agent's environment.
           DOCKERPUBLICBOT_READ_PAT: ${{ secrets.DOCKERPUBLICBOT_READ_PAT }}

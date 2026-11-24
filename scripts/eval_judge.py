@@ -212,6 +212,13 @@ class JudgeResult:
 # Docker Hub credentials used only by this harness to mint short-lived (~15 min)
 # gateway tokens; never passed through to the agent under test.
 HUB_CREDENTIAL_VARS = ("DOCKERPUBLICBOT_USERNAME", "DOCKERPUBLICBOT_READ_PAT")
+# Docker AI Gateway: OpenAI-compatible (Codex, gpt-*/luna judge) and
+# Anthropic-compatible (Claude Code, Claude judge) endpoints, Bearer-token auth
+GATEWAY_INFERENCE_URL = "https://gw.docker.com/v1/docker/gateways/default/inference"
+GATEWAY_ANTHROPIC_URL = f"{GATEWAY_INFERENCE_URL}/anthropic"
+GATEWAY_OPENAI_URL = f"{GATEWAY_INFERENCE_URL}/openai/v1"
+# Env vars that could make Claude Code authenticate with something other than the gateway
+CLAUDE_AUTH_ENV_PREFIXES = ("ANTHROPIC_", "CLAUDE_CODE_OAUTH_", "CLAUDE_CODE_USE_", "CLAUDE_CONFIG_DIR")
 GATEWAY_TOKEN_MAX_AGE = 10 * 60  # refresh well before the 15-minute expiry
 _gateway_token_minted_at: float | None = None
 
@@ -251,8 +258,46 @@ def refresh_docker_gateway_token(force: bool = False) -> None:
         _gateway_token_minted_at = now
 
 
+# Docker Desktop backend sockets (macOS, Linux, WSL) serving a fresh Hub token
+# at /registry/token; the credential store copy can be expired
+DESKTOP_BACKEND_SOCKETS = (
+    "~/Library/Containers/com.docker.docker/Data/backend.sock",
+    "~/.docker/desktop/backend.sock",
+    "/var/run/docker-cli.sock",
+)
+
+
+def _desktop_backend_token() -> str | None:
+    """Ask a running Docker Desktop for a fresh Hub token (None if unavailable)."""
+    import http.client
+    import socket
+
+    for raw in DESKTOP_BACKEND_SOCKETS:
+        path = os.path.expanduser(raw)
+        if not os.path.exists(path):
+            continue
+        conn = http.client.HTTPConnection("localhost", timeout=5)
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            sock.settimeout(5)
+            sock.connect(path)
+            conn.sock = sock
+            conn.request("GET", "/registry/token")
+            resp = conn.getresponse()
+            body = resp.read().decode().strip()
+            if resp.status == 200:
+                token = body.strip('"')
+                if token:
+                    return token
+        except OSError:
+            pass
+        finally:
+            conn.close()
+    return None
+
+
 def get_docker_gateway_token() -> str:
-    """Get Docker Gateway token from Docker Desktop credentials or environment."""
+    """Get the gateway token: Hub bot credentials (CI), DOCKER_GATEWAY_TOKEN, then Docker Desktop."""
     import subprocess
     
     refresh_docker_gateway_token()
@@ -261,7 +306,12 @@ def get_docker_gateway_token() -> str:
     if token:
         return token
     
-    # Try to get from Docker Desktop credential store
+    # A running Docker Desktop mints a fresh token on request
+    token = _desktop_backend_token()
+    if token:
+        return token
+    
+    # Fall back to Docker Desktop's credential store (may hold an expired token)
     try:
         result = subprocess.run(
             ["docker-credential-desktop", "get"],
@@ -271,9 +321,9 @@ def get_docker_gateway_token() -> str:
             timeout=5
         )
         if result.returncode == 0:
-            import json as json_mod
-            cred = json_mod.loads(result.stdout)
-            return cred.get("Secret", "")
+            secret = json.loads(result.stdout).get("Secret", "")
+            if secret:
+                return secret
     except (subprocess.TimeoutExpired, FileNotFoundError, json.JSONDecodeError):
         pass
     
@@ -281,16 +331,14 @@ def get_docker_gateway_token() -> str:
 
 
 def call_judge(prompt: str, model: str) -> dict[str, Any]:
-    """Call LLM judge via Anthropic API or Docker Gateway (for Luna models)."""
+    """Call LLM judge via the Docker AI Gateway (OpenAI API for gpt-*/luna, Anthropic API otherwise)."""
     import urllib.request
     import urllib.error
     
-    # Use Docker Gateway for Luna/GPT models, Anthropic for Claude models
-    use_docker_gateway = model.startswith("gpt-") or "luna" in model.lower()
+    use_openai_api = model.startswith("gpt-") or "luna" in model.lower()
+    api_key = get_docker_gateway_token()
     
-    if use_docker_gateway:
-        api_key = get_docker_gateway_token()
-        
+    if use_openai_api:
         body = json.dumps({
             "model": model,
             "max_completion_tokens": 4096,
@@ -300,7 +348,7 @@ def call_judge(prompt: str, model: str) -> dict[str, Any]:
         }).encode()
         
         req = urllib.request.Request(
-            "https://gw.docker.com/v1/docker/gateways/default/inference/openai/v1/chat/completions",
+            f"{GATEWAY_OPENAI_URL}/chat/completions",
             data=body,
             headers={
                 "Content-Type": "application/json",
@@ -308,10 +356,6 @@ def call_judge(prompt: str, model: str) -> dict[str, Any]:
             },
         )
     else:
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY not set")
-        
         body = json.dumps({
             "model": model,
             "max_tokens": 4096,
@@ -324,11 +368,11 @@ def call_judge(prompt: str, model: str) -> dict[str, Any]:
         }).encode()
         
         req = urllib.request.Request(
-            "https://api.anthropic.com/v1/messages",
+            f"{GATEWAY_ANTHROPIC_URL}/v1/messages",
             data=body,
             headers={
                 "Content-Type": "application/json",
-                "x-api-key": api_key,
+                "Authorization": f"Bearer {api_key}",
                 "anthropic-version": "2023-06-01",
             },
         )
@@ -340,7 +384,7 @@ def call_judge(prompt: str, model: str) -> dict[str, Any]:
         raise JudgeAPIError(e.code, e.read().decode() if e.fp else '') from e
     
     # Extract text from response (different format for OpenAI vs Anthropic)
-    if use_docker_gateway:
+    if use_openai_api:
         choice = result.get("choices", [{}])[0]
         text = choice.get("message", {}).get("content", "") or ""
         stop = choice.get("finish_reason")
@@ -712,6 +756,9 @@ def run_agent(eval_prompt: EvalPrompt, args: argparse.Namespace, run_dir: Path) 
         cmd = [
             args.agent_bin, "-p", eval_prompt.prompt,
             "--output-format", "stream-json", "--verbose",
+            # Skip user/local settings so a personal apiKeyHelper or ANTHROPIC_BASE_URL
+            # can't override the gateway credentials set below
+            "--setting-sources", "project",
             "--permission-mode", "dontAsk",
             "--allowedTools", "Skill", "Read", "Glob", "Grep", "Bash", "Write", "Edit",
             "--disallowedTools", "WebFetch", "WebSearch", "Task",
@@ -738,6 +785,17 @@ def run_agent(eval_prompt: EvalPrompt, args: argparse.Namespace, run_dir: Path) 
     transcript_path = run_dir / "transcript.jsonl"
     refresh_docker_gateway_token()  # long jobs outlive the ~15-minute gateway token
     env = {k: v for k, v in os.environ.items() if v and k not in HUB_CREDENTIAL_VARS}
+    # Both agents go through the Docker AI Gateway; Codex reads DOCKER_GATEWAY_TOKEN
+    # via its model provider config, Claude Code via ANTHROPIC_AUTH_TOKEN (Bearer)
+    env["DOCKER_GATEWAY_TOKEN"] = get_docker_gateway_token()
+    if args.agent == "claude":
+        # Never fall back to a local Claude login: drop every other credential or
+        # provider switch (ANTHROPIC_API_KEY wins over ANTHROPIC_AUTH_TOKEN), and use
+        # an empty config dir so no OAuth login or user settings are found
+        env = {k: v for k, v in env.items() if not k.startswith(CLAUDE_AUTH_ENV_PREFIXES)}
+        env["CLAUDE_CONFIG_DIR"] = str(root / "claude-config")
+        env["ANTHROPIC_BASE_URL"] = GATEWAY_ANTHROPIC_URL
+        env["ANTHROPIC_AUTH_TOKEN"] = env["DOCKER_GATEWAY_TOKEN"]
     
     exit_code: int | None = None
     timed_out = False
@@ -1052,8 +1110,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{args.agent_bin} not found", file=sys.stderr)
         return 2
     
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("ANTHROPIC_API_KEY required", file=sys.stderr)
+    try:
+        get_docker_gateway_token()
+    except RuntimeError as e:
+        print(f"Docker AI Gateway token required: {e}", file=sys.stderr)
         return 2
     
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
