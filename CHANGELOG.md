@@ -19,6 +19,11 @@ for distribution releases.
 - The plugin now registers the remote Docker docs MCP server
   (`https://ai-backend-service.docker.com/mcp`) for Claude Code, Codex, Cursor,
   GitHub Copilot CLI, and Gemini CLI installations.
+- A daily, manually triggerable `sbx CLI drift` workflow checks the Docker
+  Sandboxes skills and the public Docker Sandboxes docs against the `--help` of
+  the latest `sbx` release, using an LLM through the Docker AI Gateway. It logs
+  each incoherence and fails when any is found; hidden commands and flags, and
+  findings whose quotes are not in the sources, are logged but ignored.
 
 ### Fixed
 

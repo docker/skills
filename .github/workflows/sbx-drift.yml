@@ -1,0 +1,62 @@
+name: sbx CLI drift
+
+# Daily check that the Docker Sandboxes skills and the public docs
+# (https://docs.docker.com/ai/sandboxes/) match the `--help` of the latest sbx
+# release. An LLM behind the Docker AI Gateway (same credentials as the live
+# skill evals) compares them; incoherences are printed in the logs and fail the run.
+on:
+  schedule:
+    - cron: "41 5 * * *"
+  workflow_dispatch:
+    inputs:
+      sbx_version:
+        description: "sbx release tag to check, e.g. v0.54.1 (empty: latest release)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sbx-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sbx-drift:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Only the CLI binary is needed: `--help` needs neither the daemon, KVM, nor sign-in
+      - name: Download sbx release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Untrusted values reach the shell only through env vars, never ${{ }} interpolation
+          INPUT_SBX_VERSION: ${{ inputs.sbx_version }}
+        run: |
+          TAG="$INPUT_SBX_VERSION"
+          if [ -z "$TAG" ]; then
+            TAG=$(gh release view --repo docker/sbx-releases --json tagName --jq .tagName)
+          fi
+          if ! printf '%s\n' "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'; then
+            echo "::error::Invalid sbx release tag: must look like v1.2.3"
+            exit 1
+          fi
+          gh release download "$TAG" --repo docker/sbx-releases \
+            --pattern DockerSandboxes-linux-amd64.tar.gz --dir "$RUNNER_TEMP"
+          tar -xzf "$RUNNER_TEMP/DockerSandboxes-linux-amd64.tar.gz" -C "$RUNNER_TEMP" docker-sbx/sbx
+          echo "SBX_BIN=$RUNNER_TEMP/docker-sbx/sbx" >> "$GITHUB_ENV"
+          echo "Checking sbx $TAG"
+          "$RUNNER_TEMP/docker-sbx/sbx" version
+
+      - name: Check skills and docs against sbx --help
+        timeout-minutes: 40
+        env:
+          # Lets check_sbx_drift.py mint the ~15-minute Docker AI Gateway token;
+          # never passed to the sbx binary.
+          DOCKERPUBLICBOT_READ_PAT: ${{ secrets.DOCKERPUBLICBOT_READ_PAT }}
+          DOCKERPUBLICBOT_USERNAME: ${{ vars.DOCKERPUBLICBOT_USERNAME }}
+        run: python3 scripts/check_sbx_drift.py --sbx "$SBX_BIN"
